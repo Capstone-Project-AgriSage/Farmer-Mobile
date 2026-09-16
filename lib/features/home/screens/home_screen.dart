@@ -143,7 +143,7 @@ class HomeScreen extends StatelessWidget {
               const SizedBox(width: 12),
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () {},
+                  onPressed: () => context.push('/ai-scan/history'),
                   icon: const Icon(Icons.history, color: Colors.white, size: 20),
                   label: const Text('Xem lịch sử', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(

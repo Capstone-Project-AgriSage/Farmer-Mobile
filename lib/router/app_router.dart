@@ -299,7 +299,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // ── Payment ───────────────────────────────────────────────
       GoRoute(
         path: AppRoutes.qrPayment,
-        builder: (_, __) => const QrPaymentScreen(),
+        builder: (_, __) => const QRPaymentScreen(),
       ),
       GoRoute(
         path: AppRoutes.paymentPending,

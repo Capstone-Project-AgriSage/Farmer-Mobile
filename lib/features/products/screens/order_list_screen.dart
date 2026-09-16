@@ -20,6 +20,16 @@ class _OrderListScreenState extends State<OrderListScreen> {
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back),
+          onPressed: () {
+            if (context.canPop()) {
+              context.pop();
+            } else {
+              context.go('/home');
+            }
+          },
+        ),
         title: const Text('Đơn hàng của tôi'),
         actions: [
           IconButton(icon: const Icon(Icons.search, color: AppColors.textPrimary), onPressed: () {}),

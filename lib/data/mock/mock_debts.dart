@@ -1,0 +1,48 @@
+import '../models/debt.dart';
+
+final List<Debt> mockDebts = [
+  Debt(
+    id: 'D-001',
+    agentName: 'Đại lý VTNN Hai Lúa',
+    amount: 15000000,
+    createdAt: DateTime.now().subtract(const Duration(days: 30)),
+    dueDate: DateTime.now().add(const Duration(days: 5)),
+    status: DebtStatus.soonDue,
+    farmerConfirmed: true,
+    agentConfirmed: true,
+    note: 'Mua phân bón DAP, Urea vụ Đông Xuân',
+  ),
+  Debt(
+    id: 'D-002',
+    agentName: 'Đại lý VTNN Hai Lúa',
+    amount: 5500000,
+    createdAt: DateTime.now().subtract(const Duration(days: 60)),
+    dueDate: DateTime.now().subtract(const Duration(days: 2)),
+    status: DebtStatus.overdue,
+    farmerConfirmed: true,
+    agentConfirmed: true,
+    note: 'Thuốc trừ sâu bệnh đạo ôn',
+  ),
+  Debt(
+    id: 'D-003',
+    agentName: 'Đại lý VTNN Sáu Thơm',
+    amount: 8200000,
+    createdAt: DateTime.now().subtract(const Duration(days: 15)),
+    dueDate: DateTime.now().add(const Duration(days: 45)),
+    status: DebtStatus.normal,
+    farmerConfirmed: true,
+    agentConfirmed: false,
+    note: 'Lúa giống Đài Thơm 8',
+  ),
+  Debt(
+    id: 'D-004',
+    agentName: 'Đại lý VTNN Hai Lúa',
+    amount: 12000000,
+    createdAt: DateTime.now().subtract(const Duration(days: 120)),
+    dueDate: DateTime.now().subtract(const Duration(days: 30)),
+    status: DebtStatus.paid,
+    farmerConfirmed: true,
+    agentConfirmed: true,
+    note: 'Thanh toán nợ cũ vụ Hè Thu',
+  ),
+];
