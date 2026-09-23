@@ -54,14 +54,15 @@ class ProfileScreen extends StatelessWidget {
               padding: const EdgeInsets.all(16),
               child: Column(
                 children: [
-                  _buildSection(
-                    'TÀI KHOẢN',
-                    [
-                      _buildTile(Icons.person_outline, 'Thông tin cá nhân', () => context.push('/profile/edit')),
-                      _buildTile(Icons.lock_outline, 'Đổi mật khẩu', () => context.push('/profile/password')),
-                      _buildTile(Icons.notifications_outlined, 'Cài đặt thông báo', () => context.push('/profile/notifications')),
-                    ],
-                  ),
+                    _buildSection(
+                      'TÀI KHOẢN',
+                      [
+                        _buildTile(Icons.person_outline, 'Thông tin cá nhân', () => context.push('/profile/edit')),
+                        _buildTile(Icons.location_on_outlined, 'Quản lý địa chỉ', () => context.push('/profile/addresses')),
+                        _buildTile(Icons.lock_outline, 'Đổi mật khẩu', () => context.push('/profile/password')),
+                        _buildTile(Icons.notifications_outlined, 'Cài đặt thông báo', () => context.push('/profile/notifications')),
+                      ],
+                    ),
                   const SizedBox(height: 20),
                   _buildSection(
                     'HỖ TRỢ',
@@ -108,25 +109,30 @@ class ProfileScreen extends StatelessWidget {
         ),
         Container(
           decoration: BoxDecoration(
-            color: Colors.white,
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.borderSubtle),
             boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 4))],
           ),
-          child: Column(
-            children: children.asMap().entries.map((entry) {
-              final index = entry.key;
-              final child = entry.value;
-              if (index < children.length - 1) {
-                return Column(
-                  children: [
-                    child,
-                    const Divider(height: 1, indent: 56, endIndent: 16, color: AppColors.borderSubtle),
-                  ],
-                );
-              }
-              return child;
-            }).toList(),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(16),
+            child: Material(
+              color: Colors.white,
+              child: Column(
+                children: children.asMap().entries.map((entry) {
+                  final index = entry.key;
+                  final child = entry.value;
+                  if (index < children.length - 1) {
+                    return Column(
+                      children: [
+                        child,
+                        const Divider(height: 1, indent: 56, endIndent: 16, color: AppColors.borderSubtle),
+                      ],
+                    );
+                  }
+                  return child;
+                }).toList(),
+              ),
+            ),
           ),
         ),
       ],

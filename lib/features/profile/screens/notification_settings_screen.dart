@@ -34,44 +34,49 @@ class _NotificationSettingsScreenState extends State<NotificationSettingsScreen>
             ),
             Container(
               decoration: BoxDecoration(
-                color: Colors.white,
                 borderRadius: BorderRadius.circular(16),
                 border: Border.all(color: AppColors.borderSubtle),
               ),
-              child: Column(
-                children: [
-                  _buildSwitchTile(
-                    title: 'Cập nhật đơn hàng',
-                    subtitle: 'Thông báo khi đơn hàng được xác nhận, đang giao...',
-                    icon: Icons.local_shipping_outlined,
-                    value: _orderUpdates,
-                    onChanged: (val) => setState(() => _orderUpdates = val),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Material(
+                  color: Colors.white,
+                  child: Column(
+                    children: [
+                      _buildSwitchTile(
+                        title: 'Cập nhật đơn hàng',
+                        subtitle: 'Thông báo khi đơn hàng được xác nhận, đang giao...',
+                        icon: Icons.local_shipping_outlined,
+                        value: _orderUpdates,
+                        onChanged: (val) => setState(() => _orderUpdates = val),
+                      ),
+                      const Divider(height: 1, indent: 56, endIndent: 16, color: AppColors.borderSubtle),
+                      _buildSwitchTile(
+                        title: 'Nhắc nhở công nợ',
+                        subtitle: 'Nhận thông báo khi có khoản nợ sắp đến hạn.',
+                        icon: Icons.account_balance_wallet_outlined,
+                        value: _debtReminders,
+                        onChanged: (val) => setState(() => _debtReminders = val),
+                      ),
+                      const Divider(height: 1, indent: 56, endIndent: 16, color: AppColors.borderSubtle),
+                      _buildSwitchTile(
+                        title: 'Khuyến mãi & Tin tức',
+                        subtitle: 'Thông tin giảm giá, mẹo nông nghiệp mới nhất.',
+                        icon: Icons.campaign_outlined,
+                        value: _promotions,
+                        onChanged: (val) => setState(() => _promotions = val),
+                      ),
+                      const Divider(height: 1, indent: 56, endIndent: 16, color: AppColors.borderSubtle),
+                      _buildSwitchTile(
+                        title: 'Cập nhật hệ thống',
+                        subtitle: 'Thông báo về tính năng mới, bảo trì ứng dụng.',
+                        icon: Icons.system_update_outlined,
+                        value: _systemAlerts,
+                        onChanged: (val) => setState(() => _systemAlerts = val),
+                      ),
+                    ],
                   ),
-                  const Divider(height: 1, indent: 56, endIndent: 16, color: AppColors.borderSubtle),
-                  _buildSwitchTile(
-                    title: 'Nhắc nhở công nợ',
-                    subtitle: 'Nhận thông báo khi có khoản nợ sắp đến hạn.',
-                    icon: Icons.account_balance_wallet_outlined,
-                    value: _debtReminders,
-                    onChanged: (val) => setState(() => _debtReminders = val),
-                  ),
-                  const Divider(height: 1, indent: 56, endIndent: 16, color: AppColors.borderSubtle),
-                  _buildSwitchTile(
-                    title: 'Khuyến mãi & Tin tức',
-                    subtitle: 'Thông tin giảm giá, mẹo nông nghiệp mới nhất.',
-                    icon: Icons.campaign_outlined,
-                    value: _promotions,
-                    onChanged: (val) => setState(() => _promotions = val),
-                  ),
-                  const Divider(height: 1, indent: 56, endIndent: 16, color: AppColors.borderSubtle),
-                  _buildSwitchTile(
-                    title: 'Cập nhật hệ thống',
-                    subtitle: 'Thông báo về tính năng mới, bảo trì ứng dụng.',
-                    icon: Icons.system_update_outlined,
-                    value: _systemAlerts,
-                    onChanged: (val) => setState(() => _systemAlerts = val),
-                  ),
-                ],
+                ),
               ),
             ),
           ],

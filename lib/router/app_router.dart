@@ -57,8 +57,15 @@ import '../features/profile/screens/notification_settings_screen.dart';
 import '../features/profile/screens/terms_screen.dart';
 import '../features/profile/screens/privacy_screen.dart';
 import '../features/profile/screens/help_support_screen.dart';
+import '../features/profile/screens/address_list_screen.dart';
+import '../features/profile/screens/address_form_screen.dart';
 
-// Route path constants
+// Articles
+import '../features/home/screens/article_list_screen.dart';
+import '../features/home/screens/article_detail_screen.dart';
+
+// Reviews
+import '../features/products/screens/write_review_screen.dart';
 abstract class AppRoutes {
   // Auth
   static const splash = '/';
@@ -169,6 +176,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: 'notifications',
                 builder: (_, __) => const NotificationScreen(),
               ),
+              GoRoute(
+                path: 'articles',
+                builder: (_, __) => const ArticleListScreen(),
+              ),
+              GoRoute(
+                path: 'articles/:id',
+                builder: (_, state) => ArticleDetailScreen(
+                  articleId: state.pathParameters['id']!,
+                ),
+              ),
             ],
           ),
           GoRoute(
@@ -178,6 +195,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: ':slug',
                 builder: (_, state) => ProductDetailScreen(
+                  slug: state.pathParameters['slug']!,
+                ),
+              ),
+              GoRoute(
+                path: ':slug/review',
+                builder: (_, state) => WriteReviewScreen(
                   slug: state.pathParameters['slug']!,
                 ),
               ),
@@ -270,6 +293,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'help',
                 builder: (_, __) => const HelpSupportScreen(),
+              ),
+              GoRoute(
+                path: 'addresses',
+                builder: (_, __) => const AddressListScreen(),
+              ),
+              GoRoute(
+                path: 'addresses/add',
+                builder: (_, __) => const AddressFormScreen(),
+              ),
+              GoRoute(
+                path: 'addresses/edit/:id',
+                builder: (_, state) => AddressFormScreen(
+                  addressId: state.pathParameters['id'],
+                ),
               ),
             ],
           ),

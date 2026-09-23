@@ -34,6 +34,10 @@ class HomeScreen extends StatelessWidget {
 
               // Orders Card
               _buildOrdersCard(context),
+              const SizedBox(height: 20),
+
+              // Articles Card
+              _buildArticlesCard(context),
               const SizedBox(height: 80), // Padding for bottom nav
             ],
           ),
@@ -344,4 +348,88 @@ class HomeScreen extends StatelessWidget {
       ),
     );
   }
+
+  Widget _buildArticlesCard(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.borderSubtle),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              const Text('TIN TỨC & KIẾN THỨC', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5)),
+              GestureDetector(
+                onTap: () => context.go('${AppRoutes.home}/articles'),
+                child: Text('Xem tất cả >', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          _buildArticleSnippet(
+            context,
+            'Cách phòng trừ bệnh đạo ôn lúa Đông Xuân',
+            'Sâu Bệnh',
+            'a1',
+          ),
+          const Divider(height: 24, color: AppColors.borderSubtle),
+          _buildArticleSnippet(
+            context,
+            'Cập nhật giá lúa gạo thị trường ĐBSCL tuần này',
+            'Thị Trường',
+            'a3',
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildArticleSnippet(BuildContext context, String title, String category, String id) {
+    return GestureDetector(
+      onTap: () => context.push('${AppRoutes.home}/articles/$id'),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 80,
+            height: 60,
+            decoration: BoxDecoration(
+              color: AppColors.surfaceSubtle,
+              borderRadius: BorderRadius.circular(8),
+              image: const DecorationImage(
+                image: NetworkImage('https://images.unsplash.com/photo-1595186259024-2c672b146430?q=80&w=200&auto=format&fit=crop'),
+                fit: BoxFit.cover,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(4)),
+                  child: Text(category, style: TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.bold)),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  title,
+                  style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
+

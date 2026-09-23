@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../router/app_router.dart';
+import '../../../data/mock/mock_reviews.dart';
+import 'package:intl/intl.dart';
 
 class ProductDetailScreen extends StatefulWidget {
   final String slug;
@@ -240,6 +242,9 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
               ),
             ),
 
+            // Reviews Section
+            _buildReviewsSection(context),
+
             // Related Products
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
@@ -431,4 +436,116 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
       ),
     );
   }
+
+  Widget _buildReviewsSection(BuildContext context) {
+    return _buildSection(
+      icon: Icons.star_border,
+      title: 'Đánh giá từ người dùng',
+      child: Column(
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  Text('4.7', style: AppTextStyles.h2),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: List.generate(5, (index) => const Icon(Icons.star, color: Colors.orange, size: 16)),
+                      ),
+                      Text('Dựa trên 128 đánh giá', style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
+                    ],
+                  ),
+                ],
+              ),
+              ElevatedButton(
+                onPressed: () => context.push('/products/${widget.slug}/review'),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.white,
+                  foregroundColor: AppColors.primary,
+                  side: const BorderSide(color: AppColors.primary),
+                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                ),
+                child: const Text('Viết đánh giá', style: TextStyle(fontWeight: FontWeight.bold)),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          ...mockReviews.map((review) => _buildReviewItem(review)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildReviewItem(dynamic review) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(12),
+        border: Border.all(color: AppColors.borderSubtle),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Row(
+                children: [
+                  CircleAvatar(
+                    radius: 16,
+                    backgroundColor: AppColors.surfaceSubtle,
+                    child: Text(review.userName[0], style: const TextStyle(color: AppColors.textPrimary, fontWeight: FontWeight.bold, fontSize: 12)),
+                  ),
+                  const SizedBox(width: 8),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(review.userName, style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold)),
+                      if (review.isVerifiedPurchase)
+                        Row(
+                          children: [
+                            const Icon(Icons.verified, color: AppColors.statusSuccess, size: 12),
+                            const SizedBox(width: 2),
+                            Text('Đã mua hàng', style: TextStyle(fontSize: 10, color: AppColors.statusSuccess)),
+                          ],
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+              Text(DateFormat('dd/MM/yyyy').format(review.createdAt), style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
+            ],
+          ),
+          const SizedBox(height: 8),
+          Row(
+            children: List.generate(5, (index) => Icon(index < review.rating ? Icons.star : Icons.star_border, color: Colors.orange, size: 14)),
+          ),
+          const SizedBox(height: 8),
+          Text(review.comment, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary)),
+          if (review.imageUrls.isNotEmpty) ...[
+            const SizedBox(height: 8),
+            Row(
+              children: review.imageUrls.map<Widget>((url) => Container(
+                margin: const EdgeInsets.only(right: 8),
+                width: 60,
+                height: 60,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  image: DecorationImage(image: NetworkImage(url), fit: BoxFit.cover),
+                ),
+              )).toList(),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
 }
+
