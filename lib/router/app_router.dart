@@ -46,12 +46,6 @@ import '../features/debt/screens/debt_history_screen.dart';
 // AI Doctor
 import '../features/ai_doctor/screens/ai_scan_home_screen.dart';
 import '../features/ai_doctor/screens/image_capture_screen.dart';
-import '../features/ai_doctor/screens/ai_analyzing_screen.dart';
-import '../features/ai_doctor/screens/diagnose_result_screen.dart';
-import '../features/ai_doctor/screens/diagnose_uncertain_screen.dart';
-import '../features/ai_doctor/screens/suggestion_pending_screen.dart';
-import '../features/ai_doctor/screens/product_suggestion_screen.dart';
-import '../features/ai_doctor/screens/diagnose_history_screen.dart';
 
 // Profile
 import '../features/profile/screens/profile_screen.dart';
@@ -66,7 +60,6 @@ import '../features/profile/screens/address_form_screen.dart';
 
 // Articles
 import '../features/home/screens/article_list_screen.dart';
-import '../features/home/screens/article_detail_screen.dart';
 
 abstract class AppRoutes {
   // Auth
@@ -106,12 +99,6 @@ abstract class AppRoutes {
 
   // AI Doctor
   static const imageCapture = '/ai-scan/capture';
-  static const aiAnalyzing = '/ai-scan/analyzing';
-  static const diagnoseResult = '/ai-scan/result';
-  static const diagnoseUncertain = '/ai-scan/uncertain';
-  static const suggestionPending = '/ai-scan/suggestion-pending';
-  static const productSuggestion = '/ai-scan/suggestion';
-  static const diagnoseHistory = '/ai-scan/history';
 
   // Profile sub-pages
   static const editProfile = '/profile/edit';
@@ -224,12 +211,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: 'articles',
                 builder: (_, __) => const ArticleListScreen(),
               ),
-              GoRoute(
-                path: 'articles/:id',
-                builder: (_, state) => ArticleDetailScreen(
-                  articleId: state.pathParameters['id']!,
-                ),
-              ),
             ],
           ),
           GoRoute(
@@ -251,30 +232,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'capture',
                 builder: (_, __) => const ImageCaptureScreen(),
-              ),
-              GoRoute(
-                path: 'analyzing',
-                builder: (_, __) => const AiAnalyzingScreen(),
-              ),
-              GoRoute(
-                path: 'result',
-                builder: (_, __) => const DiagnoseResultScreen(),
-              ),
-              GoRoute(
-                path: 'uncertain',
-                builder: (_, __) => const DiagnoseUncertainScreen(),
-              ),
-              GoRoute(
-                path: 'suggestion-pending',
-                builder: (_, __) => const SuggestionPendingScreen(),
-              ),
-              GoRoute(
-                path: 'suggestion',
-                builder: (_, __) => const ProductSuggestionScreen(),
-              ),
-              GoRoute(
-                path: 'history',
-                builder: (_, __) => const DiagnoseHistoryScreen(),
               ),
             ],
           ),

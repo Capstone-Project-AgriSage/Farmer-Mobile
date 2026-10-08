@@ -39,6 +39,12 @@ CI (`.github/workflows/flutter-ci.yml`) chạy `analyze` và `test` cho mỗi PR
 - Backend ở chế độ `PayOS:Mode=Simulated` thì link chính là trang trả về: màn kết quả hiện nút "Thanh toán nhanh (môi trường thử)".
 - Khi `SHOW_DEV_TOOLS=true` (có trong `env/emulator.json`), màn Tài khoản có mục "Công cụ phát triển" để thử WebView với trang giả: xem `tool/payos_webview_test/README.md`.
 
+## Màn chưa có backend
+Bác sĩ AI (phân tích ảnh), Thông báo, Tin tức, Cài đặt thông báo và Trợ giúp hiện hiển thị "Sắp ra mắt" (`core/widgets/coming_soon_view.dart`), không có dữ liệu mẫu. Màn chụp ảnh của Bác sĩ AI vẫn chọn được ảnh nhưng ảnh không gửi đi đâu.
+
+## Biểu tượng ứng dụng
+Biểu tượng Android được vẽ từ `assets/images/logo.svg`. Khi đổi logo, chạy `flutter test tool/make_launcher_icons.dart` để tạo lại các file `ic_launcher.png`.
+
 ## Cấu trúc
 ```
 lib/

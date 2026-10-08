@@ -1,9 +1,20 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+
+/// The photo never leaves the phone: there is no AI service behind the "analyse" button yet.
+Future<void> showAiComingSoonDialog(BuildContext context) {
+  return showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Sắp ra mắt'),
+      content: const Text('Tính năng phân tích ảnh bằng AI đang được hoàn thiện. Ảnh của Bác chưa được gửi đi đâu cả.'),
+      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đã hiểu'))],
+    ),
+  );
+}
 
 class ImageCaptureScreen extends StatefulWidget {
   const ImageCaptureScreen({super.key});
@@ -233,7 +244,7 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => context.push('/ai-scan/analyzing'),
+                  onPressed: () => showAiComingSoonDialog(context),
                   icon: const Icon(Icons.auto_awesome, size: 20),
                   label: const Text('Phân tích bằng AI'),
                   style: ElevatedButton.styleFrom(

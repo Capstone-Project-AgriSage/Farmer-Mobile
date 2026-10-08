@@ -36,16 +36,12 @@ class HomeScreen extends ConsumerWidget {
               _buildAiBanner(context),
               const SizedBox(height: 20),
 
-              // Approved Suggestion Card
-              _buildSuggestionCard(context),
+              // Shortcuts to the parts of the app that have real data
+              _buildShortcuts(context),
               const SizedBox(height: 20),
 
-              // Orders Card
-              _buildOrdersCard(context),
-              const SizedBox(height: 20),
-
-              // Articles Card
-              _buildArticlesCard(context),
+              // Articles have no backend yet
+              _buildNewsRow(context),
               const SizedBox(height: 80), // Padding for bottom nav
             ],
           ),
@@ -101,12 +97,6 @@ class HomeScreen extends ConsumerWidget {
       decoration: BoxDecoration(
         color: const Color(0xFF1B5E20), // Dark green
         borderRadius: BorderRadius.circular(16),
-        image: DecorationImage(
-          image: const NetworkImage('https://cdn-icons-png.flaticon.com/512/6183/6183181.png'), // Placeholder leaf watermark
-          fit: BoxFit.none,
-          alignment: Alignment.centerRight,
-          colorFilter: ColorFilter.mode(Colors.white.withValues(alpha: 0.05), BlendMode.dstIn),
-        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -117,7 +107,7 @@ class HomeScreen extends ConsumerWidget {
               color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
             ),
-            child: const Text('Hỗ trợ nhận diện AI', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
+            child: const Text('Hỗ trợ nhận diện AI · Sắp ra mắt', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
           ),
           const SizedBox(height: 16),
           const Text('Kiểm tra bệnh trên cây lúa', style: TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
@@ -141,292 +131,79 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 ),
               ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildShortcuts(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(child: _buildShortcut(Icons.storefront_outlined, 'Mua sắm', () => context.go(AppRoutes.products))),
+        const SizedBox(width: 12),
+        Expanded(child: _buildShortcut(Icons.receipt_long_outlined, 'Đơn hàng', () => context.push(AppRoutes.orderList))),
+        const SizedBox(width: 12),
+        Expanded(child: _buildShortcut(Icons.account_balance_wallet_outlined, 'Công nợ', () => context.go(AppRoutes.debt))),
+      ],
+    );
+  }
+
+  Widget _buildShortcut(IconData icon, String label, VoidCallback onTap) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.symmetric(vertical: 18),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.borderSubtle),
+          ),
+          child: Column(
+            children: [
+              Icon(icon, size: 28, color: AppColors.primary),
+              const SizedBox(height: 8),
+              Text(label, style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600)),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildNewsRow(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(16),
+      child: InkWell(
+        onTap: () => context.push('${AppRoutes.home}/articles'),
+        borderRadius: BorderRadius.circular(16),
+        child: Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            border: Border.all(color: AppColors.borderSubtle),
+          ),
+          child: Row(
+            children: [
+              const Icon(Icons.article_outlined, color: AppColors.textSecondary),
               const SizedBox(width: 12),
-              Expanded(
-                child: ElevatedButton.icon(
-                  onPressed: () => context.push('/ai-scan/history'),
-                  icon: const Icon(Icons.history, color: Colors.white, size: 20),
-                  label: const Text('Xem lịch sử', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF0F3D15), // Darker green
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                ),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSuggestionCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderSubtle),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.verified_outlined, color: AppColors.textSecondary, size: 20),
-                  const SizedBox(width: 8),
-                  Text('GỢI Ý ĐÃ ĐƯỢC DUYỆT', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: AppColors.textSecondary, letterSpacing: 0.5)),
-                ],
-              ),
+              Expanded(child: Text('Tin tức & kiến thức', style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600))),
               Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: AppColors.statusSuccessSurface, borderRadius: BorderRadius.circular(12)),
-                child: Text('Đại lý xác nhận', style: AppTextStyles.caption.copyWith(color: AppColors.statusSuccess, fontWeight: FontWeight.w600)),
+                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                decoration: BoxDecoration(color: AppColors.statusWarningSurface, borderRadius: BorderRadius.circular(10)),
+                child: Text('Sắp ra mắt', style: AppTextStyles.caption.copyWith(color: AppColors.statusWarning, fontWeight: FontWeight.w600)),
               ),
+              const SizedBox(width: 4),
+              const Icon(Icons.chevron_right, color: AppColors.textMuted),
             ],
           ),
-          const SizedBox(height: 16),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text('Bệnh vừa nhận diện:', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
-              Text('04/12/2024', style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
-            ],
-          ),
-          const SizedBox(height: 6),
-          Row(
-            children: [
-              Container(width: 6, height: 6, decoration: const BoxDecoration(color: Colors.orange, shape: BoxShape.circle)),
-              const SizedBox(width: 8),
-              const Text('Đạo ôn lá (Pyricularia oryzae)', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 15)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Text('GỢI Ý SẢN PHẨM THƯƠNG MẠI', style: AppTextStyles.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-          const SizedBox(height: 8),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('Thuốc đặc trị Fuji-One 40WP', style: TextStyle(fontWeight: FontWeight.w600, fontSize: 14)),
-              Text('85.000đ', style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
-            ],
-          ),
-          const SizedBox(height: 12),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Row(
-                children: [
-                  const Icon(Icons.check_circle_outline, color: AppColors.primary, size: 16),
-                  const SizedBox(width: 6),
-                  Text('Đã thẩm định bởi Đại lý Cần Thơ', style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
-                ],
-              ),
-              GestureDetector(
-                onTap: () {},
-                child: Text('Đặt mua >', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textPrimary, fontWeight: FontWeight.bold)),
-              ),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOrdersCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderSubtle),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('ĐƠN HÀNG CỦA BẠN', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5)),
-              GestureDetector(
-                onTap: () => context.go(AppRoutes.orderList),
-                child: Text('Xem tất cả >', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          Row(
-            children: [
-              Expanded(child: _buildOrderStatBox('Chờ xác nhận', '0', false)),
-              const SizedBox(width: 8),
-              Expanded(child: _buildOrderStatBox('Đang giao', '1', true)),
-              const SizedBox(width: 8),
-              Expanded(child: _buildOrderStatBox('Hoàn thành', '13', false)),
-            ],
-          ),
-          const SizedBox(height: 16),
-          // Order Detail Snippet
-          Container(
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: AppColors.surfaceSubtle,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Column(
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const Text('#DH-8842', style: TextStyle(fontWeight: FontWeight.bold)),
-                        const SizedBox(width: 8),
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                          decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(4)),
-                          child: Text('Đang vận chuyển', style: TextStyle(fontSize: 10, color: Colors.orange.shade800, fontWeight: FontWeight.bold)),
-                        ),
-                      ],
-                    ),
-                    const Text('4.850.000đ', style: TextStyle(fontWeight: FontWeight.bold)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Hôm nay, 02/12/2024', style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
-                    Text('5 bao Phân NPK', style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.local_shipping_outlined, size: 16, color: AppColors.textMuted),
-                        const SizedBox(width: 6),
-                        Text('Tài xế đang giao tới ấp Thới Phước', style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
-                      ],
-                    ),
-                    GestureDetector(
-                      onTap: () {},
-                      child: Text('Chi tiết', style: AppTextStyles.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildOrderStatBox(String title, String count, bool isActive) {
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
-        color: isActive ? Colors.orange.shade50 : Colors.transparent,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: isActive ? Colors.orange.shade200 : AppColors.borderSubtle),
-      ),
-      child: Column(
-        children: [
-          Text(title, style: AppTextStyles.caption.copyWith(color: isActive ? Colors.orange.shade800 : AppColors.textSecondary, fontWeight: isActive ? FontWeight.w600 : FontWeight.w500)),
-          const SizedBox(height: 4),
-          Text(count, style: AppTextStyles.h4.copyWith(color: isActive ? Colors.orange.shade800 : AppColors.textPrimary)),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildArticlesCard(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderSubtle),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              const Text('TIN TỨC & KIẾN THỨC', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5)),
-              GestureDetector(
-                onTap: () => context.go('${AppRoutes.home}/articles'),
-                child: Text('Xem tất cả >', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 16),
-          _buildArticleSnippet(
-            context,
-            'Cách phòng trừ bệnh đạo ôn lúa Đông Xuân',
-            'Sâu Bệnh',
-            'a1',
-          ),
-          const Divider(height: 24, color: AppColors.borderSubtle),
-          _buildArticleSnippet(
-            context,
-            'Cập nhật giá lúa gạo thị trường ĐBSCL tuần này',
-            'Thị Trường',
-            'a3',
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildArticleSnippet(BuildContext context, String title, String category, String id) {
-    return GestureDetector(
-      onTap: () => context.push('${AppRoutes.home}/articles/$id'),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Container(
-            width: 80,
-            height: 60,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceSubtle,
-              borderRadius: BorderRadius.circular(8),
-              image: const DecorationImage(
-                image: NetworkImage('https://images.unsplash.com/photo-1595186259024-2c672b146430?q=80&w=200&auto=format&fit=crop'),
-                fit: BoxFit.cover,
-              ),
-            ),
-          ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                  decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(4)),
-                  child: Text(category, style: const TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.bold)),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  title,
-                  style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600),
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ],
-            ),
-          ),
-        ],
+        ),
       ),
     );
   }
 }
-

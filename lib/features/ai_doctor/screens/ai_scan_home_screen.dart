@@ -17,9 +17,16 @@ class AiScanHomeScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
-      appBar: AppBar(title: Text('Bác sĩ cây trồng AI', style: AppTextStyles.h3),
-        actions: [IconButton(icon: const Icon(Icons.history_outlined), onPressed: () => context.push('/ai-scan/history'))]),
+      appBar: AppBar(title: Text('Bác sĩ cây trồng AI', style: AppTextStyles.h3)),
       body: SingleChildScrollView(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        // The analysis is not connected to the server yet; say so before the farmer takes a photo.
+        Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: AppColors.statusWarningSurface, borderRadius: BorderRadius.circular(10)),
+          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+            const Icon(Icons.info_outline, color: AppColors.statusWarning, size: 18),
+            const SizedBox(width: 8),
+            Expanded(child: Text('Tính năng nhận diện bệnh bằng AI sắp ra mắt. Hiện Bác có thể chuẩn bị ảnh, nhưng ứng dụng chưa phân tích được.', style: AppTextStyles.bodySmall.copyWith(color: const Color(0xFF5D4037)))),
+          ])),
+        const SizedBox(height: 16),
         // Hero scan button
         GestureDetector(onTap: () => context.push('/ai-scan/capture'),
           child: Container(padding: const EdgeInsets.all(24), width: double.infinity,
@@ -30,10 +37,10 @@ class AiScanHomeScreen extends StatelessWidget {
               const SizedBox(height: 16),
               Text('Chụp ảnh lá lúa', style: AppTextStyles.h3.copyWith(color: Colors.white)),
               const SizedBox(height: 6),
-              Text('AI nhận diện bệnh trong vài giây', style: AppTextStyles.bodySmall.copyWith(color: Colors.white70)),
+              Text('Chuẩn bị ảnh để AI nhận diện bệnh', style: AppTextStyles.bodySmall.copyWith(color: Colors.white70)),
               const SizedBox(height: 16),
               Container(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
-                child: Text('Bắt đầu quét', style: AppTextStyles.labelLarge.copyWith(color: const Color(0xFF7B1FA2)))),
+                child: Text('Chuẩn bị ảnh', style: AppTextStyles.labelLarge.copyWith(color: const Color(0xFF7B1FA2)))),
             ]))),
         const SizedBox(height: 20),
         // AI safety notice
