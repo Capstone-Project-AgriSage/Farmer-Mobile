@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/network/app_exception.dart';
 import '../../../core/network/dio_provider.dart';
+import '../../../core/network/paged.dart';
 import 'payment_models.dart';
 
 class PaymentRepository {
@@ -26,6 +27,15 @@ class PaymentRepository {
           data: {'paymentContext': PaymentContext.debtRepayment, 'orderId': null, 'amount': amount},
         );
         return PayosStart.fromJson(response.data ?? const {});
+      });
+
+  /// The farmer's own payments (orders and debt repayments), newest first. The server filters by status only.
+  Future<Paged<PaymentListItem>> myPayments({int page = 1, int pageSize = 100}) => guardApi(() async {
+        final response = await _dio.get<Map<String, dynamic>>(
+          '/api/me/payments',
+          queryParameters: {'page': page, 'pageSize': pageSize},
+        );
+        return Paged.fromJson(response.data ?? const {}, PaymentListItem.fromJson);
       });
 
   Future<PaymentInfo> payment(String id) => guardApi(() async {

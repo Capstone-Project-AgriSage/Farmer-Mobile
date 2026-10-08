@@ -1,120 +1,123 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/labels/debt_labels.dart';
+import '../../../core/labels/status_label.dart';
+import '../../../core/utils/formatters.dart';
+import '../../../core/utils/vn_time.dart';
+import '../../../core/widgets/error_retry_view.dart';
+import '../../../core/widgets/status_badge.dart';
+import '../../payment/data/payment_models.dart';
+import '../providers/debt_providers.dart';
 
-class DebtHistoryScreen extends StatelessWidget {
+/// Lịch sử trả nợ: các lần Bác trả nợ (qua payOS hoặc tại quầy), mới nhất trước.
+class DebtHistoryScreen extends ConsumerWidget {
   const DebtHistoryScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
-    // Mock history data
-    final historyItems = [
-      {
-        'date': DateTime.now().subtract(const Duration(days: 2)),
-        'amount': 5000000,
-        'title': 'Thanh toán một phần công nợ D-001',
-        'status': 'Thành công',
-        'method': 'Chuyển khoản QR'
-      },
-      {
-        'date': DateTime.now().subtract(const Duration(days: 30)),
-        'amount': 12000000,
-        'title': 'Thanh toán toàn bộ công nợ D-004',
-        'status': 'Thành công',
-        'method': 'Tiền mặt tại đại lý'
-      },
-      {
-        'date': DateTime.now().subtract(const Duration(days: 45)),
-        'amount': 3000000,
-        'title': 'Thanh toán một phần nợ cũ',
-        'status': 'Thất bại',
-        'method': 'Chuyển khoản (Lỗi mạng)'
-      },
-    ];
+  Widget build(BuildContext context, WidgetRef ref) {
+    final summary = ref.watch(debtSummaryProvider);
 
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
-      appBar: AppBar(title: const Text('Lịch sử thanh toán')),
-      body: historyItems.isEmpty
-          ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  const Icon(Icons.history, size: 64, color: AppColors.surfaceDim),
-                  const SizedBox(height: 16),
-                  Text('Chưa có lịch sử thanh toán nào', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMuted)),
-                ],
-              ),
-            )
-          : ListView.builder(
+      appBar: AppBar(title: const Text('Lịch sử trả nợ')),
+      body: summary.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => ErrorRetryView(error: error, onRetry: () => ref.invalidate(debtSummaryProvider)),
+        data: (data) {
+          final payments = data.repayments;
+          return RefreshIndicator(
+            onRefresh: () async {
+              ref.invalidate(debtSummaryProvider);
+              try {
+                await ref.read(debtSummaryProvider.future);
+              } catch (_) {
+                // The screen shows its own error.
+              }
+            },
+            child: ListView(
+              physics: const AlwaysScrollableScrollPhysics(),
               padding: const EdgeInsets.all(16),
-              itemCount: historyItems.length,
-              itemBuilder: (context, index) {
-                final item = historyItems[index];
-                final isSuccess = item['status'] == 'Thành công';
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 16),
+              children: [
+                Container(
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.borderSubtle),
-                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2))],
-                  ),
+                  decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(12)),
                   child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Container(
-                        width: 40,
-                        height: 40,
-                        decoration: BoxDecoration(
-                          color: isSuccess ? const Color(0xFFF0FDF4) : const Color(0xFFFEF2F2),
-                          shape: BoxShape.circle,
-                        ),
-                        child: Icon(
-                          isSuccess ? Icons.arrow_downward : Icons.close,
-                          color: isSuccess ? AppColors.statusSuccess : AppColors.statusError,
-                          size: 20,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(item['title'] as String, style: AppTextStyles.labelLarge),
-                            const SizedBox(height: 4),
-                            Text(item['method'] as String, style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
-                            const SizedBox(height: 8),
-                            Row(
-                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                              children: [
-                                Text(_formatDate(item['date'] as DateTime), style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
-                                Text(
-                                  '${_formatPrice(item['amount'] as int)}đ',
-                                  style: AppTextStyles.bodyMedium.copyWith(
-                                    color: isSuccess ? AppColors.statusSuccess : AppColors.textPrimary,
-                                    fontWeight: FontWeight.bold,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ],
-                        ),
-                      ),
+                      Text('Đã trả gần đây', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primary)),
+                      Text(formatVnd(data.totalRepaid), style: AppTextStyles.h4.copyWith(color: AppColors.primary)),
                     ],
                   ),
-                );
-              },
+                ),
+                const SizedBox(height: 16),
+                if (payments.isEmpty)
+                  Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 48),
+                    child: Column(
+                      children: [
+                        const Icon(Icons.receipt_long_outlined, size: 40, color: AppColors.textMuted),
+                        const SizedBox(height: 8),
+                        Text('Bác chưa có lần trả nợ nào.', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted)),
+                      ],
+                    ),
+                  )
+                else
+                  for (final payment in payments) ...[
+                    _RepaymentCard(payment: payment),
+                    const SizedBox(height: 12),
+                  ],
+              ],
             ),
+          );
+        },
+      ),
     );
   }
+}
 
-  String _formatDate(DateTime dt) {
-    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
-  }
+class _RepaymentCard extends StatelessWidget {
+  const _RepaymentCard({required this.payment});
 
-  String _formatPrice(int price) {
-    return price.toString().replaceAll(RegExp(r'\B(?=(\d{3})+(?!\d))'), '.');
+  final PaymentListItem payment;
+
+  @override
+  Widget build(BuildContext context) {
+    final status = labelOf(repaymentStatusLabels, payment.status);
+    return Container(
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.borderSubtle)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(payment.paymentNumber, style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w700)),
+                const SizedBox(height: 2),
+                Text(repaymentMethodLabel(payment.paymentMethod), style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+                Text(formatVnDateTime(payment.when), style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                formatVnd(payment.amount),
+                style: AppTextStyles.bodyMedium.copyWith(
+                  fontWeight: FontWeight.w800,
+                  color: payment.status == PaymentStatus.paid ? AppColors.primary : AppColors.textPrimary,
+                ),
+              ),
+              const SizedBox(height: 4),
+              StatusBadge(status),
+            ],
+          ),
+        ],
+      ),
+    );
   }
 }

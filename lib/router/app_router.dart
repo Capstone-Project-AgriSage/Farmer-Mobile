@@ -39,9 +39,8 @@ import '../features/payment/screens/payment_result_screen.dart';
 
 // Debt
 import '../features/debt/screens/debt_overview_screen.dart';
-import '../features/debt/screens/debt_list_screen.dart';
 import '../features/debt/screens/debt_detail_screen.dart';
-import '../features/debt/screens/debt_confirm_screen.dart';
+import '../features/debt/screens/debt_repay_screen.dart';
 import '../features/debt/screens/debt_history_screen.dart';
 
 // AI Doctor
@@ -101,9 +100,8 @@ abstract class AppRoutes {
   static const paymentResult = '/payment/result';
 
   // Debt
-  static const debtList = '/debt/list';
-  static const debtDetail = '/debt/:id';
-  static const debtConfirm = '/debt/:id/confirm';
+  static const debtDetail = '/debt/entries/:id';
+  static const debtRepay = '/debt/repay';
   static const debtHistory = '/debt/history';
 
   // AI Doctor
@@ -285,23 +283,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const DebtOverviewScreen(),
             routes: [
               GoRoute(
-                path: 'list',
-                builder: (_, __) => const DebtListScreen(),
-              ),
-              // Static paths first, otherwise `history` would be read as an `:id`.
-              GoRoute(
                 path: 'history',
                 builder: (_, __) => const DebtHistoryScreen(),
               ),
               GoRoute(
-                path: ':id',
-                builder: (_, state) => DebtDetailScreen(
-                  debtId: state.pathParameters['id']!,
-                ),
+                path: 'repay',
+                builder: (_, __) => const DebtRepayScreen(),
               ),
               GoRoute(
-                path: ':id/confirm',
-                builder: (_, state) => DebtConfirmScreen(
+                path: 'entries/:id',
+                builder: (_, state) => DebtDetailScreen(
                   debtId: state.pathParameters['id']!,
                 ),
               ),

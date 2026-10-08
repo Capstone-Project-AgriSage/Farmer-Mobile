@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/app_exception.dart';
 import '../../../core/network/dio_provider.dart';
 import '../../../core/storage/app_prefs.dart';
+import '../../debt/providers/debt_providers.dart';
 import '../../orders/providers/order_providers.dart';
 import '../data/payment_models.dart';
 import '../data/payment_repository.dart';
@@ -253,8 +254,11 @@ class PaymentResultController extends AutoDisposeFamilyNotifier<PaymentResultSta
     }
   }
 
-  /// A paid order has changed: the order list and the open order must ask the server again.
-  void _refreshOrders() => ref.read(orderActionsProvider).refreshOrders();
+  /// A paid payment changes an order, or the debt: whatever shows them must ask the server again.
+  void _refreshOrders() {
+    ref.read(orderActionsProvider).refreshOrders();
+    ref.read(debtActionsProvider).refreshDebt();
+  }
 
   Future<void> _forget() async {
     final pending = ref.read(pendingPaymentProvider);
