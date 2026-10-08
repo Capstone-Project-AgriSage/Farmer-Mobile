@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/network/app_exception.dart';
 import '../../../core/network/dio_provider.dart';
 import '../../../core/storage/app_prefs.dart';
+import '../../orders/providers/order_providers.dart';
 import '../data/payment_models.dart';
 import '../data/payment_repository.dart';
 import '../data/pending_payment.dart';
@@ -203,7 +204,10 @@ class PaymentResultController extends AutoDisposeFamilyNotifier<PaymentResultSta
 
       if (info.isPaid) {
         await _forget();
-        if (!_disposed) state = ResultPaid(info);
+        if (!_disposed) {
+          state = ResultPaid(info);
+          _refreshOrders();
+        }
       } else if (info.isPending && arg.isSimulated) {
         state = ResultSimulatedPending(info);
       } else if (info.isPending && attempt < polling.maxAttempts) {
@@ -231,7 +235,10 @@ class PaymentResultController extends AutoDisposeFamilyNotifier<PaymentResultSta
       if (_disposed) return;
       if (info.isPaid) {
         await _forget();
-        if (!_disposed) state = ResultPaid(info);
+        if (!_disposed) {
+          state = ResultPaid(info);
+          _refreshOrders();
+        }
       } else {
         state = ResultSimulatedPending(info);
       }
@@ -245,6 +252,9 @@ class PaymentResultController extends AutoDisposeFamilyNotifier<PaymentResultSta
       );
     }
   }
+
+  /// A paid order has changed: the order list and the open order must ask the server again.
+  void _refreshOrders() => ref.read(orderActionsProvider).refreshOrders();
 
   Future<void> _forget() async {
     final pending = ref.read(pendingPaymentProvider);

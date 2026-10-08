@@ -8,7 +8,26 @@ abstract final class SettlementType {
 
 abstract final class OrderStatus {
   static const pendingConfirmation = 'PENDING_CONFIRMATION';
+  static const confirmed = 'CONFIRMED';
+  static const preparing = 'PREPARING';
+  static const readyForFulfillment = 'READY_FOR_FULFILLMENT';
+  static const partiallyFulfilled = 'PARTIALLY_FULFILLED';
+  static const completed = 'COMPLETED';
   static const cancelled = 'CANCELLED';
+  static const partiallyCancelled = 'PARTIALLY_CANCELLED';
+
+  /// The statuses a farmer can filter the list by (the server filters by one status at a time).
+  static const filterable = [
+    pendingConfirmation,
+    confirmed,
+    preparing,
+    readyForFulfillment,
+    partiallyFulfilled,
+    completed,
+    cancelled,
+  ];
+
+  static bool isClosed(String status) => status == cancelled || status == partiallyCancelled;
 }
 
 class OrderDeliveryAddress {
@@ -130,6 +149,45 @@ class Order {
         cancelledAt: asDateTime(json['cancelledAt']),
         cancelReason: asStringOrNull(json['cancelReason']),
         items: asObjectList(json['items']).map(OrderItem.fromJson).toList(growable: false),
+      );
+}
+
+/// One row of `GET /api/me/orders`: a summary, the lines come with the single-order call.
+class OrderListItem {
+  const OrderListItem({
+    required this.id,
+    required this.orderNumber,
+    required this.settlementType,
+    required this.fulfillmentType,
+    required this.status,
+    required this.totalAmount,
+    required this.itemCount,
+    required this.createdAt,
+    this.confirmedAt,
+  });
+
+  final String id;
+  final String orderNumber;
+  final String settlementType;
+  final String fulfillmentType;
+  final String status;
+  final double totalAmount;
+  final int itemCount;
+  final DateTime createdAt;
+  final DateTime? confirmedAt;
+
+  bool get isCredit => settlementType == SettlementType.credit;
+
+  factory OrderListItem.fromJson(Map<String, dynamic> json) => OrderListItem(
+        id: asString(json['id']),
+        orderNumber: asString(json['orderNumber']),
+        settlementType: asString(json['settlementType']),
+        fulfillmentType: asString(json['fulfillmentType']),
+        status: asString(json['status']),
+        totalAmount: asDouble(json['totalAmount']),
+        itemCount: asInt(json['itemCount']),
+        createdAt: asDateTime(json['createdAt']) ?? DateTime.now().toUtc(),
+        confirmedAt: asDateTime(json['confirmedAt']),
       );
 }
 

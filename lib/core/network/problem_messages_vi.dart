@@ -32,6 +32,8 @@ final List<_Rule> _rules = [
   _rule(r'cart is empty', (_) => 'Giỏ hàng đang trống.'),
   _rule(r'line\(s\) cannot be ordered',
       (_) => 'Có sản phẩm trong giỏ không đặt được (hết hàng hoặc chưa có giá). Vui lòng kiểm tra lại giỏ hàng.'),
+  _rule(r'only an order waiting for confirmation can be cancelled online',
+      (_) => 'Chỉ hủy được đơn đang chờ cửa hàng xác nhận. Bác vui lòng liên hệ cửa hàng.'),
   _rule(r'Not enough sellable stock', (_) => 'Kho không đủ hàng cho đơn ghi nợ này.'),
   _rule(r'addressId must be one of', (_) => 'Địa chỉ giao hàng không hợp lệ. Vui lòng chọn lại.'),
   _rule(r'DELIVERY order needs exactly one of', (_) => 'Vui lòng chọn một địa chỉ giao hàng.'),
