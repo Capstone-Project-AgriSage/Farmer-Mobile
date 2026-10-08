@@ -58,3 +58,14 @@ class SessionUserId extends Notifier<String?> {
 }
 
 final sessionUserIdProvider = NotifierProvider<SessionUserId, String?>(SessionUserId.new);
+
+/// The signed-in user's details (name, phone), rebuilt when someone signs in or out and when the user edits their own
+/// profile. Screens that show the name watch this rather than reading [sessionManagerProvider], which never notifies.
+final sessionUserProvider = Provider<SessionUser?>((ref) {
+  ref.watch(sessionUserIdProvider);
+  final session = ref.watch(sessionManagerProvider);
+  void changed() => ref.invalidateSelf();
+  session.profileChanges.addListener(changed);
+  ref.onDispose(() => session.profileChanges.removeListener(changed));
+  return session.user;
+});

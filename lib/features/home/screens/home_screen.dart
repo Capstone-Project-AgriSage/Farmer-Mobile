@@ -13,7 +13,7 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final name = ref.watch(sessionManagerProvider).user?.fullName ?? '';
+    final name = ref.watch(sessionUserProvider)?.fullName ?? '';
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
       body: SafeArea(

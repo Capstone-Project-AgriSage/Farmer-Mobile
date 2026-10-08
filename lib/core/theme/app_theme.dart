@@ -124,7 +124,8 @@ class AppTheme {
         chipTheme: ChipThemeData(
           backgroundColor: AppColors.surfaceSecondary,
           selectedColor: AppColors.primaryLight,
-          labelStyle: GoogleFonts.inter(fontSize: 13),
+          // Without a colour the label of a chip that sets no style of its own is drawn white on a pale chip.
+          labelStyle: GoogleFonts.inter(fontSize: 13, color: AppColors.textPrimary),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           side: BorderSide.none,

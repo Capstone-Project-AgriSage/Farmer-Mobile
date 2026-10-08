@@ -31,7 +31,7 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final user = ref.watch(sessionManagerProvider).user;
+    final user = ref.watch(sessionUserProvider);
     final name = user?.fullName ?? '';
     final contact = user?.phoneNumber ?? user?.email ?? '';
     return Scaffold(

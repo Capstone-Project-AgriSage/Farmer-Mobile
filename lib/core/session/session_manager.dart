@@ -48,6 +48,8 @@ class SessionManager extends ChangeNotifier {
   final TokenStore _store;
   final DateTime Function() _clock;
 
+  final ValueNotifier<int> _profileChanges = ValueNotifier(0);
+
   SessionStatus _status = SessionStatus.restoring;
   String? _token;
   DateTime? _expiresAt;
@@ -62,6 +64,11 @@ class SessionManager extends ChangeNotifier {
 
   /// Why the user was signed out (shown once on the login screen), or null.
   String? get message => _message;
+
+  /// Fires when the signed-in user's own details change (a new name). Kept apart from this manager's own listeners on
+  /// purpose: those drive the router, and a router refresh while a page is pushed on top of the tab shell leaves that
+  /// page stuck on screen, so a saved profile could not close its own form.
+  ValueListenable<int> get profileChanges => _profileChanges;
 
   bool get isExpired {
     final expiresAt = _expiresAt;
@@ -107,9 +114,10 @@ class SessionManager extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Replaces the details of the signed-in user. Does not notify the router: nothing about routing changes.
   void updateUser(SessionUser user) {
     _user = user;
-    notifyListeners();
+    _profileChanges.value++;
   }
 
   /// The token is no longer good (expired, or the server answered 401). Safe to call from several requests at once.
@@ -144,5 +152,11 @@ class SessionManager extends ChangeNotifier {
     _message = message;
     _status = SessionStatus.signedOut;
     notifyListeners();
+  }
+
+  @override
+  void dispose() {
+    _profileChanges.dispose();
+    super.dispose();
   }
 }

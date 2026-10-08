@@ -1,137 +1,62 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
-import '../../../core/constants/app_text_styles.dart';
+import '../../../core/network/dio_provider.dart';
+import '../../../core/widgets/error_retry_view.dart';
+import '../data/address_models.dart';
+import '../providers/address_providers.dart';
+import '../widgets/address_form.dart';
 
-class AddressFormScreen extends StatefulWidget {
-  final String? addressId;
+/// Thêm hoặc sửa một địa chỉ giao hàng (sửa khi có [addressId]).
+class AddressFormScreen extends ConsumerWidget {
   const AddressFormScreen({super.key, this.addressId});
 
-  @override
-  State<AddressFormScreen> createState() => _AddressFormScreenState();
-}
-
-class _AddressFormScreenState extends State<AddressFormScreen> {
-  final _formKey = GlobalKey<FormState>();
-  bool _isDefault = false;
+  final String? addressId;
 
   @override
-  Widget build(BuildContext context) {
-    final isEditing = widget.addressId != null;
+  Widget build(BuildContext context, WidgetRef ref) {
+    final editing = addressId != null;
+    final addresses = ref.watch(addressBookProvider);
+    final user = ref.watch(sessionUserProvider);
 
     return Scaffold(
-      backgroundColor: AppColors.surfaceSubtle,
-      appBar: AppBar(
-        title: Text(isEditing ? 'Sửa địa chỉ' : 'Thêm địa chỉ mới'),
-        centerTitle: true,
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              _buildSectionTitle('Liên hệ'),
-              _buildTextField('Họ và tên', placeholder: 'Nhập họ và tên'),
-              const SizedBox(height: 16),
-              _buildTextField('Số điện thoại', placeholder: 'Nhập số điện thoại', keyboardType: TextInputType.phone),
-              
-              const SizedBox(height: 24),
-              _buildSectionTitle('Địa chỉ'),
-              _buildTextField('Tỉnh/Thành phố', placeholder: 'VD: Cần Thơ'),
-              const SizedBox(height: 16),
-              _buildTextField('Quận/Huyện', placeholder: 'VD: Thới Lai'),
-              const SizedBox(height: 16),
-              _buildTextField('Phường/Xã', placeholder: 'VD: Thới Tân'),
-              const SizedBox(height: 16),
-              _buildTextField('Tên đường, Tòa nhà, Số nhà', placeholder: 'VD: 123 Ấp Thới Phước'),
-              
-              const SizedBox(height: 24),
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.borderSubtle),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text('Đặt làm địa chỉ mặc định', style: AppTextStyles.bodyMedium),
-                    Switch(
-                      value: _isDefault,
-                      onChanged: (val) {
-                        setState(() {
-                          _isDefault = val;
-                        });
-                      },
-                      activeThumbColor: AppColors.primary,
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 40),
-            ],
-          ),
-        ),
-      ),
-      bottomNavigationBar: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: ElevatedButton(
-            onPressed: () {
-              if (_formKey.currentState!.validate()) {
-                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                  content: Text('Lưu địa chỉ thành công', style: TextStyle(color: Colors.white)),
-                  backgroundColor: AppColors.statusSuccess,
-                ));
-                context.pop();
-              }
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: AppColors.primary,
-              padding: const EdgeInsets.symmetric(vertical: 16),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-            ),
-            child: const Text('Lưu địa chỉ', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSectionTitle(String title) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 12),
-      child: Text(title, style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: AppColors.textMuted)),
-    );
-  }
-
-  Widget _buildTextField(String label, {String? placeholder, TextInputType keyboardType = TextInputType.text}) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 8),
-        TextFormField(
-          keyboardType: keyboardType,
-          decoration: InputDecoration(
-            hintText: placeholder,
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.borderSubtle)),
-            enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.borderSubtle)),
-            focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(8), borderSide: const BorderSide(color: AppColors.primary)),
-          ),
-          validator: (value) {
-            if (value == null || value.isEmpty) {
-              return 'Vui lòng nhập $label';
+      backgroundColor: AppColors.surface,
+      appBar: AppBar(title: Text(editing ? 'Sửa địa chỉ' : 'Thêm địa chỉ')),
+      body: addresses.when(
+        loading: () => const Center(child: CircularProgressIndicator()),
+        error: (error, _) => ErrorRetryView(error: error, onRetry: () => ref.invalidate(addressBookProvider)),
+        data: (list) {
+          Address? initial;
+          if (editing) {
+            for (final a in list) {
+              if (a.id == addressId) initial = a;
             }
-            return null;
-          },
-        ),
-      ],
+            if (initial == null) {
+              return const Center(child: Padding(padding: EdgeInsets.all(24), child: Text('Không tìm thấy địa chỉ này.')));
+            }
+          }
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(16),
+            child: AddressForm(
+              initial: initial,
+              initialName: user?.fullName ?? '',
+              initialPhone: user?.phoneNumber ?? '',
+              defaultChecked: list.isEmpty,
+              submitLabel: editing ? 'Lưu thay đổi' : 'Lưu địa chỉ',
+              onSubmit: (input) async {
+                final controller = ref.read(addressBookProvider.notifier);
+                if (editing) {
+                  await controller.edit(addressId!, input);
+                } else {
+                  await controller.create(input);
+                }
+                if (context.mounted && context.canPop()) context.pop();
+              },
+            ),
+          );
+        },
+      ),
     );
   }
 }
