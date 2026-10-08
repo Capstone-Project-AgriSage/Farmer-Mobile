@@ -3,9 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/network/app_exception.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../core/widgets/error_retry_view.dart';
 import '../../../router/app_router.dart';
+import '../../cart/providers/cart_providers.dart';
+import '../../cart/widgets/cart_icon_button.dart';
 import '../../catalog/data/catalog_models.dart';
 import '../../catalog/providers/catalog_providers.dart';
 import '../../catalog/widgets/product_card.dart';
@@ -22,6 +25,7 @@ class ProductDetailScreen extends ConsumerStatefulWidget {
 class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   int _quantity = 1;
   String? _selectedPackagingId;
+  bool _adding = false;
 
   @override
   Widget build(BuildContext context) {
@@ -31,12 +35,9 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       backgroundColor: AppColors.surfaceSubtle,
       appBar: AppBar(
         title: const Text('Chi tiết sản phẩm'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.shopping_cart_outlined, color: AppColors.textPrimary),
-            onPressed: () => context.go(AppRoutes.cart),
-          ),
-          const SizedBox(width: 8),
+        actions: const [
+          CartIconButton(),
+          SizedBox(width: 8),
         ],
       ),
       body: detail.when(
@@ -363,8 +364,10 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
           // Add to cart
           Expanded(
             child: ElevatedButton.icon(
-              onPressed: selected == null ? null : () => _addToCart(product, selected),
-              icon: const Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 20),
+              onPressed: (selected == null || _adding) ? null : () => _addToCart(product, selected),
+              icon: _adding
+                  ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.shopping_cart_outlined, color: Colors.white, size: 20),
               label: Text(
                 selected == null ? 'Chưa có giá' : 'Thêm vào giỏ',
                 style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w600),
@@ -382,11 +385,35 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
     );
   }
 
-  void _addToCart(CatalogProduct product, CatalogPackaging packaging) {
-    // The cart is wired in the next slice (F3); until then say so instead of pretending the item was added.
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Giỏ hàng đang được hoàn thiện, sẽ dùng được ở bản cập nhật tới.')),
-    );
+  Future<void> _addToCart(CatalogProduct product, CatalogPackaging packaging) async {
+    setState(() => _adding = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(cartProvider.notifier).add(
+            storeProductId: product.id,
+            productPackagingId: packaging.id,
+            quantity: _quantity,
+          );
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(
+          SnackBar(
+            content: const Text('Đã thêm vào giỏ hàng'),
+            action: SnackBarAction(
+              label: 'Xem giỏ',
+              onPressed: () {
+                if (mounted) context.push(AppRoutes.cart);
+              },
+            ),
+          ),
+        );
+    } on AppException catch (error) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
   }
 
   Widget _buildSection({required IconData icon, required String title, required Widget child, Color? iconColor}) {

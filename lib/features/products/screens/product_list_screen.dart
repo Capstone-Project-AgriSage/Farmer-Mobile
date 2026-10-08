@@ -6,7 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/widgets/error_retry_view.dart';
-import '../../../router/app_router.dart';
+import '../../cart/widgets/cart_icon_button.dart';
 import '../../catalog/data/catalog_repository.dart';
 import '../../catalog/providers/catalog_providers.dart';
 import '../../catalog/widgets/product_card.dart';
@@ -84,12 +84,9 @@ class _ProductListScreenState extends ConsumerState<ProductListScreen> {
       backgroundColor: AppColors.surfaceSubtle,
       appBar: AppBar(
         title: Text('Sản phẩm', style: AppTextStyles.h3),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.shopping_cart_outlined, color: AppColors.textPrimary),
-            onPressed: () => context.push(AppRoutes.cart),
-          ),
-          const SizedBox(width: 8),
+        actions: const [
+          CartIconButton(),
+          SizedBox(width: 8),
         ],
       ),
       body: Column(

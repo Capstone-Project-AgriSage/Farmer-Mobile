@@ -43,3 +43,18 @@ final dioProvider = Provider<Dio>((ref) {
   }
   return dio;
 });
+
+/// The signed-in user's id, or null. Unlike [sessionManagerProvider] this notifies its dependants, so anything that
+/// belongs to one user (cart, orders, debt) watches it and starts empty when someone else signs in.
+class SessionUserId extends Notifier<String?> {
+  @override
+  String? build() {
+    final session = ref.watch(sessionManagerProvider);
+    void sync() => state = session.isSignedIn ? session.user?.id : null;
+    session.addListener(sync);
+    ref.onDispose(() => session.removeListener(sync));
+    return session.isSignedIn ? session.user?.id : null;
+  }
+}
+
+final sessionUserIdProvider = NotifierProvider<SessionUserId, String?>(SessionUserId.new);
