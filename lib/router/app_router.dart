@@ -5,6 +5,8 @@ import 'package:go_router/go_router.dart';
 import '../core/network/dio_provider.dart';
 import '../core/session/session_manager.dart';
 import '../core/storage/app_prefs.dart';
+import '../features/orders/data/order_models.dart';
+import '../features/orders/screens/order_success_screen.dart';
 
 // Auth
 import '../features/auth/screens/splash_screen.dart';
@@ -89,6 +91,7 @@ abstract class AppRoutes {
   static const productDetail = '/products/:id';
   static const cart = '/cart';
   static const orderConfirm = '/order-confirm';
+  static const orderSuccess = '/order-success';
   static const orderList = '/orders';
   static const orderDetail = '/orders/:id';
 
@@ -359,6 +362,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.orderConfirm,
         builder: (_, __) => const OrderConfirmScreen(),
+      ),
+      GoRoute(
+        path: AppRoutes.orderSuccess,
+        builder: (_, state) => OrderSuccessScreen(order: state.extra is Order ? state.extra as Order : null),
       ),
       GoRoute(
         path: AppRoutes.orderList,

@@ -50,6 +50,13 @@ final List<_Rule> _rules = [
   // ── Debt / credit ──────────────────────────────────────────────
   _rule(r'Debt actions require a reason|A reason is required|requires a reason', (_) => 'Vui lòng nhập lý do.'),
   _rule(r'Payment does not cover the order total', (_) => 'Khoản thanh toán chưa đủ cho tổng đơn hàng.'),
+  _rule(r'Credit refused: OVERDUE_DEBT',
+      (_) => 'Bác đang có nợ quá hạn nên chưa mua ghi nợ được. Bác thanh toán khoản quá hạn hoặc chọn trả bằng payOS.'),
+  _rule(r'Credit refused: INSUFFICIENT_CREDIT',
+      (_) => 'Hạn mức ghi nợ còn lại chưa đủ cho đơn này. Bác chọn trả bằng payOS hoặc giảm bớt sản phẩm.'),
+  _rule(r'Credit refused: (CREDIT_DISABLED|NO_CREDIT_LIMIT|NO_CREDIT_TERM|CUSTOMER_INACTIVE|CUSTOMER_NOT_FOUND)',
+      (_) => 'Bác chưa dùng được hình thức mua ghi nợ (chưa có hạn mức hoặc hồ sơ đang bị khóa). Vui lòng chọn payOS.'),
+  _rule(r'Credit refused', (_) => 'Cửa hàng chưa cho Bác mua ghi nợ đơn này. Vui lòng chọn payOS.'),
   // ── Returns ────────────────────────────────────────────────────
   _rule(r'cancel only a REQUESTED return', (_) => 'Chỉ hủy được yêu cầu trả hàng đang chờ xử lý.'),
   _rule(r'returned quantity exceeds', (_) => 'Số lượng trả vượt quá số lượng đã nhận.'),
