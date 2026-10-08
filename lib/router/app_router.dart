@@ -2,15 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/network/dio_provider.dart';
+import '../core/session/session_manager.dart';
+import '../core/storage/app_prefs.dart';
+
 // Auth
 import '../features/auth/screens/splash_screen.dart';
 import '../features/auth/screens/onboarding_screen.dart';
 import '../features/auth/screens/welcome_screen.dart';
 import '../features/auth/screens/login_screen.dart';
 import '../features/auth/screens/register_screen.dart';
-import '../features/auth/screens/otp_verify_screen.dart';
 import '../features/auth/screens/forgot_password_screen.dart';
-import '../features/auth/screens/reset_password_screen.dart';
 
 // Shell (Bottom Nav)
 import '../shared/widgets/app_shell.dart';
@@ -73,9 +75,7 @@ abstract class AppRoutes {
   static const welcome = '/welcome';
   static const login = '/login';
   static const register = '/register';
-  static const otpVerify = '/otp-verify';
   static const forgotPassword = '/forgot-password';
-  static const resetPassword = '/reset-password';
 
   // Shell tabs
   static const home = '/home';
@@ -123,10 +123,65 @@ abstract class AppRoutes {
   static const helpSupport = '/profile/help';
 }
 
+/// Screens a signed-out user may open; a signed-in user who lands on one of them is sent on to the app.
+const _guestRoutes = {
+  AppRoutes.splash,
+  AppRoutes.onboarding,
+  AppRoutes.welcome,
+  AppRoutes.login,
+  AppRoutes.register,
+  AppRoutes.forgotPassword,
+};
+
+/// Where the router sends the user, or null to let the navigation go ahead. Pure so it can be unit tested.
+String? resolveRedirect({
+  required SessionStatus status,
+  required String location,
+  required String? from,
+  required bool onboardingSeen,
+}) {
+  if (status == SessionStatus.restoring) {
+    // Hold every location on the splash until the stored token has been checked with the server.
+    return location == AppRoutes.splash ? null : AppRoutes.splash;
+  }
+
+  if (status == SessionStatus.signedOut) {
+    if (location == AppRoutes.splash) {
+      return onboardingSeen ? AppRoutes.welcome : AppRoutes.onboarding;
+    }
+    if (_guestRoutes.contains(location)) return null;
+    return '${AppRoutes.login}?from=${Uri.encodeComponent(location)}';
+  }
+
+  // Signed in.
+  if (_guestRoutes.contains(location)) {
+    return _safeReturnPath(from) ?? AppRoutes.home;
+  }
+  return null;
+}
+
+/// Only an in-app path may be returned to; never an external URL or a guest-only screen.
+String? _safeReturnPath(String? from) {
+  if (from == null || !from.startsWith('/') || from.startsWith('//')) return null;
+  final path = Uri.tryParse(from)?.path;
+  if (path == null || _guestRoutes.contains(path)) return null;
+  return from;
+}
+
 final appRouterProvider = Provider<GoRouter>((ref) {
+  final session = ref.watch(sessionManagerProvider);
+  final prefs = ref.watch(appPrefsProvider);
+
   return GoRouter(
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
+    refreshListenable: session,
+    redirect: (context, state) => resolveRedirect(
+      status: session.status,
+      location: state.uri.path,
+      from: state.uri.queryParameters['from'],
+      onboardingSeen: prefs.onboardingSeen,
+    ),
     routes: [
       // ── Auth flows (no bottom nav) ────────────────────────────
       GoRoute(
@@ -150,18 +205,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         builder: (_, __) => const RegisterScreen(),
       ),
       GoRoute(
-        path: AppRoutes.otpVerify,
-        builder: (_, state) => OtpVerifyScreen(
-          phone: state.uri.queryParameters['phone'] ?? '',
-        ),
-      ),
-      GoRoute(
         path: AppRoutes.forgotPassword,
         builder: (_, __) => const ForgotPasswordScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.resetPassword,
-        builder: (_, __) => const ResetPasswordScreen(),
       ),
 
       // ── Main shell with Bottom Navigation ────────────────────
@@ -248,6 +293,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: 'list',
                 builder: (_, __) => const DebtListScreen(),
               ),
+              // Static paths first, otherwise `history` would be read as an `:id`.
+              GoRoute(
+                path: 'history',
+                builder: (_, __) => const DebtHistoryScreen(),
+              ),
               GoRoute(
                 path: ':id',
                 builder: (_, state) => DebtDetailScreen(
@@ -259,10 +309,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 builder: (_, state) => DebtConfirmScreen(
                   debtId: state.pathParameters['id']!,
                 ),
-              ),
-              GoRoute(
-                path: 'history',
-                builder: (_, __) => const DebtHistoryScreen(),
               ),
             ],
           ),

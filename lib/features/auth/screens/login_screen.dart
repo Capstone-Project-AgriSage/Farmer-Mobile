@@ -1,47 +1,53 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/network/app_exception.dart';
+import '../../../core/network/dio_provider.dart';
 import '../../../router/app_router.dart';
+import '../providers/auth_providers.dart';
 
 /// Login Screen — bám sát UI LoginPage.tsx của Farmer-Web
 /// Layout: logo top + form (email/phone, password) + forgot + submit
-class LoginScreen extends StatefulWidget {
+/// Sau khi đăng nhập thành công, router tự đưa người dùng về trang họ định vào (tham số `from`) hoặc Trang chủ.
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailCtrl = TextEditingController();
+  final _identifierCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   bool _showPassword = false;
-  bool _rememberMe = true;
-  bool _isSubmitting = false;
-  String _error = '';
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
+    _identifierCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() { _isSubmitting = true; _error = ''; });
-    // TODO: call AuthRepository.login()
-    await Future.delayed(const Duration(seconds: 1));
-    if (mounted) {
-      setState(() => _isSubmitting = false);
-      context.go(AppRoutes.home);
-    }
+    FocusScope.of(context).unfocus();
+    await ref.read(authControllerProvider.notifier).login(
+          identifier: _identifierCtrl.text,
+          password: _passwordCtrl.text,
+        );
   }
 
   @override
   Widget build(BuildContext context) {
+    final auth = ref.watch(authControllerProvider);
+    final isSubmitting = auth.isLoading;
+    final error = auth.hasError ? messageOf(auth.error!) : null;
+    // Why the user was sent back here (for example "phiên đăng nhập đã hết hạn").
+    final notice = ref.watch(sessionManagerProvider).message;
+
     return Scaffold(
       backgroundColor: AppColors.surface,
       body: SafeArea(
@@ -69,14 +75,21 @@ class _LoginScreenState extends State<LoginScreen> {
                   'Chào mừng trở lại với hệ sinh thái AgriSage',
                   style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
+
+                if (notice != null && error == null) ...[
+                  _Banner(text: notice, color: AppColors.statusWarning, background: AppColors.statusWarningSurface),
+                  const SizedBox(height: 16),
+                ],
 
                 // Email / SĐT field
                 const _FieldLabel('EMAIL HOẶC SỐ ĐIỆN THOẠI'),
                 const SizedBox(height: 6),
                 TextFormField(
-                  controller: _emailCtrl,
+                  controller: _identifierCtrl,
                   keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.username],
                   decoration: const InputDecoration(
                     hintText: 'Nhập email hoặc số điện thoại',
                   ),
@@ -95,6 +108,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 TextFormField(
                   controller: _passwordCtrl,
                   obscureText: !_showPassword,
+                  textInputAction: TextInputAction.done,
+                  autofillHints: const [AutofillHints.password],
+                  onFieldSubmitted: (_) => isSubmitting ? null : _handleSubmit(),
                   decoration: InputDecoration(
                     hintText: 'Nhập mật khẩu',
                     suffixIcon: IconButton(
@@ -108,79 +124,38 @@ class _LoginScreenState extends State<LoginScreen> {
                   ),
                   validator: (v) {
                     if (v == null || v.isEmpty) return 'Vui lòng nhập mật khẩu';
-                    if (v.length < 6) return 'Mật khẩu tối thiểu 6 ký tự';
                     return null;
                   },
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 4),
 
-                // Remember me + Forgot
-                Row(
-                  children: [
-                    GestureDetector(
-                      onTap: () => setState(() => _rememberMe = !_rememberMe),
-                      child: Row(
-                        children: [
-                          SizedBox(
-                            width: 20,
-                            height: 20,
-                            child: Checkbox(
-                              value: _rememberMe,
-                              onChanged: (v) => setState(() => _rememberMe = v!),
-                              activeColor: AppColors.primary,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                            ),
-                          ),
-                          const SizedBox(width: 8),
-                          Text('Ghi nhớ đăng nhập', style: AppTextStyles.bodySmall),
-                        ],
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: TextButton(
+                    onPressed: () => context.go(AppRoutes.forgotPassword),
+                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
+                    child: Text(
+                      'Quên mật khẩu?',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.primary,
+                        fontWeight: FontWeight.w600,
                       ),
                     ),
-                    const Spacer(),
-                    TextButton(
-                      onPressed: () => context.go(AppRoutes.forgotPassword),
-                      style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                      child: Text(
-                        'Quên mật khẩu?',
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: AppColors.primary,
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
 
                 // Error message
-                if (_error.isNotEmpty) ...[
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.statusErrorSurface,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.error_outline, color: AppColors.statusError, size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _error,
-                            style: AppTextStyles.bodySmall.copyWith(color: AppColors.statusError),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                if (error != null) ...[
+                  const SizedBox(height: 8),
+                  _Banner(text: error, color: AppColors.statusError, background: AppColors.statusErrorSurface),
                 ],
 
                 const SizedBox(height: 24),
 
                 // Submit
                 ElevatedButton(
-                  onPressed: _isSubmitting ? null : _handleSubmit,
-                  child: _isSubmitting
+                  onPressed: isSubmitting ? null : _handleSubmit,
+                  child: isSubmitting
                       ? const SizedBox(
                           height: 20,
                           width: 20,
@@ -211,6 +186,31 @@ class _LoginScreenState extends State<LoginScreen> {
             ),
           ),
         ),
+      ),
+    );
+  }
+}
+
+class _Banner extends StatelessWidget {
+  const _Banner({required this.text, required this.color, required this.background});
+
+  final String text;
+  final Color color;
+  final Color background;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      decoration: BoxDecoration(color: background, borderRadius: BorderRadius.circular(8)),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(Icons.error_outline, color: color, size: 16),
+          const SizedBox(width: 8),
+          Expanded(child: Text(text, style: AppTextStyles.bodySmall.copyWith(color: color))),
+        ],
       ),
     );
   }

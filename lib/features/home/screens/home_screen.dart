@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/network/dio_provider.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../router/app_router.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final name = ref.watch(sessionManagerProvider).user?.fullName ?? '';
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
       body: SafeArea(
@@ -18,7 +22,7 @@ class HomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header
-              _buildHeader(context),
+              _buildHeader(context, name),
               const SizedBox(height: 12),
               
               Text('Hôm nay bạn cần hỗ trợ gì?', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
@@ -46,11 +50,12 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, String name) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
+        Expanded(
+          child: Row(
           children: [
             Container(
               width: 48,
@@ -60,39 +65,27 @@ class HomeScreen extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               alignment: Alignment.center,
-              child: const Text('TH', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+              child: Text(initialsOf(name), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
             ),
             const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('TÀI KHOẢN NÔNG DÂN', style: AppTextStyles.caption.copyWith(color: AppColors.textMuted, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
-                const SizedBox(height: 2),
-                Text('Xin chào, Trần Văn Hải', style: AppTextStyles.h4.copyWith(color: const Color(0xFF1F2937))),
-              ],
-            ),
-          ],
-        ),
-        Stack(
-          children: [
-            IconButton(
-              icon: const Icon(Icons.notifications_none_outlined, size: 28),
-              color: AppColors.textPrimary,
-              onPressed: () => context.go('${AppRoutes.home}/notifications'),
-            ),
-            Positioned(
-              right: 12,
-              top: 12,
-              child: Container(
-                width: 10,
-                height: 10,
-                decoration: const BoxDecoration(
-                  color: Colors.orange,
-                  shape: BoxShape.circle,
-                ),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('TÀI KHOẢN NÔNG DÂN', style: AppTextStyles.caption.copyWith(color: AppColors.textMuted, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                  const SizedBox(height: 2),
+                  Text('Xin chào, $name', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.h4.copyWith(color: const Color(0xFF1F2937))),
+                ],
               ),
             ),
           ],
+        ),
+        ),
+        // No unread dot: notifications have no backend yet, so there is never anything to flag.
+        IconButton(
+          icon: const Icon(Icons.notifications_none_outlined, size: 28),
+          color: AppColors.textPrimary,
+          onPressed: () => context.go('${AppRoutes.home}/notifications'),
         ),
       ],
     );

@@ -1,14 +1,38 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/network/dio_provider.dart';
+import '../../../core/utils/formatters.dart';
 import '../../../router/app_router.dart';
+import '../../auth/providers/auth_providers.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
+  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Đăng xuất?'),
+        content: const Text('Bác sẽ cần đăng nhập lại để tiếp tục mua hàng và xem sổ nợ.'),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Ở lại')),
+          TextButton(onPressed: () => Navigator.pop(ctx, true), child: const Text('Đăng xuất')),
+        ],
+      ),
+    );
+    if (confirmed != true) return;
+    await ref.read(authControllerProvider.notifier).logout();
+    if (context.mounted) context.go(AppRoutes.welcome);
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(sessionManagerProvider).user;
+    final name = user?.fullName ?? '';
+    final contact = user?.phoneNumber ?? user?.email ?? '';
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
       body: SingleChildScrollView(
@@ -32,7 +56,7 @@ class ProfileScreen extends StatelessWidget {
                       border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 4),
                     ),
                     alignment: Alignment.center,
-                    child: const Text('TH', style: TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.bold, fontSize: 24)),
+                    child: Text(initialsOf(name), style: const TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.bold, fontSize: 24)),
                   ),
                   const SizedBox(width: 16),
                   Column(
@@ -40,9 +64,9 @@ class ProfileScreen extends StatelessWidget {
                     children: [
                       Text('Tài khoản nông dân', style: AppTextStyles.caption.copyWith(color: Colors.white70)),
                       const SizedBox(height: 4),
-                      Text('Trần Văn Hải', style: AppTextStyles.h3.copyWith(color: Colors.white)),
+                      Text(name, style: AppTextStyles.h3.copyWith(color: Colors.white)),
                       const SizedBox(height: 4),
-                      Text('0912 345 678', style: AppTextStyles.bodyMedium.copyWith(color: Colors.white.withValues(alpha: 0.9))),
+                      Text(contact, style: AppTextStyles.bodyMedium.copyWith(color: Colors.white.withValues(alpha: 0.9))),
                     ],
                   ),
                 ],
@@ -78,7 +102,7 @@ class ProfileScreen extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () => context.go(AppRoutes.welcome),
+                      onPressed: () => _confirmLogout(context, ref),
                       icon: const Icon(Icons.logout, color: AppColors.statusError),
                       label: Text('Đăng xuất', style: AppTextStyles.labelLarge.copyWith(color: AppColors.statusError)),
                       style: OutlinedButton.styleFrom(
