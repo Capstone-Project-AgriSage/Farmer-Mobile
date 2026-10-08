@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
@@ -31,9 +31,9 @@ class DiagnoseUncertainScreen extends StatelessWidget {
         const SizedBox(height: 24),
         Text('Gợi ý của chúng tôi', style: AppTextStyles.h3),
         const SizedBox(height: 12),
-        _SuggestionTile(icon: Icons.camera_alt_outlined, title: 'Chụp lại ảnh rõ hơn', desc: 'Đảm bảo ảnh sắc nét, đủ sáng, chụp gần lá bị bệnh.'),
+        const _SuggestionTile(icon: Icons.camera_alt_outlined, title: 'Chụp lại ảnh rõ hơn', desc: 'Đảm bảo ảnh sắc nét, đủ sáng, chụp gần lá bị bệnh.'),
         const SizedBox(height: 8),
-        _SuggestionTile(icon: Icons.phone_outlined, title: 'Liên hệ đại lý', desc: 'Mô tả triệu chứng để được tư vấn trực tiếp từ chuyên gia.'),
+        const _SuggestionTile(icon: Icons.phone_outlined, title: 'Liên hệ đại lý', desc: 'Mô tả triệu chứng để được tư vấn trực tiếp từ chuyên gia.'),
         const Spacer(),
         ElevatedButton.icon(onPressed: () => context.pop(), icon: const Icon(Icons.camera_alt, size: 18), label: const Text('Chụp lại ảnh')),
         const SizedBox(height: 12),

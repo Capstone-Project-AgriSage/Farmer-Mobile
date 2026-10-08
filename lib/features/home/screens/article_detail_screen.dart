@@ -40,9 +40,9 @@ class ArticleDetailScreen extends StatelessWidget {
                     begin: Alignment.topCenter,
                     end: Alignment.bottomCenter,
                     colors: [
-                      Colors.black.withOpacity(0.4),
+                      Colors.black.withValues(alpha: 0.4),
                       Colors.transparent,
-                      Colors.black.withOpacity(0.7),
+                      Colors.black.withValues(alpha: 0.7),
                     ],
                   ),
                 ),
@@ -77,9 +77,9 @@ class ArticleDetailScreen extends StatelessWidget {
               padding: const EdgeInsets.all(20),
               child: Row(
                 children: [
-                  CircleAvatar(
+                  const CircleAvatar(
                     backgroundColor: AppColors.primaryLight,
-                    child: const Icon(Icons.person, color: AppColors.primary),
+                    child: Icon(Icons.person, color: AppColors.primary),
                   ),
                   const SizedBox(width: 12),
                   Expanded(

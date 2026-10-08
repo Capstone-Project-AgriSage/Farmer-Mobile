@@ -91,7 +91,7 @@ class _AiAnalyzingScreenState extends State<AiAnalyzingScreen> with TickerProvid
                   shape: BoxShape.circle,
                   boxShadow: [
                     BoxShadow(
-                      color: const Color(0xFF9C27B0).withOpacity(0.3),
+                      color: const Color(0xFF9C27B0).withValues(alpha: 0.3),
                       blurRadius: 24,
                       spreadRadius: 4,
                     ),
@@ -186,7 +186,7 @@ class _AiAnalyzingScreenState extends State<AiAnalyzingScreen> with TickerProvid
                           ),
                         ),
                         if (isDone)
-                          Text('✓', style: TextStyle(color: AppColors.statusSuccess, fontSize: 14, fontWeight: FontWeight.bold)),
+                          const Text('✓', style: TextStyle(color: AppColors.statusSuccess, fontSize: 14, fontWeight: FontWeight.bold)),
                       ],
                     ),
                   );

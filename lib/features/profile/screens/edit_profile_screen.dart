@@ -42,7 +42,7 @@ class _EditProfileScreenState extends State<EditProfileScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.primaryLight,
                       shape: BoxShape.circle,
-                      border: Border.all(color: AppColors.primary.withOpacity(0.2), width: 4),
+                      border: Border.all(color: AppColors.primary.withValues(alpha: 0.2), width: 4),
                     ),
                     alignment: Alignment.center,
                     child: const Text('TH', style: TextStyle(color: AppColors.primary, fontWeight: FontWeight.bold, fontSize: 32)),

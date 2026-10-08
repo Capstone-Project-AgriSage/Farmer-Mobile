@@ -1,4 +1,4 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
@@ -16,7 +16,11 @@ class _OtpVerifyScreenState extends State<OtpVerifyScreen> {
   final _focusNodes = List.generate(6, (_) => FocusNode());
   bool _isSubmitting = false;
 
-  @override void dispose() { for (var c in _controllers) c.dispose(); for (var f in _focusNodes) f.dispose(); super.dispose(); }
+  @override void dispose() { for (var c in _controllers) {
+    c.dispose();
+  } for (var f in _focusNodes) {
+    f.dispose();
+  } super.dispose(); }
 
   @override
   Widget build(BuildContext context) {

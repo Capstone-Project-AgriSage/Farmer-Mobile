@@ -6,7 +6,7 @@ import '../constants/app_colors.dart';
 class AppTheme {
   static ThemeData get light => ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme(
+        colorScheme: const ColorScheme(
           brightness: Brightness.light,
           primary: AppColors.primary,
           onPrimary: Colors.white,

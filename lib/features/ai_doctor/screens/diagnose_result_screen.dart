@@ -3,7 +3,6 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../data/mock/mock_diagnoses.dart';
-import '../../../router/app_router.dart';
 
 class DiagnoseResultScreen extends StatelessWidget {
   const DiagnoseResultScreen({super.key});
@@ -42,7 +41,7 @@ class DiagnoseResultScreen extends StatelessWidget {
                           width: 48,
                           height: 48,
                           decoration: BoxDecoration(
-                            color: Colors.white.withOpacity(0.2),
+                            color: Colors.white.withValues(alpha: 0.2),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(Icons.check_circle, color: Colors.white, size: 28),
@@ -56,11 +55,11 @@ class DiagnoseResultScreen extends StatelessWidget {
                               const SizedBox(height: 4),
                               Row(
                                 children: [
-                                  Text('Độ tin cậy: ', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                  const Text('Độ tin cậy: ', style: TextStyle(color: Colors.white70, fontSize: 12)),
                                   Container(
                                     padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
                                     decoration: BoxDecoration(
-                                      color: Colors.white.withOpacity(0.2),
+                                      color: Colors.white.withValues(alpha: 0.2),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
                                     child: Text('$confidencePercent%', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
@@ -130,7 +129,7 @@ class DiagnoseResultScreen extends StatelessWidget {
                               width: 40,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: const Color(0xFF7B1FA2).withOpacity(0.1),
+                                color: const Color(0xFF7B1FA2).withValues(alpha: 0.1),
                                 shape: BoxShape.circle,
                               ),
                               child: const Icon(Icons.blur_on, color: Color(0xFF7B1FA2), size: 20),
@@ -255,7 +254,7 @@ class DiagnoseResultScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             decoration: BoxDecoration(
               color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
             ),
             child: Row(
               children: [

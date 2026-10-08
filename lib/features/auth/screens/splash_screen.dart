@@ -83,7 +83,7 @@ class _SplashScreenState extends State<SplashScreen>
                   'Hệ sinh thái nông nghiệp số',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                     fontWeight: FontWeight.w400,
                   ),
                 ),

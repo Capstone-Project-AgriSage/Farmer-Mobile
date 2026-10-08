@@ -154,7 +154,7 @@ class _NotificationItem extends StatelessWidget {
   }
 
   Color _getIconBackgroundColor(NotificationType type) {
-    return _getIconColor(type).withOpacity(0.1);
+    return _getIconColor(type).withValues(alpha: 0.1);
   }
 
   String _formatTime(DateTime dt) {

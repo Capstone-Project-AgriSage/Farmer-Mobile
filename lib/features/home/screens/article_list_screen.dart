@@ -32,7 +32,7 @@ class ArticleListScreen extends StatelessWidget {
                 border: Border.all(color: AppColors.borderSubtle),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
+                    color: Colors.black.withValues(alpha: 0.02),
                     blurRadius: 8,
                     offset: const Offset(0, 4),
                   ),

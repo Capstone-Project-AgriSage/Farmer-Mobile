@@ -72,7 +72,7 @@ class ProductSuggestionScreen extends StatelessWidget {
                           width: 36,
                           height: 36,
                           decoration: BoxDecoration(
-                            color: const Color(0xFF7B1FA2).withOpacity(0.1),
+                            color: const Color(0xFF7B1FA2).withValues(alpha: 0.1),
                             shape: BoxShape.circle,
                           ),
                           child: const Icon(Icons.blur_on, color: Color(0xFF7B1FA2), size: 18),
@@ -154,7 +154,7 @@ class ProductSuggestionScreen extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             decoration: BoxDecoration(
               color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
             ),
             child: Column(
               children: [

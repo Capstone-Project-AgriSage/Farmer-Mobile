@@ -107,7 +107,7 @@ class _OrderListScreenState extends State<OrderListScreen> {
         color: Colors.white,
         borderRadius: BorderRadius.circular(16),
         border: Border.all(color: AppColors.borderSubtle),
-        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 4))],
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 4))],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,7 +122,7 @@ class _OrderListScreenState extends State<OrderListScreen> {
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.receipt_long, size: 20, color: const Color(0xFF1B5E20)),
+                        const Icon(Icons.receipt_long, size: 20, color: Color(0xFF1B5E20)),
                         const SizedBox(width: 8),
                         Text(orderId, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
                       ],
@@ -196,7 +196,7 @@ class _OrderListScreenState extends State<OrderListScreen> {
                       onPressed: () {}, 
                       style: OutlinedButton.styleFrom(
                         foregroundColor: AppColors.textPrimary,
-                        side: BorderSide(color: AppColors.borderStrong),
+                        side: const BorderSide(color: AppColors.borderStrong),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                       ),
                       child: Text(actionText, style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13))

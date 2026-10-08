@@ -1,8 +1,7 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../router/app_router.dart';
 
 class AiScanHomeScreen extends StatelessWidget {
   const AiScanHomeScreen({super.key});
@@ -26,7 +25,7 @@ class AiScanHomeScreen extends StatelessWidget {
           child: Container(padding: const EdgeInsets.all(24), width: double.infinity,
             decoration: BoxDecoration(gradient: const LinearGradient(colors: [Color(0xFF6A1B9A), Color(0xFF9C27B0)], begin: Alignment.topLeft, end: Alignment.bottomRight), borderRadius: BorderRadius.circular(20)),
             child: Column(children: [
-              Container(width: 80, height: 80, decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle),
+              Container(width: 80, height: 80, decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.2), shape: BoxShape.circle),
                 child: const Icon(Icons.camera_alt, size: 40, color: Colors.white)),
               const SizedBox(height: 16),
               Text('Chụp ảnh lá lúa', style: AppTextStyles.h3.copyWith(color: Colors.white)),
@@ -55,7 +54,7 @@ class AiScanHomeScreen extends StatelessWidget {
           itemCount: _diseases.length,
           itemBuilder: (_, i) => Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: AppColors.surface, borderRadius: BorderRadius.circular(10), border: const Border.fromBorderSide(BorderSide(color: AppColors.borderSubtle))),
             child: Row(children: [
-              Container(width: 36, height: 36, decoration: BoxDecoration(color: _diseases[i].color.withOpacity(0.1), shape: BoxShape.circle), child: Icon(_diseases[i].icon, color: _diseases[i].color, size: 18)),
+              Container(width: 36, height: 36, decoration: BoxDecoration(color: _diseases[i].color.withValues(alpha: 0.1), shape: BoxShape.circle), child: Icon(_diseases[i].icon, color: _diseases[i].color, size: 18)),
               const SizedBox(width: 10),
               Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, mainAxisAlignment: MainAxisAlignment.center, children: [
                 Text(_diseases[i].name, style: AppTextStyles.labelLarge.copyWith(fontSize: 12)),

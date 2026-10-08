@@ -197,7 +197,7 @@ class _DebtConfirmScreenState extends State<DebtConfirmScreen> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         decoration: BoxDecoration(
           color: Colors.white,
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
         ),
         child: Column(
           mainAxisSize: MainAxisSize.min,

@@ -108,7 +108,7 @@ class HomeScreen extends StatelessWidget {
           image: const NetworkImage('https://cdn-icons-png.flaticon.com/512/6183/6183181.png'), // Placeholder leaf watermark
           fit: BoxFit.none,
           alignment: Alignment.centerRight,
-          colorFilter: ColorFilter.mode(Colors.white.withOpacity(0.05), BlendMode.dstIn),
+          colorFilter: ColorFilter.mode(Colors.white.withValues(alpha: 0.05), BlendMode.dstIn),
         ),
       ),
       child: Column(
@@ -117,7 +117,7 @@ class HomeScreen extends StatelessWidget {
           Container(
             padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
             decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.15),
+              color: Colors.white.withValues(alpha: 0.15),
               borderRadius: BorderRadius.circular(20),
             ),
             child: const Text('Hỗ trợ nhận diện AI', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
@@ -127,7 +127,7 @@ class HomeScreen extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             'Chụp ảnh lá lúa để AGRISAGE hỗ trợ nhận diện bệnh và đề xuất sản phẩm phù hợp.',
-            style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 14, height: 1.5),
+            style: TextStyle(color: Colors.white.withValues(alpha: 0.9), fontSize: 14, height: 1.5),
           ),
           const SizedBox(height: 20),
           Row(
@@ -415,7 +415,7 @@ class HomeScreen extends StatelessWidget {
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                   decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(4)),
-                  child: Text(category, style: TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.bold)),
+                  child: Text(category, style: const TextStyle(fontSize: 10, color: AppColors.primary, fontWeight: FontWeight.bold)),
                 ),
                 const SizedBox(height: 4),
                 Text(

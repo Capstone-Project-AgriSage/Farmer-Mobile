@@ -33,7 +33,7 @@ class DebtDetailScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: debt.status.backgroundColor,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: debt.status.color.withOpacity(0.3)),
+                      border: Border.all(color: debt.status.color.withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       children: [
@@ -64,7 +64,7 @@ class DebtDetailScreen extends StatelessWidget {
                       color: Colors.white,
                       borderRadius: BorderRadius.circular(16),
                       border: Border.all(color: AppColors.borderSubtle),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 4))],
+                      boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 4))],
                     ),
                     child: Column(
                       children: [
@@ -124,7 +124,7 @@ class DebtDetailScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               decoration: BoxDecoration(
                 color: Colors.white,
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
               ),
               child: SizedBox(
                 width: double.infinity,

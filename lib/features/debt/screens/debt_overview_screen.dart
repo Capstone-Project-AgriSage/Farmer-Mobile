@@ -2,8 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../data/models/debt.dart';
-import '../../../router/app_router.dart';
 
 class DebtOverviewScreen extends StatefulWidget {
   const DebtOverviewScreen({super.key});
@@ -40,7 +38,7 @@ class _DebtOverviewScreenState extends State<DebtOverviewScreen> {
                   image: const NetworkImage('https://cdn-icons-png.flaticon.com/512/3233/3233483.png'), // placeholder wallet icon
                   fit: BoxFit.none,
                   alignment: Alignment.centerRight,
-                  colorFilter: ColorFilter.mode(Colors.white.withOpacity(0.05), BlendMode.dstIn),
+                  colorFilter: ColorFilter.mode(Colors.white.withValues(alpha: 0.05), BlendMode.dstIn),
                 ),
               ),
               child: Column(
@@ -48,7 +46,7 @@ class _DebtOverviewScreenState extends State<DebtOverviewScreen> {
                 children: [
                   Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(20)),
+                    decoration: BoxDecoration(color: Colors.white.withValues(alpha: 0.15), borderRadius: BorderRadius.circular(20)),
                     child: const Text('Hạn mức tín dụng mùa vụ', style: TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w500)),
                   ),
                   const SizedBox(height: 16),
@@ -56,25 +54,25 @@ class _DebtOverviewScreenState extends State<DebtOverviewScreen> {
                   const SizedBox(height: 20),
                   Row(
                     children: [
-                      Expanded(
+                      const Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Đang nợ', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                            const SizedBox(height: 4),
-                            const Text('0 đ', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                            Text('Đang nợ', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                            SizedBox(height: 4),
+                            Text('0 đ', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
                       Container(width: 1, height: 30, color: Colors.white24),
                       const SizedBox(width: 16),
-                      Expanded(
+                      const Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text('Còn lại', style: TextStyle(color: Colors.white70, fontSize: 12)),
-                            const SizedBox(height: 4),
-                            const Text('50.000.000 đ', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                            Text('Còn lại', style: TextStyle(color: Colors.white70, fontSize: 12)),
+                            SizedBox(height: 4),
+                            Text('50.000.000 đ', style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
                           ],
                         ),
                       ),
@@ -132,7 +130,7 @@ class _DebtOverviewScreenState extends State<DebtOverviewScreen> {
                     color: Colors.white, 
                     borderRadius: BorderRadius.circular(16), 
                     border: Border.all(color: AppColors.borderSubtle),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 4))],
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 4))],
                   ),
                   child: Column(
                     children: [

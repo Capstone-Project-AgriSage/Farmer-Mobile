@@ -71,7 +71,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(20),
                         border: Border.all(color: AppColors.borderSubtle),
-                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 4)],
+                        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 4)],
                       ),
                       child: Row(
                         children: [
@@ -183,14 +183,14 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.statusWarningSurface,
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.statusWarning.withOpacity(0.3)),
+                      border: Border.all(color: AppColors.statusWarning.withValues(alpha: 0.3)),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         const Icon(Icons.info_outline, color: AppColors.statusWarning, size: 20),
                         const SizedBox(width: 8),
-                        Expanded(child: Text('Nông dân tham khảo hướng dẫn trên bao bì và khuyến cáo kỹ thuật của đại lý vật tư nông nghiệp địa phương.', style: AppTextStyles.caption.copyWith(color: AppColors.statusWarning.withOpacity(0.9), fontWeight: FontWeight.w500))),
+                        Expanded(child: Text('Nông dân tham khảo hướng dẫn trên bao bì và khuyến cáo kỹ thuật của đại lý vật tư nông nghiệp địa phương.', style: AppTextStyles.caption.copyWith(color: AppColors.statusWarning.withValues(alpha: 0.9), fontWeight: FontWeight.w500))),
                       ],
                     ),
                   ),
@@ -276,7 +276,7 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
         padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
         decoration: BoxDecoration(
           color: Colors.white,
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
         ),
         child: Row(
           children: [
@@ -509,10 +509,10 @@ class _ProductDetailScreenState extends State<ProductDetailScreen> {
                     children: [
                       Text(review.userName, style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold)),
                       if (review.isVerifiedPurchase)
-                        Row(
+                        const Row(
                           children: [
-                            const Icon(Icons.verified, color: AppColors.statusSuccess, size: 12),
-                            const SizedBox(width: 2),
+                            Icon(Icons.verified, color: AppColors.statusSuccess, size: 12),
+                            SizedBox(width: 2),
                             Text('Đã mua hàng', style: TextStyle(fontSize: 10, color: AppColors.statusSuccess)),
                           ],
                         ),

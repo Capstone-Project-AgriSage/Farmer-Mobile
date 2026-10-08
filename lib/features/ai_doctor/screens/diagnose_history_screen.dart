@@ -145,7 +145,7 @@ class _HistoryCard extends StatelessWidget {
               decoration: BoxDecoration(
                 color: isUncertain
                     ? const Color(0xFFFFF3E0)
-                    : const Color(0xFF7B1FA2).withOpacity(0.1),
+                    : const Color(0xFF7B1FA2).withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
@@ -186,7 +186,7 @@ class _HistoryCard extends StatelessWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
                         decoration: BoxDecoration(
-                          color: _confidenceColor.withOpacity(0.1),
+                          color: _confidenceColor.withValues(alpha: 0.1),
                           borderRadius: BorderRadius.circular(4),
                         ),
                         child: Text(
@@ -196,7 +196,7 @@ class _HistoryCard extends StatelessWidget {
                       ),
                       const SizedBox(width: 8),
                       // Date
-                      Icon(Icons.access_time, size: 12, color: AppColors.textMuted),
+                      const Icon(Icons.access_time, size: 12, color: AppColors.textMuted),
                       const SizedBox(width: 3),
                       Text(_formatDate(record.createdAt), style: AppTextStyles.caption),
                     ],
@@ -249,7 +249,7 @@ class _HistoryCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: bg,
         borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: fg.withOpacity(0.3)),
+        border: Border.all(color: fg.withValues(alpha: 0.3)),
       ),
       child: Text(text, style: TextStyle(color: fg, fontSize: 10, fontWeight: FontWeight.w600)),
     );

@@ -29,7 +29,7 @@ final List<DiagnoseRecord> mockDiagnoses = [
     status: DiagnoseStatus.reviewed,
     createdAt: DateTime.now().subtract(const Duration(hours: 2)),
     suggestedProducts: [
-      SuggestedProduct(
+      const SuggestedProduct(
         id: 'SP-001',
         name: 'Thuốc Trừ Bệnh Beam 75WP',
         unit: 'Gói 100g',
@@ -37,7 +37,7 @@ final List<DiagnoseRecord> mockDiagnoses = [
         usage: 'Phun đều lên lá khi phát hiện triệu chứng đầu tiên',
         dosage: '1 gói pha 16-20 lít nước, phun cho 500-700m²',
       ),
-      SuggestedProduct(
+      const SuggestedProduct(
         id: 'SP-002',
         name: 'Thuốc Trừ Nấm Filia 525SE',
         unit: 'Chai 250ml',
@@ -45,7 +45,7 @@ final List<DiagnoseRecord> mockDiagnoses = [
         usage: 'Phun phòng ngừa hoặc khi bệnh mới xuất hiện',
         dosage: '25ml pha 16 lít nước, phun cho 500m²',
       ),
-      SuggestedProduct(
+      const SuggestedProduct(
         id: 'SP-003',
         name: 'Phân bón lá Đầu Trâu 502',
         unit: 'Gói 50g',

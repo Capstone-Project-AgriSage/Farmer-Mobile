@@ -134,7 +134,7 @@ class _CartScreenState extends State<CartScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
             decoration: BoxDecoration(
               color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
             ),
             child: Row(
               children: [
@@ -156,8 +156,8 @@ class _CartScreenState extends State<CartScreen> {
                     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
                     shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
                   ),
-                  child: Row(
-                    children: const [
+                  child: const Row(
+                    children: [
                       Text('Tiếp tục thanh toán', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                       SizedBox(width: 8),
                       Icon(Icons.arrow_forward, color: Colors.white, size: 18),

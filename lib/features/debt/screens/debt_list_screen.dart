@@ -122,7 +122,7 @@ class _DebtCard extends StatelessWidget {
           color: Colors.white,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(color: AppColors.borderSubtle),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -136,7 +136,7 @@ class _DebtCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: debt.status.backgroundColor,
                     borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: debt.status.color.withOpacity(0.3)),
+                    border: Border.all(color: debt.status.color.withValues(alpha: 0.3)),
                   ),
                   child: Text(
                     debt.status.label,

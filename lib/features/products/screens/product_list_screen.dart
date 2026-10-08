@@ -42,7 +42,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: AppColors.borderSubtle),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2))],
                   ),
                   child: TextField(
                     controller: _searchCtrl,
@@ -117,7 +117,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
           color: Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: Border.all(color: AppColors.borderSubtle),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 4))],
+          boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 4))],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -145,7 +145,7 @@ class _ProductListScreenState extends State<ProductListScreen> {
                       color: AppColors.primaryLight,
                       borderRadius: BorderRadius.circular(4),
                     ),
-                    child: Text('Còn hàng', style: TextStyle(fontSize: 9, color: AppColors.primary, fontWeight: FontWeight.w600)),
+                    child: const Text('Còn hàng', style: TextStyle(fontSize: 9, color: AppColors.primary, fontWeight: FontWeight.w600)),
                   ),
                   const SizedBox(height: 6),
                   Text(

@@ -62,7 +62,7 @@ class QRPaymentScreen extends StatelessWidget {
             Container(
               width: double.infinity,
               padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.borderSubtle), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.borderSubtle), boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 10, offset: const Offset(0, 4))]),
               child: Column(
                 children: [
                   Row(
@@ -93,7 +93,7 @@ class QRPaymentScreen extends StatelessWidget {
                           ],
                         ),
                         const SizedBox(height: 8),
-                        Expanded(child: Icon(Icons.qr_code_2, size: 140, color: Colors.black87)),
+                        const Expanded(child: Icon(Icons.qr_code_2, size: 140, color: Colors.black87)),
                       ],
                     ),
                   ),
@@ -158,9 +158,9 @@ class QRPaymentScreen extends StatelessWidget {
                         child: RichText(
                           text: TextSpan(
                             style: AppTextStyles.caption.copyWith(color: Colors.orange.shade900, height: 1.4),
-                            children: [
-                              const TextSpan(text: 'AGRISAGE không tự động xác nhận giao dịch ngân hàng.\n', style: TextStyle(fontWeight: FontWeight.bold)),
-                              const TextSpan(text: 'Thanh toán sẽ được cập nhật ngay sau khi đại lý đối soát tiền về.'),
+                            children: const [
+                              TextSpan(text: 'AGRISAGE không tự động xác nhận giao dịch ngân hàng.\n', style: TextStyle(fontWeight: FontWeight.bold)),
+                              TextSpan(text: 'Thanh toán sẽ được cập nhật ngay sau khi đại lý đối soát tiền về.'),
                             ],
                           ),
                         ),
@@ -182,9 +182,9 @@ class QRPaymentScreen extends StatelessWidget {
                   padding: const EdgeInsets.symmetric(vertical: 14),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                 ),
-                child: Row(
+                child: const Row(
                   mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
+                  children: [
                     Text('Xem đơn hàng', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
                     SizedBox(width: 8),
                     Icon(Icons.arrow_forward, color: Colors.white, size: 18),
@@ -247,10 +247,10 @@ class QRPaymentScreen extends StatelessWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
                   decoration: BoxDecoration(color: AppColors.surfaceSubtle, borderRadius: BorderRadius.circular(4), border: Border.all(color: AppColors.borderSubtle)),
-                  child: Row(
+                  child: const Row(
                     children: [
-                      const Icon(Icons.copy, size: 12, color: AppColors.textSecondary),
-                      const SizedBox(width: 4),
+                      Icon(Icons.copy, size: 12, color: AppColors.textSecondary),
+                      SizedBox(width: 4),
                       Text('Sao chép', style: TextStyle(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
                     ],
                   ),

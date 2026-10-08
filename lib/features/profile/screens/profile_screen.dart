@@ -29,7 +29,7 @@ class ProfileScreen extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withOpacity(0.5), width: 4),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 4),
                     ),
                     alignment: Alignment.center,
                     child: const Text('TH', style: TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.bold, fontSize: 24)),
@@ -42,7 +42,7 @@ class ProfileScreen extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text('Trần Văn Hải', style: AppTextStyles.h3.copyWith(color: Colors.white)),
                       const SizedBox(height: 4),
-                      Text('0912 345 678', style: AppTextStyles.bodyMedium.copyWith(color: Colors.white.withOpacity(0.9))),
+                      Text('0912 345 678', style: AppTextStyles.bodyMedium.copyWith(color: Colors.white.withValues(alpha: 0.9))),
                     ],
                   ),
                 ],
@@ -83,7 +83,7 @@ class ProfileScreen extends StatelessWidget {
                       label: Text('Đăng xuất', style: AppTextStyles.labelLarge.copyWith(color: AppColors.statusError)),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: BorderSide(color: AppColors.statusError.withOpacity(0.3)),
+                        side: BorderSide(color: AppColors.statusError.withValues(alpha: 0.3)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         backgroundColor: Colors.white,
                       ),
@@ -111,7 +111,7 @@ class ProfileScreen extends StatelessWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.borderSubtle),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 4))],
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 4))],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),

@@ -118,7 +118,7 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
                                 Container(
                                   width: 72,
                                   height: 72,
-                                  decoration: BoxDecoration(
+                                  decoration: const BoxDecoration(
                                     color: AppColors.primaryLight,
                                     shape: BoxShape.circle,
                                   ),
@@ -184,11 +184,11 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
                           ],
                         ),
                         const SizedBox(height: 14),
-                        _TipItem(number: '1', text: 'Chụp rõ nét, đủ ánh sáng tự nhiên'),
+                        const _TipItem(number: '1', text: 'Chụp rõ nét, đủ ánh sáng tự nhiên'),
                         const SizedBox(height: 10),
-                        _TipItem(number: '2', text: 'Đặt lá bệnh ở giữa khung hình, chụp gần'),
+                        const _TipItem(number: '2', text: 'Đặt lá bệnh ở giữa khung hình, chụp gần'),
                         const SizedBox(height: 10),
-                        _TipItem(number: '3', text: 'Tránh ảnh bị mờ, ngược sáng hoặc có bóng che'),
+                        const _TipItem(number: '3', text: 'Tránh ảnh bị mờ, ngược sáng hoặc có bóng che'),
                       ],
                     ),
                   ),
@@ -228,7 +228,7 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               decoration: BoxDecoration(
                 color: Colors.white,
-                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))],
+                boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
               ),
               child: SizedBox(
                 width: double.infinity,
@@ -279,7 +279,7 @@ class _ActionButton extends StatelessWidget {
                 width: 44,
                 height: 44,
                 decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
+                  color: color.withValues(alpha: 0.1),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(icon, color: color, size: 22),

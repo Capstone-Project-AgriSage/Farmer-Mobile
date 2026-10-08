@@ -72,7 +72,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 32),
 
                 // Email / SĐT field
-                _FieldLabel('EMAIL HOẶC SỐ ĐIỆN THOẠI'),
+                const _FieldLabel('EMAIL HOẶC SỐ ĐIỆN THOẠI'),
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _emailCtrl,
@@ -90,7 +90,7 @@ class _LoginScreenState extends State<LoginScreen> {
                 const SizedBox(height: 16),
 
                 // Password field
-                _FieldLabel('MẬT KHẨU'),
+                const _FieldLabel('MẬT KHẨU'),
                 const SizedBox(height: 6),
                 TextFormField(
                   controller: _passwordCtrl,

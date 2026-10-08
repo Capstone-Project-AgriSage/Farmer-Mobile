@@ -59,7 +59,7 @@ class DebtHistoryScreen extends StatelessWidget {
                     color: Colors.white,
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(color: AppColors.borderSubtle),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
+                    boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 4, offset: const Offset(0, 2))],
                   ),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,

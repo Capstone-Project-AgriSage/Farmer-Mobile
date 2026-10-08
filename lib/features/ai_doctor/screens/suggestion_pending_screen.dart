@@ -26,7 +26,7 @@ class SuggestionPendingScreen extends StatelessWidget {
                 color: const Color(0xFFFFF3E0),
                 shape: BoxShape.circle,
                 boxShadow: [
-                  BoxShadow(color: const Color(0xFFFFF3E0).withOpacity(0.5), blurRadius: 20, spreadRadius: 4),
+                  BoxShadow(color: const Color(0xFFFFF3E0).withValues(alpha: 0.5), blurRadius: 20, spreadRadius: 4),
                 ],
               ),
               child: const Icon(Icons.hourglass_top_rounded, size: 48, color: Color(0xFFE65100)),
@@ -56,7 +56,7 @@ class SuggestionPendingScreen extends StatelessWidget {
                     width: 40,
                     height: 40,
                     decoration: BoxDecoration(
-                      color: const Color(0xFF7B1FA2).withOpacity(0.1),
+                      color: const Color(0xFF7B1FA2).withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
                     child: const Icon(Icons.blur_on, color: Color(0xFF7B1FA2), size: 20),
@@ -93,7 +93,7 @@ class SuggestionPendingScreen extends StatelessWidget {
                 borderRadius: BorderRadius.circular(12),
                 border: Border.all(color: AppColors.borderSubtle),
               ),
-              child: Column(
+              child: const Column(
                 children: [
                   _TimelineStep(
                     icon: Icons.auto_awesome,
@@ -168,24 +168,24 @@ class SuggestionPendingScreen extends StatelessWidget {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => context.push('/ai-scan/history'),
-                    child: const Text('Xem lịch sử'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       side: const BorderSide(color: AppColors.borderStrong),
                     ),
+                    child: const Text('Xem lịch sử'),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () => context.go(AppRoutes.home),
-                    child: const Text('Về trang chủ'),
                     style: OutlinedButton.styleFrom(
                       padding: const EdgeInsets.symmetric(vertical: 14),
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
                       side: const BorderSide(color: AppColors.borderStrong),
                     ),
+                    child: const Text('Về trang chủ'),
                   ),
                 ),
               ],
