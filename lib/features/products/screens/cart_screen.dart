@@ -18,6 +18,15 @@ class CartScreen extends ConsumerStatefulWidget {
 }
 
 class _CartScreenState extends ConsumerState<CartScreen> {
+  @override
+  void initState() {
+    super.initState();
+    // The "Đã thêm vào giỏ hàng" message (and its "Xem giỏ" action) has done its job once the cart is open.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ScaffoldMessenger.of(context).clearSnackBars();
+    });
+  }
+
   /// Runs a cart change and reports a failure as a snack bar; the cart on screen stays as the server last said.
   Future<void> _run(Future<void> Function() change) async {
     try {
@@ -87,6 +96,8 @@ class _CartScreenState extends ConsumerState<CartScreen> {
         error: (error, _) => ErrorRetryView(error: error, onRetry: () => ref.invalidate(cartProvider)),
         data: (state) => state.cart.isEmpty ? const _EmptyCart() : _buildCart(state),
       ),
+      // In the Scaffold's own slot, so a snack bar floats above it instead of hiding the checkout button.
+      bottomNavigationBar: (cart == null || cart.isEmpty) ? null : _buildBottomBar(cart, busy),
     );
   }
 
@@ -189,51 +200,53 @@ class _CartScreenState extends ConsumerState<CartScreen> {
             ),
           ),
         ),
-        // Bottom bar
-        Container(
-          padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Text('Tạm tính', style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
-                    Text(
-                      formatVnd(cart.subtotalAmount),
-                      style: AppTextStyles.h3.copyWith(color: const Color(0xFF1B5E20)),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 16),
-              ElevatedButton(
-                onPressed: cart.canCheckout && !state.busy ? () => context.push(AppRoutes.orderConfirm) : null,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1B5E20), // Dark green
-                  disabledBackgroundColor: AppColors.borderStrong,
-                  // The app theme makes buttons full width; in a Row that would be an infinite width.
-                  minimumSize: const Size(0, 50),
-                  padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                ),
-                child: const Row(
-                  children: [
-                    Text('Tiếp tục thanh toán', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                    SizedBox(width: 8),
-                    Icon(Icons.arrow_forward, color: Colors.white, size: 18),
-                  ],
-                ),
-              ),
-            ],
-          ),
-        ),
       ],
+    );
+  }
+
+  Widget _buildBottomBar(Cart cart, bool busy) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Tạm tính', style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+                Text(
+                  formatVnd(cart.subtotalAmount),
+                  style: AppTextStyles.h3.copyWith(color: const Color(0xFF1B5E20)),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          ElevatedButton(
+            onPressed: cart.canCheckout && !busy ? () => context.push(AppRoutes.orderConfirm) : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1B5E20), // Dark green
+              disabledBackgroundColor: AppColors.borderStrong,
+              // The app theme makes buttons full width; in a Row that would be an infinite width.
+              minimumSize: const Size(0, 50),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: const Row(
+              children: [
+                Text('Tiếp tục thanh toán', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                SizedBox(width: 8),
+                Icon(Icons.arrow_forward, color: Colors.white, size: 18),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

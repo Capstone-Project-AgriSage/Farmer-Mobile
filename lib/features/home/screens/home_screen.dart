@@ -6,6 +6,7 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/network/dio_provider.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../router/app_router.dart';
+import '../../payment/widgets/pending_payment_banner.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -27,6 +28,9 @@ class HomeScreen extends ConsumerWidget {
               
               Text('Hôm nay bạn cần hỗ trợ gì?', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
               const SizedBox(height: 20),
+
+              // An unfinished payOS payment, if any
+              const PendingPaymentBanner(),
 
               // AI Banner
               _buildAiBanner(context),

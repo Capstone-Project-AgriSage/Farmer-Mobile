@@ -120,6 +120,15 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
     final creditAsync = ref.watch(myCreditProvider);
     final submitting = ref.watch(checkoutProvider).isLoading;
 
+    final cart = cartAsync.valueOrNull?.cart;
+    final addresses = addressesAsync.valueOrNull ?? const <Address>[];
+    final address = _selected(addresses);
+    final credit = creditAsync.valueOrNull;
+    final creditLoaded = creditAsync.hasValue;
+    final choice = (cart != null && creditLoaded) ? creditChoiceFor(credit, cart.subtotalAmount) : null;
+    final useCredit = _creditSelected && choice == CreditChoice.available;
+    final canOrder = cart != null && cart.canCheckout && address != null && _isChecked && !submitting;
+
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
       appBar: AppBar(
@@ -141,14 +150,6 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
         data: (state) {
           final cart = state.cart;
           if (cart.isEmpty) return const _NothingToPay();
-
-          final addresses = addressesAsync.valueOrNull ?? const <Address>[];
-          final address = _selected(addresses);
-          final credit = creditAsync.valueOrNull;
-          final creditLoaded = creditAsync.hasValue;
-          final choice = creditLoaded ? creditChoiceFor(credit, cart.subtotalAmount) : null;
-          final useCredit = _creditSelected && choice == CreditChoice.available;
-          final canOrder = cart.canCheckout && address != null && _isChecked && !submitting;
 
           return Column(
             children: [
@@ -248,52 +249,64 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
                 ),
               ),
 
-              // Bottom Bar
-              Container(
-                padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Text('Tổng thanh toán', style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
-                          Text(formatVnd(cart.subtotalAmount), style: AppTextStyles.h3.copyWith(color: const Color(0xFF1B5E20))),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(width: 16),
-                    ElevatedButton(
-                      onPressed: canOrder ? () => _submit(address: address, useCredit: useCredit) : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: const Color(0xFF1B5E20), // Dark green
-                        disabledBackgroundColor: Colors.grey.shade300,
-                        // The app theme makes buttons full width; in a Row that would be an infinite width.
-                        minimumSize: const Size(0, 50),
-                        padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                      ),
-                      child: submitting
-                          ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
-                          : Row(
-                              children: [
-                                Text('Đặt hàng', style: TextStyle(color: canOrder ? Colors.white : Colors.grey.shade500, fontWeight: FontWeight.bold, fontSize: 14)),
-                                const SizedBox(width: 8),
-                                Icon(Icons.arrow_forward, color: canOrder ? Colors.white : Colors.grey.shade500, size: 18),
-                              ],
-                            ),
-                    ),
-                  ],
-                ),
-              ),
             ],
           );
         },
+      ),
+      // In the Scaffold's own slot, so a snack bar floats above it instead of hiding the order button.
+      bottomNavigationBar: (cart == null || cart.isEmpty)
+          ? null
+          : _buildBottomBar(cart: cart, address: address, useCredit: useCredit, canOrder: canOrder, submitting: submitting),
+    );
+  }
+
+  Widget _buildBottomBar({
+    required Cart cart,
+    required Address? address,
+    required bool useCredit,
+    required bool canOrder,
+    required bool submitting,
+  }) {
+    return Container(
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.05), blurRadius: 10, offset: const Offset(0, -4))],
+      ),
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('Tổng thanh toán', style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+                Text(formatVnd(cart.subtotalAmount), style: AppTextStyles.h3.copyWith(color: const Color(0xFF1B5E20))),
+              ],
+            ),
+          ),
+          const SizedBox(width: 16),
+          ElevatedButton(
+            onPressed: canOrder ? () => _submit(address: address!, useCredit: useCredit) : null,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFF1B5E20), // Dark green
+              disabledBackgroundColor: Colors.grey.shade300,
+              // The app theme makes buttons full width; in a Row that would be an infinite width.
+              minimumSize: const Size(0, 50),
+              padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 14),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+            ),
+            child: submitting
+                ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                : Row(
+                    children: [
+                      Text('Đặt hàng', style: TextStyle(color: canOrder ? Colors.white : Colors.grey.shade500, fontWeight: FontWeight.bold, fontSize: 14)),
+                      const SizedBox(width: 8),
+                      Icon(Icons.arrow_forward, color: canOrder ? Colors.white : Colors.grey.shade500, size: 18),
+                    ],
+                  ),
+          ),
+        ],
       ),
     );
   }

@@ -34,6 +34,11 @@ flutter build apk --debug
 ```
 CI (`.github/workflows/flutter-ci.yml`) chạy `analyze` và `test` cho mỗi PR.
 
+## Thanh toán payOS và công cụ dev
+- Thanh toán mở `checkoutUrl` trong WebView; app chặn link trả về/hủy (so theo **path**, cấu hình `PAYOS_RETURN_PATH` / `PAYOS_CANCEL_PATH`) và luôn hỏi server kết quả, không tin `status=PAID` trên link.
+- Backend ở chế độ `PayOS:Mode=Simulated` thì link chính là trang trả về: màn kết quả hiện nút "Thanh toán nhanh (môi trường thử)".
+- Khi `SHOW_DEV_TOOLS=true` (có trong `env/emulator.json`), màn Tài khoản có mục "Công cụ phát triển" để thử WebView với trang giả: xem `tool/payos_webview_test/README.md`.
+
 ## Cấu trúc
 ```
 lib/

@@ -32,8 +32,9 @@ import '../features/products/screens/order_list_screen.dart';
 import '../features/products/screens/order_detail_screen.dart';
 
 // Payment
-import '../features/payment/screens/qr_payment_screen.dart';
-import '../features/payment/screens/payment_pending_screen.dart';
+import '../features/payment/data/pending_payment.dart';
+import '../features/payment/providers/payment_providers.dart';
+import '../features/payment/screens/payos_checkout_screen.dart';
 import '../features/payment/screens/payment_result_screen.dart';
 
 // Debt
@@ -96,8 +97,7 @@ abstract class AppRoutes {
   static const orderDetail = '/orders/:id';
 
   // Payment
-  static const qrPayment = '/payment/qr';
-  static const paymentPending = '/payment/pending';
+  static const payosCheckout = '/payment/payos';
   static const paymentResult = '/payment/result';
 
   // Debt
@@ -379,19 +379,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       // ── Payment ───────────────────────────────────────────────
+      // Both screens need what the previous screen passed along; without it (for example after a restart) go home.
       GoRoute(
-        path: AppRoutes.qrPayment,
-        builder: (_, __) => const QRPaymentScreen(),
-      ),
-      GoRoute(
-        path: AppRoutes.paymentPending,
-        builder: (_, __) => const PaymentPendingScreen(),
+        path: AppRoutes.payosCheckout,
+        redirect: (_, state) => state.extra is PendingPayment ? null : AppRoutes.home,
+        builder: (_, state) => PayosCheckoutScreen(payment: state.extra as PendingPayment),
       ),
       GoRoute(
         path: AppRoutes.paymentResult,
-        builder: (_, state) => PaymentResultScreen(
-          success: state.uri.queryParameters['success'] == 'true',
-        ),
+        redirect: (_, state) => state.extra is PaymentResultArgs ? null : AppRoutes.home,
+        builder: (_, state) => PaymentResultScreen(args: state.extra as PaymentResultArgs),
       ),
     ],
     errorBuilder: (_, state) => Scaffold(

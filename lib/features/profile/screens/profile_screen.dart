@@ -7,6 +7,7 @@ import '../../../core/network/dio_provider.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../router/app_router.dart';
 import '../../auth/providers/auth_providers.dart';
+import '../../dev/dev_tools_section.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -96,6 +97,7 @@ class ProfileScreen extends ConsumerWidget {
                       _buildTile(Icons.privacy_tip_outlined, 'Chính sách bảo mật', () => context.push('/profile/privacy')),
                     ],
                   ),
+                  const DevToolsSection(),
                   const SizedBox(height: 24),
                   
                   // Logout Button

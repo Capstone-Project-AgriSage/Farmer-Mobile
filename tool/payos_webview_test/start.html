@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Trang thử payOS</title>
+  <style>
+    body { font-family: sans-serif; padding: 16px; }
+    a { display: block; margin: 12px 0; padding: 14px; border-radius: 10px; background: #e8f5e9; color: #1b5e20; text-decoration: none; font-weight: 600; }
+    a.danger { background: #ffebee; color: #c62828; }
+    p { color: #465348; font-size: 14px; }
+  </style>
+</head>
+<body>
+  <h2>Trang thử payOS</h2>
+  <p>Giả lập trang thanh toán của payOS. Mỗi liên kết dưới đây thử một đường đi của ứng dụng. Không có tiền thật.</p>
+
+  <a href="http://localhost:5174/payments/payos/return?code=00&id=abc&cancel=false&status=PAID&orderCode=1700000001">
+    1. Quay về app: thành công (status=PAID trên link, app vẫn phải hỏi server)
+  </a>
+  <a class="danger" href="http://localhost:5174/payments/payos/cancel?code=00&id=abc&cancel=true&status=CANCELLED&orderCode=1700000001">
+    2. Quay về app: Bác bấm hủy
+  </a>
+  <a href="intent://pay#Intent;scheme=momo;package=com.mservice.momotransfer;S.browser_fallback_url=http%3A%2F%2F10.0.2.2%3A8099%2Ffallback.html;end">
+    3. Mở app ngân hàng bằng intent:// (máy chưa cài app, nên rơi về trang dự phòng)
+  </a>
+  <a href="vcbpay://open?x=1">
+    4. Mở app ngân hàng bằng scheme riêng (máy chưa cài app, nên báo không mở được)
+  </a>
+  <a href="tel:0912345678">5. Gọi điện (tel:)</a>
+  <a href="http://10.0.2.2:8099/fallback.html">6. Một trang web bình thường trong cùng WebView</a>
+</body>
+</html>

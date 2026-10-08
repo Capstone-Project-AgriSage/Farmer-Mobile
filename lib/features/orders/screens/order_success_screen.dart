@@ -1,23 +1,48 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/network/app_exception.dart';
 import '../../../core/utils/formatters.dart';
 import '../../../router/app_router.dart';
+import '../../payment/providers/payment_providers.dart';
 import '../data/order_models.dart';
 
 /// Shown right after the order was created. A payOS order is not paid yet: that is the next step. A credit order only
 /// waits for the store.
-class OrderSuccessScreen extends StatelessWidget {
+class OrderSuccessScreen extends ConsumerStatefulWidget {
   const OrderSuccessScreen({super.key, required this.order});
 
   /// Null when the screen is reopened without the order (for example after the app was restarted).
   final Order? order;
 
   @override
+  ConsumerState<OrderSuccessScreen> createState() => _OrderSuccessScreenState();
+}
+
+class _OrderSuccessScreenState extends ConsumerState<OrderSuccessScreen> {
+  bool _starting = false;
+
+  Future<void> _payNow(Order order) async {
+    setState(() => _starting = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final pending = await ref.read(paymentLauncherProvider).startOrderPayment(order.id);
+      if (mounted) context.push(AppRoutes.payosCheckout, extra: pending);
+    } on AppException catch (error) {
+      messenger
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(content: Text(error.message)));
+    } finally {
+      if (mounted) setState(() => _starting = false);
+    }
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final order = this.order;
+    final order = widget.order;
     final needsPayment = order != null && !order.isCredit;
 
     return PopScope(
@@ -59,10 +84,24 @@ class OrderSuccessScreen extends StatelessWidget {
                   textAlign: TextAlign.center,
                 ),
                 const Spacer(),
-                ElevatedButton(
-                  onPressed: () => context.go(AppRoutes.orderList),
-                  child: const Text('Xem đơn hàng'),
-                ),
+                if (needsPayment) ...[
+                  ElevatedButton(
+                    onPressed: _starting ? null : () => _payNow(order),
+                    child: _starting
+                        ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                        : const Text('Thanh toán ngay'),
+                  ),
+                  const SizedBox(height: 12),
+                ],
+                needsPayment
+                    ? OutlinedButton(
+                        onPressed: () => context.go(AppRoutes.orderList),
+                        child: const Text('Xem đơn hàng, thanh toán sau'),
+                      )
+                    : ElevatedButton(
+                        onPressed: () => context.go(AppRoutes.orderList),
+                        child: const Text('Xem đơn hàng'),
+                      ),
                 const SizedBox(height: 12),
                 OutlinedButton(
                   onPressed: () => context.go(AppRoutes.products),
