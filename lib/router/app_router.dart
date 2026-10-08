@@ -66,8 +66,6 @@ import '../features/profile/screens/address_form_screen.dart';
 import '../features/home/screens/article_list_screen.dart';
 import '../features/home/screens/article_detail_screen.dart';
 
-// Reviews
-import '../features/products/screens/write_review_screen.dart';
 abstract class AppRoutes {
   // Auth
   static const splash = '/';
@@ -88,7 +86,7 @@ abstract class AppRoutes {
   static const notifications = '/notifications';
 
   // Products
-  static const productDetail = '/products/:slug';
+  static const productDetail = '/products/:id';
   static const cart = '/cart';
   static const orderConfirm = '/order-confirm';
   static const orderList = '/orders';
@@ -238,15 +236,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const ProductListScreen(),
             routes: [
               GoRoute(
-                path: ':slug',
+                path: ':id',
                 builder: (_, state) => ProductDetailScreen(
-                  slug: state.pathParameters['slug']!,
-                ),
-              ),
-              GoRoute(
-                path: ':slug/review',
-                builder: (_, state) => WriteReviewScreen(
-                  slug: state.pathParameters['slug']!,
+                  productId: state.pathParameters['id']!,
                 ),
               ),
             ],
