@@ -46,6 +46,8 @@ import '../features/debt/screens/debt_history_screen.dart';
 // AI Doctor
 import '../features/ai_doctor/screens/ai_scan_home_screen.dart';
 import '../features/ai_doctor/screens/image_capture_screen.dart';
+import '../features/diagnosis/screens/diagnosis_case_screen.dart';
+import '../features/diagnosis/screens/diagnosis_history_screen.dart';
 
 // Profile
 import '../features/profile/screens/profile_screen.dart';
@@ -99,6 +101,8 @@ abstract class AppRoutes {
 
   // AI Doctor
   static const imageCapture = '/ai-scan/capture';
+  static const diagnosisHistory = '/ai-scan/history';
+  static const diagnosisCase = '/ai-scan/cases/:id';
 
   // Profile sub-pages
   static const editProfile = '/profile/edit';
@@ -232,6 +236,16 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'capture',
                 builder: (_, __) => const ImageCaptureScreen(),
+              ),
+              GoRoute(
+                path: 'history',
+                builder: (_, __) => const DiagnosisHistoryScreen(),
+              ),
+              GoRoute(
+                path: 'cases/:id',
+                builder: (_, state) => DiagnosisCaseScreen(
+                  caseId: state.pathParameters['id']!,
+                ),
               ),
             ],
           ),

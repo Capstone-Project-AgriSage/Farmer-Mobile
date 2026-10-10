@@ -1,53 +1,85 @@
 import 'dart:io';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:image_picker/image_picker.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/network/app_exception.dart';
+import '../../diagnosis/data/diagnosis_photo.dart';
+import '../../diagnosis/providers/diagnosis_providers.dart';
 
-/// The photo never leaves the phone: there is no AI service behind the "analyse" button yet.
-Future<void> showAiComingSoonDialog(BuildContext context) {
-  return showDialog<void>(
-    context: context,
-    builder: (ctx) => AlertDialog(
-      title: const Text('Sắp ra mắt'),
-      content: const Text('Tính năng phân tích ảnh bằng AI đang được hoàn thiện. Ảnh của Bác chưa được gửi đi đâu cả.'),
-      actions: [TextButton(onPressed: () => Navigator.pop(ctx), child: const Text('Đã hiểu'))],
-    ),
-  );
-}
-
-class ImageCaptureScreen extends StatefulWidget {
+/// Choose or take one photo of a rice leaf, add a note if wanted, and send it to the store's specialist.
+class ImageCaptureScreen extends ConsumerStatefulWidget {
   const ImageCaptureScreen({super.key});
+
   @override
-  State<ImageCaptureScreen> createState() => _ImageCaptureScreenState();
+  ConsumerState<ImageCaptureScreen> createState() => _ImageCaptureScreenState();
 }
 
-class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
-  File? _selectedImage;
-  final ImagePicker _picker = ImagePicker();
+class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
+  static const _noteMaxLength = 1000;
 
-  Future<void> _pickImage(ImageSource source) async {
+  final _note = TextEditingController();
+  DiagnosisPhotoFile? _photo;
+  bool _sending = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Android may close the app while the camera is open; the photo taken is then handed back here.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _recoverLostPhoto());
+  }
+
+  @override
+  void dispose() {
+    _note.dispose();
+    super.dispose();
+  }
+
+  Future<void> _recoverLostPhoto() async {
+    final lost = await ref.read(diagnosisPhotoServiceProvider).recoverLostPhoto();
+    if (lost != null && mounted && _photo == null) setState(() => _photo = lost);
+  }
+
+  Future<void> _pick(ImageSource source) async {
+    if (_sending) return;
     try {
-      final XFile? image = await _picker.pickImage(
-        source: source,
-        maxWidth: 1024,
-        maxHeight: 1024,
-        imageQuality: 85,
-      );
-      if (image != null) {
-        setState(() => _selectedImage = File(image.path));
-      }
-    } catch (e) {
+      final photo = await ref.read(diagnosisPhotoServiceProvider).pick(source);
+      if (photo != null && mounted) setState(() => _photo = photo);
+    } on DiagnosisPhotoException catch (error) {
+      _say(error.message);
+    }
+  }
+
+  Future<void> _send() async {
+    final photo = _photo;
+    if (photo == null || _sending) return;
+
+    setState(() => _sending = true);
+    try {
+      final created = await ref.read(diagnosisActionsProvider).send(photo, note: _note.text);
+      if (!mounted) return;
+      // The photo screen is replaced so that "back" from the result goes to the start page, not to a sent photo.
+      context.pushReplacement('/ai-scan/cases/${created.id}');
+    } on AppException catch (error) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Không thể truy cập ${source == ImageSource.camera ? 'camera' : 'thư viện'}')),
-        );
+        setState(() => _sending = false);
+        _say(error.message);
       }
     }
   }
 
+  void _say(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+  }
+
   @override
   Widget build(BuildContext context) {
+    final photo = _photo;
+
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
       appBar: AppBar(title: const Text('Chụp ảnh lá lúa')),
@@ -55,33 +87,31 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
         children: [
           Expanded(
             child: SingleChildScrollView(
+              keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   // ── Image Preview Area ─────────────────────────────
                   GestureDetector(
-                    onTap: () => _pickImage(ImageSource.camera),
+                    onTap: () => _pick(ImageSource.camera),
                     child: Container(
                       height: 280,
                       decoration: BoxDecoration(
                         color: Colors.white,
                         borderRadius: BorderRadius.circular(16),
                         border: Border.all(
-                          color: _selectedImage != null
-                              ? AppColors.primary
-                              : AppColors.borderSubtle,
-                          width: _selectedImage != null ? 2 : 1,
+                          color: photo != null ? AppColors.primary : AppColors.borderSubtle,
+                          width: photo != null ? 2 : 1,
                         ),
                       ),
-                      child: _selectedImage != null
+                      child: photo != null
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(14),
                               child: Stack(
                                 fit: StackFit.expand,
                                 children: [
-                                  Image.file(_selectedImage!, fit: BoxFit.cover),
-                                  // Overlay change button
+                                  Image.file(File(photo.path), fit: BoxFit.cover),
                                   Positioned(
                                     top: 12,
                                     right: 12,
@@ -101,7 +131,6 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
                                       ),
                                     ),
                                   ),
-                                  // Scan corners overlay
                                   Positioned(
                                     bottom: 12,
                                     left: 12,
@@ -153,7 +182,7 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
                           icon: Icons.camera_alt,
                           label: 'Chụp ảnh mới',
                           color: const Color(0xFF6A1B9A),
-                          onTap: () => _pickImage(ImageSource.camera),
+                          onTap: () => _pick(ImageSource.camera),
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -162,12 +191,30 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
                           icon: Icons.photo_library_outlined,
                           label: 'Chọn từ thư viện',
                           color: const Color(0xFF1565C0),
-                          onTap: () => _pickImage(ImageSource.gallery),
+                          onTap: () => _pick(ImageSource.gallery),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
+
+                  // ── Note ──────────────────────────────────────────
+                  TextField(
+                    controller: _note,
+                    enabled: !_sending,
+                    maxLength: _noteMaxLength,
+                    maxLines: 3,
+                    minLines: 2,
+                    textInputAction: TextInputAction.newline,
+                    decoration: const InputDecoration(
+                      labelText: 'Ghi chú cho chuyên viên (không bắt buộc)',
+                      hintText: 'Ví dụ: lá vàng từ chóp, ruộng sạ được 30 ngày',
+                      filled: true,
+                      fillColor: Colors.white,
+                      alignLabelWithHint: true,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
 
                   // ── Tips Panel ────────────────────────────────────
                   Container(
@@ -191,7 +238,7 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
                               child: const Icon(Icons.lightbulb_outline, color: Color(0xFFF57F17), size: 18),
                             ),
                             const SizedBox(width: 10),
-                            Text('3 mẹo để AI nhận diện chính xác', style: AppTextStyles.labelLarge),
+                            Text('3 mẹo để ảnh dễ chẩn đoán', style: AppTextStyles.labelLarge),
                           ],
                         ),
                         const SizedBox(height: 14),
@@ -203,9 +250,9 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
                       ],
                     ),
                   ),
-                  const SizedBox(height: 24),
+                  const SizedBox(height: 16),
 
-                  // ── AI Safety Notice ──────────────────────────────
+                  // ── Safety Notice ─────────────────────────────────
                   Container(
                     padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
@@ -220,7 +267,7 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Kết quả AI chỉ mang tính tham khảo. Sản phẩm điều trị sẽ được đại lý chuyên môn duyệt trước khi gợi ý.',
+                            'Ảnh được gửi tới chuyên viên của đại lý. Kết quả và gợi ý sản phẩm chỉ hiện sau khi chuyên viên xem và xác nhận.',
                             style: AppTextStyles.caption.copyWith(color: const Color(0xFF5D4037), height: 1.4),
                           ),
                         ),
@@ -233,8 +280,8 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
             ),
           ),
 
-          // ── Bottom Analyze Button ───────────────────────────────
-          if (_selectedImage != null)
+          // ── Bottom Send Button ──────────────────────────────────
+          if (photo != null)
             Container(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
               decoration: BoxDecoration(
@@ -244,9 +291,11 @@ class _ImageCaptureScreenState extends State<ImageCaptureScreen> {
               child: SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => showAiComingSoonDialog(context),
-                  icon: const Icon(Icons.auto_awesome, size: 20),
-                  label: const Text('Phân tích bằng AI'),
+                  onPressed: _sending ? null : _send,
+                  icon: _sending
+                      ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                      : const Icon(Icons.send_rounded, size: 20),
+                  label: Text(_sending ? 'Đang gửi ảnh...' : 'Gửi ảnh cho chuyên viên'),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: const Color(0xFF6A1B9A),
                     foregroundColor: Colors.white,

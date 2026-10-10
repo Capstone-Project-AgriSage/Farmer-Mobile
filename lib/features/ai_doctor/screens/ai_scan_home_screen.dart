@@ -19,14 +19,6 @@ class AiScanHomeScreen extends StatelessWidget {
       backgroundColor: AppColors.surfaceSubtle,
       appBar: AppBar(title: Text('Bác sĩ cây trồng AI', style: AppTextStyles.h3)),
       body: SingleChildScrollView(padding: const EdgeInsets.all(16), child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        // The analysis is not connected to the server yet; say so before the farmer takes a photo.
-        Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: AppColors.statusWarningSurface, borderRadius: BorderRadius.circular(10)),
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            const Icon(Icons.info_outline, color: AppColors.statusWarning, size: 18),
-            const SizedBox(width: 8),
-            Expanded(child: Text('Tính năng nhận diện bệnh bằng AI sắp ra mắt. Hiện Bác có thể chuẩn bị ảnh, nhưng ứng dụng chưa phân tích được.', style: AppTextStyles.bodySmall.copyWith(color: const Color(0xFF5D4037)))),
-          ])),
-        const SizedBox(height: 16),
         // Hero scan button
         GestureDetector(onTap: () => context.push('/ai-scan/capture'),
           child: Container(padding: const EdgeInsets.all(24), width: double.infinity,
@@ -37,11 +29,19 @@ class AiScanHomeScreen extends StatelessWidget {
               const SizedBox(height: 16),
               Text('Chụp ảnh lá lúa', style: AppTextStyles.h3.copyWith(color: Colors.white)),
               const SizedBox(height: 6),
-              Text('Chuẩn bị ảnh để AI nhận diện bệnh', style: AppTextStyles.bodySmall.copyWith(color: Colors.white70)),
+              Text('Gửi ảnh cho chuyên viên đại lý xem bệnh', style: AppTextStyles.bodySmall.copyWith(color: Colors.white70)),
               const SizedBox(height: 16),
               Container(padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10), decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(10)),
-                child: Text('Chuẩn bị ảnh', style: AppTextStyles.labelLarge.copyWith(color: const Color(0xFF7B1FA2)))),
+                child: Text('Chụp ảnh', style: AppTextStyles.labelLarge.copyWith(color: const Color(0xFF7B1FA2)))),
             ]))),
+        const SizedBox(height: 12),
+        // Earlier cases and their answers
+        OutlinedButton.icon(
+          onPressed: () => context.push('/ai-scan/history'),
+          icon: const Icon(Icons.history_outlined, size: 20),
+          label: const Text('Lịch sử chẩn đoán'),
+          style: OutlinedButton.styleFrom(minimumSize: const Size.fromHeight(48)),
+        ),
         const SizedBox(height: 20),
         // AI safety notice
         Container(padding: const EdgeInsets.all(14), decoration: BoxDecoration(color: const Color(0xFFFFF8E1), borderRadius: BorderRadius.circular(10), border: const Border.fromBorderSide(BorderSide(color: Color(0xFFFFE082)))),
@@ -49,13 +49,13 @@ class AiScanHomeScreen extends StatelessWidget {
             const Icon(Icons.shield_outlined, color: Color(0xFFF57F17), size: 18),
             const SizedBox(width: 8),
             Expanded(child: Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              Text('Lưu ý về AI Safety', style: AppTextStyles.labelLarge.copyWith(color: const Color(0xFFE65100))),
+              Text('Kết quả do chuyên viên xác nhận', style: AppTextStyles.labelLarge.copyWith(color: const Color(0xFFE65100))),
               const SizedBox(height: 4),
-              Text('Khi AI không đủ tự tin, hệ thống sẽ thông báo thay vì đưa ra kết luận sai. Mọi gợi ý sản phẩm phải được đại lý duyệt trước.', style: AppTextStyles.bodySmall.copyWith(color: const Color(0xFF5D4037))),
+              Text('AI chỉ giúp chuyên viên xem ảnh nhanh hơn. Bác chỉ nhận kết quả và gợi ý sản phẩm sau khi chuyên viên của đại lý xác nhận; nếu ảnh chưa đủ rõ, Bác sẽ được nhắc chụp lại.', style: AppTextStyles.bodySmall.copyWith(color: const Color(0xFF5D4037))),
             ])),
           ])),
         const SizedBox(height: 20),
-        Text('4 bệnh AI có thể nhận diện', style: AppTextStyles.h3),
+        Text('4 bệnh thường gặp trên lúa', style: AppTextStyles.h3),
         const SizedBox(height: 12),
         GridView.builder(shrinkWrap: true, physics: const NeverScrollableScrollPhysics(), gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(crossAxisCount: 2, childAspectRatio: 1.6, crossAxisSpacing: 10, mainAxisSpacing: 10),
           itemCount: _diseases.length,

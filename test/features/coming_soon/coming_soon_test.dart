@@ -129,47 +129,33 @@ void main() {
       expect(find.text('Sắp ra mắt'), findsOneWidget);
     });
 
-    testWidgets('the AI banner says the feature is not here yet and has no history button', (tester) async {
+    testWidgets('the AI banner offers the photo flow and keeps "coming soon" for the news row only', (tester) async {
       await pump(tester, const HomeScreen());
 
-      expect(find.textContaining('Sắp ra mắt'), findsWidgets);
+      expect(find.text('Kiểm tra bệnh trên cây lúa'), findsOneWidget);
+      expect(find.textContaining('AI hỗ trợ'), findsOneWidget);
+      expect(find.text('Sắp ra mắt'), findsOneWidget, reason: 'only the news row is still unfinished');
       expect(find.text('Xem lịch sử'), findsNothing);
     });
   });
 
   group('AI doctor', () {
-    testWidgets('the start page warns that analysis is not available and has no history', (tester) async {
+    testWidgets('the start page no longer says the feature is coming soon, and links to the history', (tester) async {
       await pump(tester, const AiScanHomeScreen());
 
-      expect(find.textContaining('sắp ra mắt'), findsOneWidget);
-      expect(find.byIcon(Icons.history_outlined), findsNothing);
+      expect(find.textContaining('sắp ra mắt'), findsNothing);
+      expect(find.textContaining('Sắp ra mắt'), findsNothing);
+      expect(find.byIcon(Icons.history_outlined), findsOneWidget);
     });
 
     testWidgets('the start page leads to the photo page', (tester) async {
       await pump(tester, const AiScanHomeScreen());
 
-      await tester.tap(find.text('Chuẩn bị ảnh').first);
+      await tester.tap(find.text('Chụp ảnh').first);
       await tester.pumpAndSettle();
 
       expect(find.text('Chạm để chụp ảnh lá lúa'), findsOneWidget);
-      expect(find.text('Phân tích bằng AI'), findsNothing, reason: 'only offered once a photo has been chosen');
-    });
-
-    testWidgets('"analyse" explains that nothing was sent', (tester) async {
-      await pump(
-        tester,
-        Builder(builder: (context) => ElevatedButton(onPressed: () => showAiComingSoonDialog(context), child: const Text('ANALYSE'))),
-      );
-
-      await tester.tap(find.text('ANALYSE'));
-      await tester.pumpAndSettle();
-
-      expect(find.text('Sắp ra mắt'), findsOneWidget);
-      expect(find.textContaining('chưa được gửi đi đâu'), findsOneWidget);
-
-      await tester.tap(find.text('Đã hiểu'));
-      await tester.pumpAndSettle();
-      expect(find.text('Sắp ra mắt'), findsNothing);
+      expect(find.text('Gửi ảnh cho chuyên viên'), findsNothing, reason: 'only offered once a photo has been chosen');
     });
   });
 }
