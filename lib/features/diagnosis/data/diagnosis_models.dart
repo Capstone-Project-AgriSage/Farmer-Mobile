@@ -96,9 +96,10 @@ class RecommendedProduct {
     this.rankOrder = 0,
   });
 
+  /// The id the catalog screens use (`/products/:id`).
   final String storeProductId;
 
-  /// The id the catalog screens use (`/products/:id`).
+  /// The underlying product, not a catalog id: `/api/catalog/products/{productId}` is a 404.
   final String productId;
   final String name;
   final String sku;

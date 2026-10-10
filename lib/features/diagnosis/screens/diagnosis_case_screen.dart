@@ -115,6 +115,13 @@ class _Header extends StatelessWidget {
                 child: Image.network(
                   photo.imageUrl,
                   fit: BoxFit.cover,
+                  loadingBuilder: (context, child, progress) => progress == null
+                      ? child
+                      : Container(
+                          color: AppColors.surfaceSubtle,
+                          alignment: Alignment.center,
+                          child: const CircularProgressIndicator(strokeWidth: 2),
+                        ),
                   errorBuilder: (_, __, ___) => Container(
                     color: AppColors.surfaceSubtle,
                     alignment: Alignment.center,
@@ -310,7 +317,8 @@ class _ProductTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       borderRadius: BorderRadius.circular(12),
-      onTap: product.productId.isEmpty ? null : () => context.push('/products/${product.productId}'),
+      // The catalog screens are keyed by the store product id (found by hand on the emulator: the product id is a 404).
+      onTap: product.storeProductId.isEmpty ? null : () => context.push('/products/${product.storeProductId}'),
       child: Container(
         padding: const EdgeInsets.all(12),
         decoration: BoxDecoration(

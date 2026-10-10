@@ -261,7 +261,7 @@ void main() {
       await tester.tap(find.text('Thuốc trừ bệnh Fuji-One 40EC'));
       await tester.pumpAndSettle();
 
-      expect(find.text('PRODUCT p-1'), findsOneWidget);
+      expect(find.text('PRODUCT sp-1'), findsOneWidget, reason: 'the catalog is keyed by the store product id');
     });
 
     testWidgets('verified healthy leaf has no treatments or products section', (tester) async {
