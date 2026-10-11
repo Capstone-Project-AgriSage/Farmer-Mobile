@@ -1,14 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/auth/session_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../router/app_router.dart';
 
-class HomeScreen extends StatelessWidget {
+class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(sessionProvider).user;
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
       body: SafeArea(
@@ -18,7 +21,7 @@ class HomeScreen extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               // Header
-              _buildHeader(context),
+              _buildHeader(context, user),
               const SizedBox(height: 12),
               
               Text('Hôm nay bạn cần hỗ trợ gì?', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
@@ -46,11 +49,12 @@ class HomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildHeader(BuildContext context) {
+  Widget _buildHeader(BuildContext context, SessionUser? user) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.spaceBetween,
       children: [
-        Row(
+        Expanded(
+          child: Row(
           children: [
             Container(
               width: 48,
@@ -60,25 +64,28 @@ class HomeScreen extends StatelessWidget {
                 shape: BoxShape.circle,
               ),
               alignment: Alignment.center,
-              child: const Text('TH', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
+              child: Text(user?.initials ?? '', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 18)),
             ),
             const SizedBox(width: 12),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('TÀI KHOẢN NÔNG DÂN', style: AppTextStyles.caption.copyWith(color: AppColors.textMuted, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
-                const SizedBox(height: 2),
-                Text('Xin chào, Trần Văn Hải', style: AppTextStyles.h4.copyWith(color: const Color(0xFF1F2937))),
-              ],
+            Flexible(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('TÀI KHOẢN NÔNG DÂN', style: AppTextStyles.caption.copyWith(color: AppColors.textMuted, fontWeight: FontWeight.w600, letterSpacing: 0.5)),
+                  const SizedBox(height: 2),
+                  Text('Xin chào, ${user?.fullName ?? ''}', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.h4.copyWith(color: const Color(0xFF1F2937))),
+                ],
+              ),
             ),
           ],
+          ),
         ),
         Stack(
           children: [
             IconButton(
               icon: const Icon(Icons.notifications_none_outlined, size: 28),
               color: AppColors.textPrimary,
-              onPressed: () => context.go('${AppRoutes.home}/notifications'),
+              onPressed: () => context.push('${AppRoutes.home}/notifications'),
             ),
             Positioned(
               right: 12,
@@ -102,8 +109,18 @@ class HomeScreen extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        color: const Color(0xFF1B5E20), // Dark green
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            AppColors.primaryDark,
+            AppColors.primary,
+          ],
+        ),
         borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(color: AppColors.primary.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 6)),
+        ],
         image: DecorationImage(
           image: const NetworkImage('https://cdn-icons-png.flaticon.com/512/6183/6183181.png'), // Placeholder leaf watermark
           fit: BoxFit.none,
@@ -134,7 +151,7 @@ class HomeScreen extends StatelessWidget {
             children: [
               Expanded(
                 child: ElevatedButton.icon(
-                  onPressed: () => context.go(AppRoutes.aiScan),
+                  onPressed: () => context.push(AppRoutes.aiScan),
                   icon: const Icon(Icons.camera_alt_outlined, color: Color(0xFF1B5E20), size: 20),
                   label: const Text('Chụp ảnh', style: TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(
@@ -169,8 +186,10 @@ class HomeScreen extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderSubtle),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -245,8 +264,10 @@ class HomeScreen extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderSubtle),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -256,7 +277,7 @@ class HomeScreen extends StatelessWidget {
             children: [
               const Text('ĐƠN HÀNG CỦA BẠN', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5)),
               GestureDetector(
-                onTap: () => context.go(AppRoutes.orderList),
+                onTap: () => context.push(AppRoutes.orderList),
                 child: Text('Xem tất cả >', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
               ),
             ],
@@ -354,8 +375,10 @@ class HomeScreen extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.borderSubtle),
+        borderRadius: BorderRadius.circular(20),
+        boxShadow: [
+          BoxShadow(color: Colors.black.withOpacity(0.04), blurRadius: 12, offset: const Offset(0, 4)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -365,7 +388,7 @@ class HomeScreen extends StatelessWidget {
             children: [
               const Text('TIN TỨC & KIẾN THỨC', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, letterSpacing: 0.5)),
               GestureDetector(
-                onTap: () => context.go('${AppRoutes.home}/articles'),
+                onTap: () => context.push('${AppRoutes.home}/articles'),
                 child: Text('Xem tất cả >', style: AppTextStyles.bodySmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
               ),
             ],

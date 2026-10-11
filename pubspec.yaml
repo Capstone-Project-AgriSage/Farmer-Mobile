@@ -41,6 +41,7 @@ dependencies:
 
   # Fonts (Google Fonts — bám sát Inter + Be Vietnam Pro của web)
   google_fonts: ^6.2.1
+  lottie: ^3.6.1
 
 dev_dependencies:
   flutter_test:

@@ -1,21 +1,28 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../router/app_router.dart';
+import '../providers/auth_controller.dart';
 
-/// Splash Screen — hiện logo rồi điều hướng
-class SplashScreen extends StatefulWidget {
+/// Splash — hiện logo, khôi phục phiên đăng nhập rồi điều hướng:
+/// đã đăng nhập → Home (do router guard), chưa → Onboarding.
+class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
 
   @override
-  State<SplashScreen> createState() => _SplashScreenState();
+  ConsumerState<SplashScreen> createState() => _SplashScreenState();
 }
 
-class _SplashScreenState extends State<SplashScreen>
+class _SplashScreenState extends ConsumerState<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _fadeAnim;
   late Animation<double> _scaleAnim;
+
+  bool _offline = false;
+  bool _checking = true;
 
   @override
   void initState() {
@@ -29,11 +36,32 @@ class _SplashScreenState extends State<SplashScreen>
       CurvedAnimation(parent: _controller, curve: Curves.elasticOut),
     );
     _controller.forward();
+    _start();
+  }
 
-    // Sau 2.5 giây → chuyển sang Onboarding (hoặc Home nếu đã login)
-    Future.delayed(const Duration(milliseconds: 2500), () {
-      if (mounted) context.go(AppRoutes.onboarding);
+  Future<void> _start() async {
+    setState(() {
+      _checking = true;
+      _offline = false;
     });
+    // Chạy song song: logo hiện tối thiểu 1.5s, trong lúc đó khôi phục phiên.
+    final results = await Future.wait([
+      ref.read(authControllerProvider).bootstrap(),
+      Future<void>.delayed(const Duration(milliseconds: 1500)),
+    ]);
+    if (!mounted) return;
+    switch (results.first as BootstrapResult) {
+      case BootstrapResult.authenticated:
+        // Router guard đã chuyển sang Home khi phiên được thiết lập.
+        break;
+      case BootstrapResult.unauthenticated:
+        context.go(AppRoutes.onboarding);
+      case BootstrapResult.offline:
+        setState(() {
+          _offline = true;
+          _checking = false;
+        });
+    }
   }
 
   @override
@@ -54,7 +82,6 @@ class _SplashScreenState extends State<SplashScreen>
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // Logo placeholder — thay bằng asset thực
                 Container(
                   width: 96,
                   height: 96,
@@ -83,10 +110,47 @@ class _SplashScreenState extends State<SplashScreen>
                   'Hệ sinh thái nông nghiệp số',
                   style: TextStyle(
                     fontSize: 14,
-                    color: Colors.white.withOpacity(0.8),
+                    color: Colors.white.withValues(alpha: 0.8),
                     fontWeight: FontWeight.w400,
                   ),
                 ),
+                const SizedBox(height: 32),
+                if (_checking)
+                  const SizedBox(
+                    width: 22,
+                    height: 22,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: Colors.white,
+                    ),
+                  ),
+                if (_offline) ...[
+                  const Text(
+                    'Không kết nối được máy chủ',
+                    style: TextStyle(color: Colors.white, fontSize: 14),
+                  ),
+                  const SizedBox(height: 12),
+                  FilledButton(
+                    onPressed: _start,
+                    style: FilledButton.styleFrom(
+                      backgroundColor: Colors.white,
+                      foregroundColor: AppColors.primary,
+                    ),
+                    child: const Text('Thử lại'),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      // Bỏ phiên đã lưu và đăng nhập lại.
+                      final router = GoRouter.of(context);
+                      await ref.read(authControllerProvider).logout();
+                      router.go(AppRoutes.welcome);
+                    },
+                    child: const Text(
+                      'Đăng nhập lại',
+                      style: TextStyle(color: Colors.white),
+                    ),
+                  ),
+                ],
               ],
             ),
           ),

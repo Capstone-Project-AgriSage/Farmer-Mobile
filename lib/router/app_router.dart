@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
+import '../core/auth/session_provider.dart';
+
 // Auth
 import '../features/auth/screens/splash_screen.dart';
 import '../features/auth/screens/onboarding_screen.dart';
@@ -88,7 +90,7 @@ abstract class AppRoutes {
   static const notifications = '/notifications';
 
   // Products
-  static const productDetail = '/products/:slug';
+  static const productDetail = '/products/:id';
   static const cart = '/cart';
   static const orderConfirm = '/order-confirm';
   static const orderList = '/orders';
@@ -123,10 +125,56 @@ abstract class AppRoutes {
   static const helpSupport = '/profile/help';
 }
 
+
+/// Các màn thuộc luồng đăng nhập/giới thiệu: người CHƯA đăng nhập được vào,
+/// người ĐÃ đăng nhập thì bị đưa về Home.
+const _authFlowRoutes = {
+  AppRoutes.splash,
+  AppRoutes.onboarding,
+  AppRoutes.welcome,
+  AppRoutes.login,
+  AppRoutes.register,
+  AppRoutes.forgotPassword,
+  AppRoutes.resetPassword,
+};
+
+/// Router guard. Trả về đường dẫn cần chuyển tới, hoặc null nếu giữ nguyên.
+/// - Chưa biết trạng thái (đang khởi động): chỉ ở splash.
+/// - Chưa đăng nhập: chỉ vào được các màn công khai, còn lại về Welcome.
+/// - Đã đăng nhập: không ở lại các màn đăng nhập/giới thiệu.
+String? authRedirect(SessionStatus status, String location) {
+  final path = Uri.parse(location).path;
+  switch (status) {
+    case SessionStatus.unknown:
+      return path == AppRoutes.splash ? null : AppRoutes.splash;
+    case SessionStatus.unauthenticated:
+      return _authFlowRoutes.contains(path) ? null : AppRoutes.welcome;
+    case SessionStatus.authenticated:
+      return _authFlowRoutes.contains(path) ? AppRoutes.home : null;
+  }
+}
+
+/// Cầu nối để GoRouter chạy lại `redirect` khi trạng thái phiên đổi.
+class _SessionRefresh extends ChangeNotifier {
+  _SessionRefresh(Ref ref) {
+    ref.listen<SessionState>(sessionProvider, (previous, next) {
+      if (previous?.status != next.status) notifyListeners();
+    });
+  }
+}
+
 final appRouterProvider = Provider<GoRouter>((ref) {
+  final refresh = _SessionRefresh(ref);
+  ref.onDispose(refresh.dispose);
+
   return GoRouter(
     initialLocation: AppRoutes.splash,
     debugLogDiagnostics: true,
+    refreshListenable: refresh,
+    redirect: (context, state) => authRedirect(
+      ref.read(sessionProvider).status,
+      state.uri.toString(),
+    ),
     routes: [
       // ── Auth flows (no bottom nav) ────────────────────────────
       GoRoute(
@@ -152,7 +200,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: AppRoutes.otpVerify,
         builder: (_, state) => OtpVerifyScreen(
-          phone: state.uri.queryParameters['phone'] ?? '',
+          destination: state.uri.queryParameters['to'] ?? '',
+          channel: state.uri.queryParameters['channel'] == 'email'
+              ? VerifyChannel.email
+              : VerifyChannel.phone,
         ),
       ),
       GoRoute(
@@ -193,15 +244,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
             builder: (_, __) => const ProductListScreen(),
             routes: [
               GoRoute(
-                path: ':slug',
+                path: ':id',
                 builder: (_, state) => ProductDetailScreen(
-                  slug: state.pathParameters['slug']!,
+                  productId: state.pathParameters['id']!,
                 ),
               ),
               GoRoute(
-                path: ':slug/review',
+                path: ':id/review',
                 builder: (_, state) => WriteReviewScreen(
-                  slug: state.pathParameters['slug']!,
+                  slug: state.pathParameters['id']!,
                 ),
               ),
             ],
@@ -336,7 +387,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       // ── Payment ───────────────────────────────────────────────
       GoRoute(
         path: AppRoutes.qrPayment,
-        builder: (_, __) => const QRPaymentScreen(),
+        builder: (_, state) => QRPaymentScreen(
+          orderId: state.uri.queryParameters['orderId'] ?? '',
+        ),
       ),
       GoRoute(
         path: AppRoutes.paymentPending,
@@ -346,6 +399,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: AppRoutes.paymentResult,
         builder: (_, state) => PaymentResultScreen(
           success: state.uri.queryParameters['success'] == 'true',
+          orderId: state.uri.queryParameters['orderId'],
         ),
       ),
     ],

@@ -1,30 +1,34 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
-
+import 'package:farmer_mobile/app.dart';
+import 'package:farmer_mobile/core/network/dio_client.dart';
+import 'package:farmer_mobile/features/auth/screens/onboarding_screen.dart';
+import 'package:farmer_mobile/features/auth/screens/splash_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:farmer_mobile/main.dart';
+import 'helpers/auth_fakes.dart';
 
 void main() {
-  testWidgets('Counter increments smoke test', (WidgetTester tester) async {
-    // Build our app and trigger a frame.
-    await tester.pumpWidget(const MyApp());
+  testWidgets('khởi động app thật: Splash → Onboarding khi chưa đăng nhập',
+      (tester) async {
+    tester.view.physicalSize = const Size(900, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
 
-    // Verify that our counter starts at 0.
-    expect(find.text('0'), findsOneWidget);
-    expect(find.text('1'), findsNothing);
-
-    // Tap the '+' icon and trigger a frame.
-    await tester.tap(find.byIcon(Icons.add));
+    await tester.pumpWidget(ProviderScope(
+      overrides: [
+        // Không đụng secure storage thật; không có token nên không gọi mạng.
+        tokenStorageProvider.overrideWithValue(MemoryTokenStorage()),
+      ],
+      child: const AgriSageApp(),
+    ));
     await tester.pump();
+    expect(find.byType(SplashScreen), findsOneWidget);
+    expect(find.text('AgriSage'), findsOneWidget);
 
-    // Verify that our counter has incremented.
-    expect(find.text('0'), findsNothing);
-    expect(find.text('1'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 2));
+    await tester.pumpAndSettle();
+
+    expect(find.byType(OnboardingScreen), findsOneWidget);
   });
 }

@@ -1,14 +1,44 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/auth/session_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../router/app_router.dart';
+import '../../auth/providers/auth_controller.dart';
 
-class ProfileScreen extends StatelessWidget {
+class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
 
+  Future<void> _confirmLogout(BuildContext context, WidgetRef ref) async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Đăng xuất'),
+        content: const Text('Bạn có chắc muốn đăng xuất khỏi AgriSage?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(false),
+            child: const Text('Huỷ'),
+          ),
+          TextButton(
+            key: const Key('logout_confirm'),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Đăng xuất',
+                style: TextStyle(color: AppColors.statusError)),
+          ),
+        ],
+      ),
+    );
+    if (ok == true) {
+      // Router guard đưa về Welcome khi phiên bị xoá.
+      await ref.read(authControllerProvider).logout();
+    }
+  }
+
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final user = ref.watch(sessionProvider).user;
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
       body: SingleChildScrollView(
@@ -32,18 +62,20 @@ class ProfileScreen extends StatelessWidget {
                       border: Border.all(color: Colors.white.withOpacity(0.5), width: 4),
                     ),
                     alignment: Alignment.center,
-                    child: const Text('TH', style: TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.bold, fontSize: 24)),
+                    child: Text(user?.initials ?? '?', style: const TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.bold, fontSize: 24)),
                   ),
                   const SizedBox(width: 16),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text('Tài khoản nông dân', style: AppTextStyles.caption.copyWith(color: Colors.white70)),
-                      const SizedBox(height: 4),
-                      Text('Trần Văn Hải', style: AppTextStyles.h3.copyWith(color: Colors.white)),
-                      const SizedBox(height: 4),
-                      Text('0912 345 678', style: AppTextStyles.bodyMedium.copyWith(color: Colors.white.withOpacity(0.9))),
-                    ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Tài khoản nông dân', style: AppTextStyles.caption.copyWith(color: Colors.white70)),
+                        const SizedBox(height: 4),
+                        Text(user?.fullName ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.h3.copyWith(color: Colors.white)),
+                        const SizedBox(height: 4),
+                        Text(user?.phoneNumber ?? user?.email ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.bodyMedium.copyWith(color: Colors.white.withOpacity(0.9))),
+                      ],
+                    ),
                   ),
                 ],
               ),
@@ -61,6 +93,10 @@ class ProfileScreen extends StatelessWidget {
                         _buildTile(Icons.location_on_outlined, 'Quản lý địa chỉ', () => context.push('/profile/addresses')),
                         _buildTile(Icons.lock_outline, 'Đổi mật khẩu', () => context.push('/profile/password')),
                         _buildTile(Icons.notifications_outlined, 'Cài đặt thông báo', () => context.push('/profile/notifications')),
+                        if (user != null && user.phoneNumber != null && !user.phoneVerified)
+                          _buildTile(Icons.sms_outlined, 'Xác minh số điện thoại', () => context.push('${AppRoutes.otpVerify}?channel=phone&to=${Uri.encodeQueryComponent(user.phoneNumber!)}')),
+                        if (user != null && user.email != null && !user.emailVerified)
+                          _buildTile(Icons.mark_email_unread_outlined, 'Xác minh email', () => context.push('${AppRoutes.otpVerify}?channel=email&to=${Uri.encodeQueryComponent(user.email!)}')),
                       ],
                     ),
                   const SizedBox(height: 20),
@@ -78,7 +114,7 @@ class ProfileScreen extends StatelessWidget {
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
-                      onPressed: () => context.go(AppRoutes.welcome),
+                      onPressed: () => _confirmLogout(context, ref),
                       icon: const Icon(Icons.logout, color: AppColors.statusError),
                       label: Text('Đăng xuất', style: AppTextStyles.labelLarge.copyWith(color: AppColors.statusError)),
                       style: OutlinedButton.styleFrom(

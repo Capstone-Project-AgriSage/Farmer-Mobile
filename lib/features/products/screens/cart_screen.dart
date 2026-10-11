@@ -1,295 +1,375 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/utils/money.dart';
 import '../../../router/app_router.dart';
+import '../../../shared/widgets/empty_data_widget.dart';
+import '../../../shared/widgets/error_retry_widget.dart';
+import '../../../shared/widgets/shimmer_loading_widget.dart';
+import '../data/catalog_models.dart';
+import '../data/catalog_repository.dart';
+import '../providers/catalog_providers.dart';
+import '../widgets/product_widgets.dart';
 
-class CartScreen extends StatefulWidget {
+class CartScreen extends ConsumerStatefulWidget {
   const CartScreen({super.key});
-  @override State<CartScreen> createState() => _CartScreenState();
+
+  @override
+  ConsumerState<CartScreen> createState() => _CartScreenState();
 }
 
-class _CartScreenState extends State<CartScreen> {
-  final List<int> _quantities = [1, 2, 1];
+class _CartScreenState extends ConsumerState<CartScreen> {
+  /// Dòng đang gửi lên server: khoá nút của dòng đó để khỏi bấm dồn.
+  final Set<String> _busy = {};
+  bool _clearing = false;
+
+  @override
+  void initState() {
+    super.initState();
+    // Giá có thể đã đổi từ lần xem trước: luôn lấy giỏ mới khi mở màn.
+    Future.microtask(() => ref.read(cartProvider.notifier).refresh());
+  }
+
+  void _toast(String m) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(content: Text(m)));
+  }
+
+  Future<void> _lineAction(String lineId, Future<void> Function() action) async {
+    if (_busy.contains(lineId)) return;
+    setState(() => _busy.add(lineId));
+    try {
+      await action();
+    } on ApiException catch (e) {
+      if (mounted) _toast(e.message);
+    } finally {
+      if (mounted) setState(() => _busy.remove(lineId));
+    }
+  }
+
+  Future<void> _confirmClear() async {
+    final ok = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Xoá toàn bộ giỏ hàng'),
+        content: const Text('Bạn có chắc muốn xoá tất cả sản phẩm trong giỏ?'),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.of(ctx).pop(false),
+              child: const Text('Huỷ')),
+          TextButton(
+            key: const Key('cart_clear_confirm'),
+            onPressed: () => Navigator.of(ctx).pop(true),
+            child: const Text('Xoá tất cả',
+                style: TextStyle(color: AppColors.statusError)),
+          ),
+        ],
+      ),
+    );
+    if (ok != true || !mounted) return;
+    setState(() => _clearing = true);
+    try {
+      await ref.read(cartProvider.notifier).clear();
+      if (mounted) _toast('Đã xoá toàn bộ giỏ hàng.');
+    } on ApiException catch (e) {
+      if (mounted) _toast(e.message);
+    } finally {
+      if (mounted) setState(() => _clearing = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final cartAsync = ref.watch(cartProvider);
+    final cart = cartAsync.valueOrNull;
+    final notifier = ref.read(cartProvider.notifier);
+
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
       appBar: AppBar(
         title: const Text('Giỏ hàng'),
         actions: [
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(right: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: AppColors.primaryLight,
-                borderRadius: BorderRadius.circular(16),
-              ),
-              child: Text('3 sản phẩm', style: AppTextStyles.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
+          if (cart != null && !cart.isEmpty)
+            TextButton(
+              key: const Key('cart_clear'),
+              onPressed: (_clearing || _busy.isNotEmpty) ? null : _confirmClear,
+              style: TextButton.styleFrom(foregroundColor: AppColors.statusError),
+              child: const Text('Xoá tất cả'),
             ),
-          ),
+          const SizedBox(width: 8),
         ],
       ),
-      body: Column(
-        children: [
-          // Banner
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            color: const Color(0xFFF0FDF4),
-            child: Row(
-              children: [
-                const Icon(Icons.local_shipping_outlined, color: AppColors.primary, size: 20),
-                const SizedBox(width: 8),
-                Text('Giao hàng trực tiếp từ Đại lý vật tư gần nhất', style: AppTextStyles.caption.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
-              ],
+      body: cartAsync.when(
+        skipLoadingOnRefresh: true,
+        skipLoadingOnReload: true,
+        loading: () => const Padding(
+          padding: EdgeInsets.all(16),
+          child: ShimmerListWidget(itemCount: 3, itemHeight: 100),
+        ),
+        error: (e, _) => ErrorRetryWidget(error: e, onRetry: notifier.refresh),
+        data: (cart) => cart.isEmpty
+            ? EmptyDataWidget(
+                message: 'Giỏ hàng của bạn đang trống.',
+                fallbackIcon: Icons.shopping_cart_outlined,
+                actionText: 'Xem sản phẩm',
+                onActionPressed: () => context.go(AppRoutes.products),
+              )
+            : RefreshIndicator(
+                onRefresh: notifier.refresh,
+                child: ListView(
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  padding: const EdgeInsets.all(16),
+                  children: [
+                    if (cart.hasUnavailable)
+                      Container(
+                        key: const Key('cart_unavailable_banner'),
+                        margin: const EdgeInsets.only(bottom: 12),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: AppColors.statusWarningSurface,
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.warning_amber_rounded,
+                                color: AppColors.statusWarning),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Có sản phẩm không thể đặt mua. Hãy xoá các sản phẩm này để tiếp tục.',
+                                style: AppTextStyles.bodySmall
+                                    .copyWith(color: AppColors.statusWarning),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    for (final line in cart.lines) ...[
+                      _CartLineTile(
+                        line: line,
+                        busy: _busy.contains(line.id) || _clearing,
+                        onQuantity: (q) => _lineAction(
+                            line.id, () => notifier.setQuantity(line.id, q)),
+                        onRemove: () =>
+                            _lineAction(line.id, () => notifier.remove(line.id)),
+                      ),
+                      const SizedBox(height: 12),
+                    ],
+                    Text(
+                      'Giá được tính theo bảng giá hiện hành mỗi khi bạn xem giỏ. '
+                      'Giỏ hàng không giữ hàng; cửa hàng xác nhận còn hàng khi duyệt đơn.',
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.textMuted, height: 1.5),
+                    ),
+                  ],
+                ),
+              ),
+      ),
+      bottomNavigationBar: (cart == null || cart.isEmpty)
+          ? null
+          : _CheckoutBar(cart: cart, busy: _busy.isNotEmpty || _clearing),
+    );
+  }
+}
+
+class _CartLineTile extends StatelessWidget {
+  const _CartLineTile({
+    required this.line,
+    required this.busy,
+    required this.onQuantity,
+    required this.onRemove,
+  });
+
+  final CartLine line;
+  final bool busy;
+  final ValueChanged<int> onQuantity;
+  final VoidCallback onRemove;
+
+  @override
+  Widget build(BuildContext context) {
+    final available = line.isAvailable;
+    return Opacity(
+      opacity: available ? 1 : 0.75,
+      child: Container(
+        key: Key('cart_line_${line.id}'),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(12),
+          border: Border.all(
+              color: available ? AppColors.borderSubtle : AppColors.statusWarning),
+        ),
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            SizedBox(
+              width: 64,
+              height: 64,
+              child: ProductImage(
+                  url: line.imageUrl,
+                  iconSize: 28,
+                  borderRadius: BorderRadius.circular(8)),
             ),
-          ),
-          
-          Expanded(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
+            const SizedBox(width: 12),
+            Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Product List
-                  _buildCartItem(0, 'Phân NPK Đầu Trâu 20-20-15', 'Bao 50kg', 485000),
-                  const SizedBox(height: 12),
-                  _buildCartItem(1, 'Thuốc Trừ Bệnh Beam 75WP', 'Gói 100g (92.000đ/gói)', 184000),
-                  const SizedBox(height: 12),
-                  _buildCartItem(2, 'Lúa Giống ST25 Thượng Hạng', 'Bao 25kg (Cấp xác nhận)', 650000),
-                  
-                  const SizedBox(height: 24),
-                  // Shipping Info
-                  _buildSectionHeader(Icons.location_on_outlined, 'THÔNG TIN NHẬN HÀNG', actionText: 'Thay đổi'),
-                  const SizedBox(height: 12),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.borderSubtle)),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Text('Trần Văn Hải', style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
-                            Padding(
-                              padding: const EdgeInsets.symmetric(horizontal: 8),
-                              child: Text('|', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.borderStrong)),
-                            ),
-                            Text('0918 234 567', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary)),
-                          ],
-                        ),
-                        const SizedBox(height: 4),
-                        Text('Ấp Thới Phước, Thới Lai, Cần Thơ', style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
-                      ],
-                    ),
-                  ),
-
-                  const SizedBox(height: 24),
-                  // Note
                   Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildSectionHeader(Icons.edit_note, 'GHI CHÚ CHO ĐẠI LÝ'),
-                      const SizedBox(width: 4),
-                      Text('(Không bắt buộc)', style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
+                      Expanded(
+                        child: Text(line.productName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.bodySmall.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.textPrimary)),
+                      ),
+                      IconButton(
+                        key: Key('cart_remove_${line.id}'),
+                        tooltip: 'Xoá khỏi giỏ',
+                        onPressed: busy ? null : onRemove,
+                        icon: Icon(Icons.delete_outline,
+                            size: 20,
+                            color: available
+                                ? AppColors.textMuted
+                                : AppColors.statusError),
+                        padding: EdgeInsets.zero,
+                        constraints: const BoxConstraints(),
+                      ),
                     ],
                   ),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.borderSubtle)),
-                    child: TextField(
-                      decoration: InputDecoration(border: InputBorder.none, hintText: 'Ví dụ: Giao buổi sáng, gọi trước...', hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted)),
-                      maxLines: 2,
-                    ),
+                  const SizedBox(height: 2),
+                  Text(
+                    available && line.unitPrice != null
+                        ? '${line.packagingName} · ${formatVnd(line.unitPrice!)}'
+                        : line.packagingName,
+                    style: AppTextStyles.caption
+                        .copyWith(color: AppColors.textMuted),
                   ),
-
-                  const SizedBox(height: 24),
-                  // Summary
-                  _buildSectionHeader(Icons.receipt_long_outlined, 'TÓM TẮT ĐƠN HÀNG'),
-                  const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.borderSubtle)),
-                    child: Column(
-                      children: [
-                        _buildSummaryRow('Tạm tính (3 món)', '1.319.000đ'),
-                        const SizedBox(height: 8),
-                        _buildSummaryRow('Phí giao hàng', '0đ'),
-                        const Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Divider(height: 1, color: AppColors.borderSubtle)),
-                        _buildSummaryRow('Tổng thanh toán', '1.319.000đ', isTotal: true),
-                      ],
-                    ),
+                  if (!available) ...[
+                    const SizedBox(height: 4),
+                    Text(CartUnavailableReason.label(line.unavailableReason),
+                        key: Key('cart_reason_${line.id}'),
+                        style: AppTextStyles.caption.copyWith(
+                            color: AppColors.statusWarning,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                  const SizedBox(height: 10),
+                  Row(
+                    children: [
+                      QuantityStepper(
+                        key: Key('cart_qty_${line.id}'),
+                        value: line.quantity,
+                        max: CartRepository.maxQuantity,
+                        enabled: available && !busy,
+                        compact: true,
+                        onChanged: onQuantity,
+                      ),
+                      if (busy)
+                        const Padding(
+                          padding: EdgeInsets.only(left: 8),
+                          child: SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2)),
+                        ),
+                    ],
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 8),
+                  // Thành tiền trên một dòng riêng: số lớn trên màn hẹp vẫn đủ chỗ.
+                  Row(
+                    children: [
+                      Text('Thành tiền',
+                          style: AppTextStyles.caption
+                              .copyWith(color: AppColors.textMuted)),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerRight,
+                          child: Text(
+                            line.lineTotal == null
+                                ? '—'
+                                : formatVnd(line.lineTotal!),
+                            key: Key('cart_total_${line.id}'),
+                            maxLines: 1,
+                            style: AppTextStyles.bodyMedium.copyWith(
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.primaryDark),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
-          ),
-          
-          // Bottom Bar
-          Container(
-            padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-            decoration: BoxDecoration(
-              color: Colors.white,
-              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -4))],
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Text('Tổng thanh toán', style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
-                      Text('1.319.000đ', style: AppTextStyles.h3.copyWith(color: const Color(0xFF1B5E20))),
-                    ],
-                  ),
-                ),
-                const SizedBox(width: 16),
-                ElevatedButton(
-                  onPressed: () => context.push(AppRoutes.orderConfirm),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF1B5E20), // Dark green
-                    padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 14),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
-                  ),
-                  child: Row(
-                    children: const [
-                      Text('Tiếp tục thanh toán', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                      SizedBox(width: 8),
-                      Icon(Icons.arrow_forward, color: Colors.white, size: 18),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildSectionHeader(IconData icon, String title, {String? actionText}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Row(
-          children: [
-            Icon(icon, size: 20, color: const Color(0xFF4B5563)),
-            const SizedBox(width: 8),
-            Text(title, style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: const Color(0xFF1F2937))),
           ],
         ),
-        if (actionText != null)
-          Text(actionText, style: AppTextStyles.bodySmall.copyWith(color: AppColors.primary, fontWeight: FontWeight.w600)),
-      ],
+      ),
     );
   }
+}
 
-  Widget _buildSummaryRow(String label, String value, {bool isTotal = false}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: isTotal ? AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold) : AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
-        Text(value, style: isTotal ? AppTextStyles.h4.copyWith(color: const Color(0xFF1B5E20)) : AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
-      ],
-    );
-  }
+class _CheckoutBar extends StatelessWidget {
+  const _CheckoutBar({required this.cart, required this.busy});
 
-  Widget _buildCartItem(int index, String title, String unit, int price) {
+  final Cart cart;
+  final bool busy;
+
+  @override
+  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderSubtle),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          // Image
-          Container(
-            width: 64,
-            height: 64,
-            decoration: BoxDecoration(
-              color: AppColors.surfaceSubtle,
-              borderRadius: BorderRadius.circular(8),
-            ),
-            child: const Center(child: Icon(Icons.image_outlined, color: AppColors.borderStrong)),
-          ),
-          const SizedBox(width: 12),
-          // Info
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        title,
-                        style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                      ),
-                    ),
-                    const SizedBox(width: 8),
-                    const Icon(Icons.delete_outline, color: AppColors.textMuted, size: 20),
-                  ],
-                ),
-                const SizedBox(height: 2),
-                Text(unit, style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
-                const SizedBox(height: 12),
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      '${price.toString().replaceAll(RegExp(r'\B(?=(\d{3})+(?!\d))'), '.')}đ',
-                      style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold, color: const Color(0xFF1B5E20)),
-                    ),
-                    // Quantity control
-                    Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(6),
-                        border: Border.all(color: AppColors.borderSubtle),
-                      ),
-                      child: Row(
-                        children: [
-                          _buildQuantityBtn(Icons.remove, () {
-                            if (_quantities[index] > 1) {
-                              setState(() => _quantities[index]--);
-                            }
-                          }),
-                          Container(
-                            width: 32,
-                            alignment: Alignment.center,
-                            child: Text('${_quantities[index]}', style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
-                          ),
-                          _buildQuantityBtn(Icons.add, () {
-                            setState(() => _quantities[index]++);
-                          }),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          ),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.05),
+              blurRadius: 10,
+              offset: const Offset(0, -4)),
         ],
       ),
-    );
-  }
-
-  Widget _buildQuantityBtn(IconData icon, VoidCallback onTap) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-        child: Icon(icon, size: 14, color: AppColors.textSecondary),
+      child: SafeArea(
+        top: false,
+        child: Row(
+          children: [
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text('Tạm tính (${cart.lines.length} sản phẩm)',
+                      style: AppTextStyles.caption
+                          .copyWith(color: AppColors.textSecondary)),
+                  Text(formatVnd(cart.subtotal),
+                      key: const Key('cart_subtotal'),
+                      style: AppTextStyles.h3
+                          .copyWith(color: AppColors.primaryDark)),
+                ],
+              ),
+            ),
+            const SizedBox(width: 12),
+            ElevatedButton(
+              key: const Key('cart_checkout'),
+              onPressed: (cart.canCheckout && !busy)
+                  ? () => context.push(AppRoutes.orderConfirm)
+                  : null,
+              style: ElevatedButton.styleFrom(
+                minimumSize: const Size(0, 50),
+                padding: const EdgeInsets.symmetric(horizontal: 20),
+              ),
+              child: const Text('Đặt hàng'),
+            ),
+          ],
+        ),
       ),
     );
   }

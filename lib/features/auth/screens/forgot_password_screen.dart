@@ -1,44 +1,141 @@
-﻿import 'package:flutter/material.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../router/app_router.dart';
+import '../data/auth_repository.dart';
+import '../data/auth_validators.dart';
+import '../widgets/auth_widgets.dart';
 
-class ForgotPasswordScreen extends StatefulWidget {
+class ForgotPasswordScreen extends ConsumerStatefulWidget {
   const ForgotPasswordScreen({super.key});
-  @override State<ForgotPasswordScreen> createState() => _ForgotPasswordScreenState();
+
+  @override
+  ConsumerState<ForgotPasswordScreen> createState() =>
+      _ForgotPasswordScreenState();
 }
 
-class _ForgotPasswordScreenState extends State<ForgotPasswordScreen> {
-  final _emailCtrl = TextEditingController();
+class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _identifierCtrl = TextEditingController();
   bool _sent = false;
-  @override void dispose() { _emailCtrl.dispose(); super.dispose(); }
+  bool _isSubmitting = false;
+  String _error = '';
+
+  @override
+  void dispose() {
+    _identifierCtrl.dispose();
+    super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_isSubmitting || !_formKey.currentState!.validate()) return;
+    setState(() {
+      _isSubmitting = true;
+      _error = '';
+    });
+    try {
+      await ref
+          .read(authRepositoryProvider)
+          .forgotPassword(_identifierCtrl.text);
+      if (mounted) setState(() => _sent = true);
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final isEmail = _identifierCtrl.text.contains('@');
     return Scaffold(
       backgroundColor: AppColors.surface,
-      appBar: AppBar(title: const Text('Quên mật khẩu')),
-      body: Padding(padding: const EdgeInsets.all(24), child: _sent
-        ? Column(children: [
-            const SizedBox(height: 40),
-            const Icon(Icons.mark_email_read_outlined, size: 80, color: AppColors.primary),
-            const SizedBox(height: 24),
-            Text('Đã gửi email đặt lại!', style: AppTextStyles.h2, textAlign: TextAlign.center),
-            const SizedBox(height: 12),
-            Text('Kiểm tra hộp thư ${_emailCtrl.text} và làm theo hướng dẫn.', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary), textAlign: TextAlign.center),
-            const SizedBox(height: 32),
-            ElevatedButton(onPressed: () => context.go(AppRoutes.login), child: const Text('Về trang đăng nhập')),
-          ])
-        : Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            Text('Đặt lại mật khẩu', style: AppTextStyles.h2),
-            const SizedBox(height: 8),
-            Text('Nhập email để nhận link đặt lại mật khẩu.', style: AppTextStyles.bodySmall),
-            const SizedBox(height: 28),
-            TextFormField(controller: _emailCtrl, keyboardType: TextInputType.emailAddress, decoration: const InputDecoration(hintText: 'email@example.com')),
-            const SizedBox(height: 24),
-            ElevatedButton(onPressed: () { if (_emailCtrl.text.contains('@')) setState(() => _sent = true); }, child: const Text('Gửi link đặt lại')),
-          ])),
+      appBar: AppBar(
+        title: const Text('Quên mật khẩu'),
+        leading: BackButton(onPressed: () => context.go(AppRoutes.login)),
+      ),
+      body: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: _sent
+            ? Column(
+                children: [
+                  const SizedBox(height: 40),
+                  const Icon(Icons.mark_email_read_outlined,
+                      size: 80, color: AppColors.primary),
+                  const SizedBox(height: 24),
+                  Text('Đã gửi mã xác nhận',
+                      style: AppTextStyles.h2, textAlign: TextAlign.center),
+                  const SizedBox(height: 12),
+                  Text(
+                    // Backend luôn trả 202, không tiết lộ tài khoản có tồn tại.
+                    'Nếu tài khoản tồn tại, mã xác nhận đã được gửi tới '
+                    '${_identifierCtrl.text.trim()} '
+                    '(${isEmail ? 'email' : 'tin nhắn SMS'}). '
+                    'Mã có hiệu lực trong 10 phút.',
+                    style: AppTextStyles.bodyMedium
+                        .copyWith(color: AppColors.textSecondary),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 32),
+                  ElevatedButton(
+                    key: const Key('forgot_enter_code'),
+                    onPressed: () => context.go(AppRoutes.resetPassword),
+                    child: const Text('Nhập mã xác nhận'),
+                  ),
+                  TextButton(
+                    onPressed: () => setState(() => _sent = false),
+                    child: const Text('Gửi lại'),
+                  ),
+                ],
+              )
+            : Form(
+                key: _formKey,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('Đặt lại mật khẩu', style: AppTextStyles.h2),
+                    const SizedBox(height: 8),
+                    Text(
+                      'Nhập email hoặc số điện thoại đã đăng ký để nhận mã xác nhận.',
+                      style: AppTextStyles.bodySmall,
+                    ),
+                    const SizedBox(height: 28),
+                    TextFormField(
+                      key: const Key('forgot_identifier'),
+                      controller: _identifierCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      textInputAction: TextInputAction.done,
+                      onFieldSubmitted: (_) => _submit(),
+                      decoration: const InputDecoration(
+                        hintText: 'Email hoặc số điện thoại',
+                      ),
+                      validator: AuthValidators.identifier,
+                    ),
+                    if (_error.isNotEmpty) ...[
+                      const SizedBox(height: 16),
+                      AuthBanner(_error),
+                    ],
+                    const SizedBox(height: 24),
+                    AuthSubmitButton(
+                      label: 'Gửi mã xác nhận',
+                      isLoading: _isSubmitting,
+                      onPressed: _submit,
+                    ),
+                    const SizedBox(height: 12),
+                    Center(
+                      child: TextButton(
+                        onPressed: () => context.go(AppRoutes.resetPassword),
+                        child: const Text('Tôi đã có mã xác nhận'),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+      ),
     );
   }
 }

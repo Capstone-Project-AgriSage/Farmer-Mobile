@@ -1,265 +1,484 @@
+import 'dart:async';
+
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:qr_flutter/qr_flutter.dart';
+import 'package:url_launcher/url_launcher.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/network/api_exception.dart';
+import '../../../core/utils/money.dart';
 import '../../../router/app_router.dart';
+import '../../auth/widgets/auth_widgets.dart';
+import '../../orders/data/order_models.dart';
+import '../../orders/data/order_repository.dart';
+import '../../orders/providers/order_providers.dart';
 
-class QRPaymentScreen extends StatelessWidget {
-  const QRPaymentScreen({super.key});
+/// Thanh toán đơn hàng qua payOS (VietQR).
+///
+/// Tiền chỉ được coi là đã trả khi server báo PAID (`GET /api/me/payments/{id}`),
+/// không dựa vào trang trả về của payOS. Màn hình tự hỏi lại định kỳ, hỏi ngay
+/// khi người dùng quay lại app (sau khi chuyển khoản ở app ngân hàng), và nhờ
+/// server hỏi thẳng payOS (sync) nếu chờ lâu.
+class QRPaymentScreen extends ConsumerStatefulWidget {
+  const QRPaymentScreen({
+    super.key,
+    required this.orderId,
+    @visibleForTesting this.pollInterval = const Duration(seconds: 3),
+    @visibleForTesting this.syncAfter = const Duration(seconds: 60),
+    @visibleForTesting this.showDevTools = kDebugMode,
+  });
+
+  final String orderId;
+  final Duration pollInterval;
+
+  /// Chờ lâu hơn mốc này mà vẫn PENDING thì gọi sync (webhook có thể chậm).
+  final Duration syncAfter;
+  final bool showDevTools;
+
+  @override
+  ConsumerState<QRPaymentScreen> createState() => _QRPaymentScreenState();
+}
+
+enum _Phase { creating, waiting, expired, unavailable, failed }
+
+class _QRPaymentScreenState extends ConsumerState<QRPaymentScreen>
+    with WidgetsBindingObserver {
+  _Phase _phase = _Phase.creating;
+  PayOsLink? _link;
+  String _error = '';
+  Timer? _poll;
+  Timer? _ticker;
+  /// Thời gian đã chờ, cộng dồn theo mỗi nhịp hỏi.
+  Duration _waited = Duration.zero;
+  bool _synced = false;
+  bool _checking = false;
+  bool _cancelling = false;
+  bool _finished = false;
+  bool _offline = false;
+
+  PaymentRepository get _repo => ref.read(paymentRepositoryProvider);
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addObserver(this);
+    _create();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    _poll?.cancel();
+    _ticker?.cancel();
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Quay lại từ app ngân hàng: kiểm tra ngay.
+    if (state == AppLifecycleState.resumed && _phase == _Phase.waiting) {
+      _check();
+    }
+  }
+
+  Future<void> _create() async {
+    _poll?.cancel();
+    _ticker?.cancel();
+    setState(() {
+      _phase = _Phase.creating;
+      _error = '';
+      _link = null;
+      _synced = false;
+      _waited = Duration.zero;
+    });
+    try {
+      final link = await _repo.createForOrder(widget.orderId);
+      if (!mounted) return;
+      setState(() {
+        _link = link;
+        _phase = _Phase.waiting;
+      });
+      _poll = Timer.periodic(widget.pollInterval, (_) {
+        _waited += widget.pollInterval;
+        _check();
+      });
+      _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (!mounted) return;
+        final exp = _link?.expiresAt;
+        if (exp != null && DateTime.now().isAfter(exp) && _phase == _Phase.waiting) {
+          _onExpired();
+        } else {
+          setState(() {}); // đếm ngược
+        }
+      });
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      setState(() {
+        _error = e.message;
+        _phase = e.kind == ApiErrorKind.unavailable ? _Phase.unavailable : _Phase.failed;
+      });
+    }
+  }
+
+  /// Hỏi server trạng thái thật. [forceSync] = nhờ server hỏi thẳng payOS.
+  Future<void> _check({bool forceSync = false}) async {
+    final link = _link;
+    if (link == null || _checking || _finished) return;
+    _checking = true;
+    try {
+      final waitedLong = _waited >= widget.syncAfter;
+      final useSync = forceSync || (waitedLong && !_synced);
+      if (useSync) _synced = true;
+      final p = useSync ? await _repo.sync(link.paymentId) : await _repo.get(link.paymentId);
+      if (!mounted) return;
+      if (_offline) setState(() => _offline = false);
+      _apply(p);
+    } on ApiException catch (e) {
+      if (!mounted) return;
+      // Lỗi tạm thời khi hỏi trạng thái: giữ màn hình, thử lại ở lần sau.
+      setState(() => _offline = e.isConnectivity);
+    } finally {
+      _checking = false;
+    }
+  }
+
+  void _apply(Payment p) {
+    if (p.isPaid) {
+      _finish(success: true);
+    } else if (p.status == PaymentStatus.failed || p.status == PaymentStatus.cancelled) {
+      _poll?.cancel();
+      _ticker?.cancel();
+      setState(() {
+        _phase = _Phase.expired;
+        _error = p.status == PaymentStatus.cancelled
+            ? 'Phiên thanh toán đã bị huỷ.'
+            : 'Mã thanh toán đã hết hạn hoặc không thành công.';
+      });
+    }
+  }
+
+  Future<void> _onExpired() async {
+    _poll?.cancel();
+    _ticker?.cancel();
+    // Hỏi lần cuối: có thể tiền đã về sát giờ hết hạn.
+    await _check(forceSync: true);
+    if (!mounted || _finished) return;
+    setState(() {
+      _phase = _Phase.expired;
+      _error = 'Mã thanh toán đã hết hạn.';
+    });
+  }
+
+  void _finish({required bool success}) {
+    if (_finished) return;
+    _finished = true;
+    _poll?.cancel();
+    _ticker?.cancel();
+    ref.invalidate(orderPaymentsProvider(widget.orderId));
+    ref.invalidate(orderDetailProvider(widget.orderId));
+    ref.invalidate(myOrdersProvider);
+    context.pushReplacement(
+        '${AppRoutes.paymentResult}?success=$success&orderId=${widget.orderId}');
+  }
+
+  Future<void> _cancelPayment() async {
+    final link = _link;
+    if (link == null || _cancelling) return;
+    setState(() => _cancelling = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      final p = await _repo.cancel(link.paymentId);
+      if (!mounted) return;
+      if (p.isPaid) {
+        // payOS báo đã trả ngay trước khi huỷ: coi như thành công.
+        _finish(success: true);
+        return;
+      }
+      _poll?.cancel();
+      _ticker?.cancel();
+      ref.invalidate(orderPaymentsProvider(widget.orderId));
+      messenger.showSnackBar(const SnackBar(content: Text('Đã huỷ phiên thanh toán.')));
+      context.canPop() ? context.pop() : context.go('/orders/${widget.orderId}');
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    } finally {
+      if (mounted) setState(() => _cancelling = false);
+    }
+  }
+
+  Future<void> _simulatePaid() async {
+    final link = _link;
+    if (link == null) return;
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      _apply(await _repo.simulatePaid(link.paymentId));
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+    }
+  }
+
+  void _copy(String label, String value) {
+    Clipboard.setData(ClipboardData(text: value));
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(SnackBar(
+          content: Text('Đã sao chép $label'), duration: const Duration(seconds: 1)));
+  }
+
+  String _remaining() {
+    final exp = _link?.expiresAt;
+    if (exp == null) return '';
+    final d = exp.difference(DateTime.now());
+    if (d.isNegative) return '00:00';
+    final m = d.inMinutes.toString().padLeft(2, '0');
+    final s = (d.inSeconds % 60).toString().padLeft(2, '0');
+    return '$m:$s';
+  }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
-      appBar: AppBar(
-        title: const Text('Thanh toán VietQR'),
-        actions: [
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(right: 16),
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(color: const Color(0xFFF0FDF4), borderRadius: BorderRadius.circular(16)),
-              child: Row(
-                children: [
-                  const Icon(Icons.security, size: 14, color: Color(0xFF1B5E20)),
-                  const SizedBox(width: 4),
-                  Text('Giao dịch an toàn', style: AppTextStyles.caption.copyWith(color: const Color(0xFF1B5E20), fontWeight: FontWeight.bold)),
-                ],
-              ),
-            ),
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          children: [
-            // Header info
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), border: Border.all(color: AppColors.borderSubtle)),
-              child: Column(
-                children: [
-                  _buildInfoRow('Mã đơn hàng', 'DH-2024-1082', isBadge: true),
-                  const SizedBox(height: 12),
-                  _buildInfoRow('Người mua hàng', 'Trần Văn Hải'),
-                  const SizedBox(height: 12),
-                  const Divider(height: 1, color: AppColors.borderSubtle),
-                  const SizedBox(height: 12),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text('SỐ TIỀN THANH TOÁN', style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold)),
-                      Text('1.319.000đ', style: AppTextStyles.h4.copyWith(color: const Color(0xFF1B5E20))),
-                    ],
-                  ),
-                ],
-              ),
-            ),
-            const SizedBox(height: 16),
-            
-            // QR Area
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: AppColors.borderSubtle), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 10, offset: const Offset(0, 4))]),
-              child: Column(
-                children: [
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const Icon(Icons.qr_code_scanner, color: Color(0xFF1B5E20), size: 18),
-                      const SizedBox(width: 8),
-                      Text('QUÉT MÃ VIETQR QUA APP NGÂN HÀNG', style: AppTextStyles.caption.copyWith(color: const Color(0xFF1B5E20), fontWeight: FontWeight.bold, letterSpacing: 0.5)),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-                  // Fake QR Code
-                  Container(
-                    width: 200,
-                    height: 200,
-                    decoration: BoxDecoration(
-                      border: Border.all(color: AppColors.borderSubtle),
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                    padding: const EdgeInsets.all(12),
-                    child: Column(
-                      children: [
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            Text('VietQR', style: TextStyle(color: Colors.red.shade700, fontWeight: FontWeight.bold, fontSize: 12)),
-                            Text('MB BANK', style: TextStyle(color: Colors.blue.shade800, fontWeight: FontWeight.bold, fontSize: 12)),
-                          ],
-                        ),
-                        const SizedBox(height: 8),
-                        Expanded(child: Icon(Icons.qr_code_2, size: 140, color: Colors.black87)),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 12),
-                  Text('Chụp màn hình hoặc quét trực tiếp', style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
-                  const SizedBox(height: 24),
-                  const Divider(height: 1, color: AppColors.borderSubtle),
-                  const SizedBox(height: 16),
-                  
-                  // Bank Details
-                  _buildDetailRow('Ngân hàng:', 'MB Bank (Quân Đội)', bold: true),
-                  const SizedBox(height: 12),
-                  _buildDetailRow('Chủ tài khoản:', 'NGUYEN VAN MINH', bold: true),
-                  const SizedBox(height: 12),
-                  _buildCopyRow('Số tài khoản:', '0123 456 789', context),
-                  const SizedBox(height: 12),
-                  _buildCopyRow('Nội dung chuyển khoản:', 'DH1082 TRANVANHAI', context, isHighlight: true),
-                ],
-              ),
-            ),
-            const SizedBox(height: 24),
-
-            // Status area
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Row(
-                      children: [
-                        const Icon(Icons.check_circle_outline, color: AppColors.statusSuccess, size: 20),
-                        const SizedBox(width: 8),
-                        Text('Đã gửi yêu cầu xác nhận', style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
-                      ],
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                      decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(4), border: Border.all(color: Colors.orange.shade200)),
-                      child: Row(
-                        children: [
-                          Icon(Icons.hourglass_top, size: 12, color: Colors.orange.shade800),
-                          const SizedBox(width: 4),
-                          Text('Chờ đại lý xác nhận', style: TextStyle(color: Colors.orange.shade800, fontSize: 10, fontWeight: FontWeight.bold)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                Text('Đại lý sẽ kiểm tra giao dịch và cập nhật trạng thái thanh toán.', style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
-                const SizedBox(height: 12),
-                Container(
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.orange.shade200)),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Icon(Icons.info_outline, size: 18, color: Colors.orange.shade800),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: RichText(
-                          text: TextSpan(
-                            style: AppTextStyles.caption.copyWith(color: Colors.orange.shade900, height: 1.4),
-                            children: [
-                              const TextSpan(text: 'AGRISAGE không tự động xác nhận giao dịch ngân hàng.\n', style: TextStyle(fontWeight: FontWeight.bold)),
-                              const TextSpan(text: 'Thanh toán sẽ được cập nhật ngay sau khi đại lý đối soát tiền về.'),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 32),
-            
-            // Buttons
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () => context.push(AppRoutes.orderList),
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF1B5E20), // Dark green
-                  padding: const EdgeInsets.symmetric(vertical: 14),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Text('Xem đơn hàng', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
-                    SizedBox(width: 8),
-                    Icon(Icons.arrow_forward, color: Colors.white, size: 18),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 16),
-            TextButton(
-              onPressed: () => context.go(AppRoutes.home),
-              child: Text('Quay về trang chủ', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary)),
-            ),
-            const SizedBox(height: 32),
-          ],
-        ),
-      ),
+      appBar: AppBar(title: const Text('Thanh toán VietQR')),
+      body: SafeArea(child: _body()),
     );
   }
 
-  Widget _buildInfoRow(String label, String value, {bool isBadge = false}) {
-    return Row(
-      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-      children: [
-        Text(label, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
-        isBadge
-            ? Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4), decoration: BoxDecoration(color: AppColors.surfaceSubtle, borderRadius: BorderRadius.circular(4)), child: Text(value, style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold)))
-            : Text(value, style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold)),
-      ],
-    );
-  }
-
-  Widget _buildDetailRow(String label, String value, {bool bold = false}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SizedBox(width: 130, child: Text(label, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary))),
-        Expanded(child: Text(value, style: AppTextStyles.bodyMedium.copyWith(fontWeight: bold ? FontWeight.bold : FontWeight.w500), textAlign: TextAlign.right)),
-      ],
-    );
-  }
-
-  Widget _buildCopyRow(String label, String value, BuildContext context, {bool isHighlight = false}) {
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: [
-        SizedBox(width: 130, child: Text(label, style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary))),
-        Expanded(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.end,
+  Widget _body() {
+    switch (_phase) {
+      case _Phase.creating:
+        return const Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
             children: [
-              if (isHighlight)
-                Container(padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2), decoration: BoxDecoration(color: AppColors.primaryLight, borderRadius: BorderRadius.circular(4)), child: Text(value, style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold, color: AppColors.primary)))
-              else
-                Text(value, style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
-              const SizedBox(width: 8),
-              GestureDetector(
-                onTap: () {
-                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Đã sao chép!'), duration: Duration(seconds: 1)));
-                },
-                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-                  decoration: BoxDecoration(color: AppColors.surfaceSubtle, borderRadius: BorderRadius.circular(4), border: Border.all(color: AppColors.borderSubtle)),
-                  child: Row(
-                    children: [
-                      const Icon(Icons.copy, size: 12, color: AppColors.textSecondary),
-                      const SizedBox(width: 4),
-                      Text('Sao chép', style: TextStyle(fontSize: 10, color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
-                    ],
+              CircularProgressIndicator(),
+              SizedBox(height: 16),
+              Text('Đang tạo mã thanh toán...'),
+            ],
+          ),
+        );
+      case _Phase.unavailable:
+      case _Phase.failed:
+      case _Phase.expired:
+        return _ProblemView(
+          phase: _phase,
+          message: _error,
+          onRetry: _create,
+          onBack: () =>
+              context.canPop() ? context.pop() : context.go('/orders/${widget.orderId}'),
+        );
+      case _Phase.waiting:
+        return _waiting(_link!);
+    }
+  }
+
+  Widget _waiting(PayOsLink link) {
+    final content = link.paymentNumber.replaceAll('-', '');
+    return ListView(
+      padding: const EdgeInsets.all(16),
+      children: [
+        Container(
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: AppColors.borderSubtle),
+          ),
+          child: Column(
+            children: [
+              Text('SỐ TIỀN CẦN THANH TOÁN',
+                  style: AppTextStyles.caption.copyWith(
+                      color: AppColors.textSecondary, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 4),
+              Text(formatVnd(link.amount),
+                  key: const Key('pay_amount'),
+                  style: AppTextStyles.h2.copyWith(color: AppColors.primaryDark)),
+              const SizedBox(height: 16),
+              if (link.qrCode != null && link.qrCode!.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    border: Border.all(color: AppColors.borderSubtle),
+                    borderRadius: BorderRadius.circular(12),
                   ),
+                  child: QrImageView(
+                    key: const Key('pay_qr'),
+                    data: link.qrCode!,
+                    size: 220,
+                    backgroundColor: Colors.white,
+                  ),
+                )
+              else
+                Text('Không có mã QR. Hãy mở trang thanh toán payOS bên dưới.',
+                    textAlign: TextAlign.center, style: AppTextStyles.bodySmall),
+              const SizedBox(height: 12),
+              Text('Mở app ngân hàng → Quét mã QR → Xác nhận chuyển khoản',
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
+              if (link.expiresAt != null) ...[
+                const SizedBox(height: 8),
+                Text('Mã hết hạn sau ${_remaining()}',
+                    key: const Key('pay_countdown'),
+                    style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.statusWarning, fontWeight: FontWeight.w600)),
+              ],
+              const Divider(height: 28, color: AppColors.borderSubtle),
+              _CopyRow(
+                  label: 'Số tiền',
+                  value: link.amount.round().toString(),
+                  display: formatVnd(link.amount),
+                  onCopy: _copy),
+              _CopyRow(label: 'Nội dung', value: content, onCopy: _copy),
+            ],
+          ),
+        ),
+        const SizedBox(height: 12),
+        Container(
+          key: const Key('pay_waiting'),
+          padding: const EdgeInsets.all(12),
+          decoration: BoxDecoration(
+            color: AppColors.statusWarningSurface,
+            borderRadius: BorderRadius.circular(10),
+          ),
+          child: Row(
+            children: [
+              const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: AppColors.statusWarning)),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  _offline
+                      ? 'Mất kết nối, đang thử lại... Tiền đã chuyển sẽ không bị mất.'
+                      : 'Đang chờ xác nhận thanh toán. Màn hình sẽ tự chuyển khi nhận được tiền.',
+                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.statusWarning),
                 ),
               ),
             ],
           ),
         ),
+        const SizedBox(height: 16),
+        ElevatedButton.icon(
+          key: const Key('pay_check'),
+          onPressed: _checking ? null : () => _check(forceSync: true),
+          icon: const Icon(Icons.refresh),
+          label: const Text('Tôi đã chuyển khoản'),
+        ),
+        const SizedBox(height: 8),
+        OutlinedButton.icon(
+          key: const Key('pay_open_payos'),
+          onPressed: () => launchUrl(Uri.parse(link.checkoutUrl),
+              mode: LaunchMode.externalApplication),
+          icon: const Icon(Icons.open_in_new),
+          label: const Text('Mở trang thanh toán payOS'),
+        ),
+        const SizedBox(height: 8),
+        TextButton(
+          key: const Key('pay_cancel'),
+          onPressed: _cancelling ? null : _cancelPayment,
+          style: TextButton.styleFrom(foregroundColor: AppColors.statusError),
+          child: Text(_cancelling ? 'Đang huỷ...' : 'Huỷ thanh toán'),
+        ),
+        if (widget.showDevTools) ...[
+          const Divider(height: 24),
+          TextButton(
+            key: const Key('pay_simulate'),
+            onPressed: _simulatePaid,
+            child: const Text('[DEV] Giả lập đã thanh toán'),
+          ),
+        ],
       ],
+    );
+  }
+}
+
+class _CopyRow extends StatelessWidget {
+  const _CopyRow({
+    required this.label,
+    required this.value,
+    required this.onCopy,
+    this.display,
+  });
+
+  final String label;
+  final String value;
+  final String? display;
+  final void Function(String label, String value) onCopy;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Text('$label:',
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
+        const SizedBox(width: 8),
+        Expanded(
+          child: Text(display ?? value,
+              textAlign: TextAlign.right,
+              style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.bold)),
+        ),
+        IconButton(
+          tooltip: 'Sao chép $label',
+          icon: const Icon(Icons.copy, size: 18),
+          onPressed: () => onCopy(label.toLowerCase(), value),
+        ),
+      ],
+    );
+  }
+}
+
+class _ProblemView extends StatelessWidget {
+  const _ProblemView({
+    required this.phase,
+    required this.message,
+    required this.onRetry,
+    required this.onBack,
+  });
+
+  final _Phase phase;
+  final String message;
+  final VoidCallback onRetry;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final expired = phase == _Phase.expired;
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              expired ? Icons.timer_off_outlined : Icons.cloud_off_outlined,
+              size: 64,
+              color: AppColors.borderStrong,
+            ),
+            const SizedBox(height: 16),
+            AuthBanner(message),
+            const SizedBox(height: 20),
+            if (phase != _Phase.failed)
+              ElevatedButton(
+                key: const Key('pay_retry'),
+                onPressed: onRetry,
+                child: Text(expired ? 'Tạo mã mới' : 'Thử lại'),
+              ),
+            const SizedBox(height: 8),
+            TextButton(
+              key: const Key('pay_back'),
+              onPressed: onBack,
+              child: const Text('Về đơn hàng'),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

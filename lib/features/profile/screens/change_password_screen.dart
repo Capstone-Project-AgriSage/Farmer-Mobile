@@ -1,30 +1,58 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/network/api_exception.dart';
+import '../../auth/data/auth_validators.dart';
+import '../../auth/providers/auth_controller.dart';
+import '../../auth/widgets/auth_widgets.dart';
 
-class ChangePasswordScreen extends StatefulWidget {
+class ChangePasswordScreen extends ConsumerStatefulWidget {
   const ChangePasswordScreen({super.key});
 
   @override
-  State<ChangePasswordScreen> createState() => _ChangePasswordScreenState();
+  ConsumerState<ChangePasswordScreen> createState() =>
+      _ChangePasswordScreenState();
 }
 
-class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
-  final _oldPasswordController = TextEditingController();
-  final _newPasswordController = TextEditingController();
-  final _confirmPasswordController = TextEditingController();
-
-  bool _obscureOld = true;
-  bool _obscureNew = true;
-  bool _obscureConfirm = true;
+class _ChangePasswordScreenState extends ConsumerState<ChangePasswordScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _oldCtrl = TextEditingController();
+  final _newCtrl = TextEditingController();
+  final _confirmCtrl = TextEditingController();
+  bool _isSubmitting = false;
+  String _error = '';
 
   @override
   void dispose() {
-    _oldPasswordController.dispose();
-    _newPasswordController.dispose();
-    _confirmPasswordController.dispose();
+    _oldCtrl.dispose();
+    _newCtrl.dispose();
+    _confirmCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _submit() async {
+    if (_isSubmitting || !_formKey.currentState!.validate()) return;
+    setState(() {
+      _isSubmitting = true;
+      _error = '';
+    });
+    // Lấy trước vì màn này sẽ bị đóng khi phiên bị xoá.
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref
+          .read(authControllerProvider)
+          .changePassword(_oldCtrl.text, _newCtrl.text);
+      // Backend huỷ mọi phiên khi đổi mật khẩu → router guard đưa về Welcome.
+      messenger.showSnackBar(const SnackBar(
+        content: Text('Đổi mật khẩu thành công. Vui lòng đăng nhập lại.'),
+      ));
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
   }
 
   @override
@@ -34,112 +62,78 @@ class _ChangePasswordScreenState extends State<ChangePasswordScreen> {
       appBar: AppBar(title: const Text('Đổi mật khẩu')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20),
-        child: Column(
-          children: [
-            // Header icon
-            const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: AppColors.primaryLight,
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(Icons.lock_reset, size: 48, color: AppColors.primary),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              'Mật khẩu mới của bạn phải khác với mật khẩu sử dụng trước đó.',
-              textAlign: TextAlign.center,
-              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary, height: 1.5),
-            ),
-            const SizedBox(height: 32),
-
-            // Form
-            _buildPasswordField(
-              label: 'Mật khẩu hiện tại',
-              controller: _oldPasswordController,
-              obscureText: _obscureOld,
-              onToggle: () => setState(() => _obscureOld = !_obscureOld),
-            ),
-            const SizedBox(height: 16),
-            _buildPasswordField(
-              label: 'Mật khẩu mới',
-              controller: _newPasswordController,
-              obscureText: _obscureNew,
-              onToggle: () => setState(() => _obscureNew = !_obscureNew),
-            ),
-            const SizedBox(height: 16),
-            _buildPasswordField(
-              label: 'Xác nhận mật khẩu mới',
-              controller: _confirmPasswordController,
-              obscureText: _obscureConfirm,
-              onToggle: () => setState(() => _obscureConfirm = !_obscureConfirm),
-            ),
-            const SizedBox(height: 40),
-
-            // Button
-            SizedBox(
-              width: double.infinity,
-              child: ElevatedButton(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('Đổi mật khẩu thành công!')),
-                  );
-                  context.pop();
-                },
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.primary,
-                  foregroundColor: Colors.white,
-                  padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                  textStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 15),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(24),
+                decoration: const BoxDecoration(
+                  color: AppColors.primaryLight,
+                  shape: BoxShape.circle,
                 ),
-                child: const Text('Cập nhật mật khẩu'),
+                child: const Icon(Icons.lock_reset,
+                    size: 48, color: AppColors.primary),
               ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildPasswordField({
-    required String label,
-    required TextEditingController controller,
-    required bool obscureText,
-    required VoidCallback onToggle,
-  }) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: AppTextStyles.labelLarge.copyWith(color: AppColors.textSecondary)),
-        const SizedBox(height: 8),
-        TextField(
-          controller: controller,
-          obscureText: obscureText,
-          decoration: InputDecoration(
-            prefixIcon: const Icon(Icons.lock_outline, color: AppColors.textMuted),
-            suffixIcon: IconButton(
-              icon: Icon(obscureText ? Icons.visibility_off : Icons.visibility, color: AppColors.textMuted),
-              onPressed: onToggle,
-            ),
-            filled: true,
-            fillColor: Colors.white,
-            border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.borderSubtle),
-            ),
-            enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.borderSubtle),
-            ),
-            focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: AppColors.primary),
-            ),
+              const SizedBox(height: 24),
+              Text(
+                'Mật khẩu mới phải khác mật khẩu hiện tại. '
+                'Sau khi đổi, bạn sẽ được đăng xuất khỏi mọi thiết bị.',
+                textAlign: TextAlign.center,
+                style: AppTextStyles.bodySmall
+                    .copyWith(color: AppColors.textSecondary, height: 1.5),
+              ),
+              const SizedBox(height: 32),
+              PasswordField(
+                fieldKey: const Key('cp_current'),
+                controller: _oldCtrl,
+                label: 'Mật khẩu hiện tại',
+                textInputAction: TextInputAction.next,
+                validator: AuthValidators.existingPassword,
+              ),
+              const SizedBox(height: 16),
+              PasswordField(
+                fieldKey: const Key('cp_new'),
+                controller: _newCtrl,
+                label: 'Mật khẩu mới',
+                hint: 'Tối thiểu 8 ký tự',
+                textInputAction: TextInputAction.next,
+                validator: (v) {
+                  final base = AuthValidators.newPassword(v);
+                  if (base != null) return base;
+                  return v == _oldCtrl.text
+                      ? 'Mật khẩu mới phải khác mật khẩu hiện tại'
+                      : null;
+                },
+              ),
+              const SizedBox(height: 16),
+              PasswordField(
+                fieldKey: const Key('cp_confirm'),
+                controller: _confirmCtrl,
+                label: 'Xác nhận mật khẩu mới',
+                textInputAction: TextInputAction.done,
+                onSubmitted: _submit,
+                validator:
+                    AuthValidators.confirmPassword(() => _newCtrl.text),
+              ),
+              if (_error.isNotEmpty) ...[
+                const SizedBox(height: 16),
+                AuthBanner(_error),
+              ],
+              const SizedBox(height: 32),
+              SizedBox(
+                width: double.infinity,
+                child: AuthSubmitButton(
+                  label: 'Cập nhật mật khẩu',
+                  isLoading: _isSubmitting,
+                  onPressed: _submit,
+                ),
+              ),
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 }

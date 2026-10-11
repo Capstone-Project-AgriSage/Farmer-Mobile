@@ -1,167 +1,285 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../router/app_router.dart';
+import '../../../shared/widgets/empty_data_widget.dart';
+import '../../../shared/widgets/error_retry_widget.dart';
+import '../../../shared/widgets/shimmer_loading_widget.dart';
+import '../data/catalog_repository.dart';
+import '../providers/catalog_providers.dart';
+import '../widgets/product_widgets.dart';
 
-class ProductListScreen extends StatefulWidget {
+class ProductListScreen extends ConsumerStatefulWidget {
   const ProductListScreen({super.key});
-  @override State<ProductListScreen> createState() => _ProductListScreenState();
+
+  /// Chờ người dùng ngừng gõ rồi mới tìm (backend giới hạn 120 lần/phút).
+  static const searchDebounce = Duration(milliseconds: 400);
+
+  @override
+  ConsumerState<ProductListScreen> createState() => _ProductListScreenState();
 }
 
-class _ProductListScreenState extends State<ProductListScreen> {
-  final _searchCtrl = TextEditingController();
-  final _categories = ['Tất cả', 'Thuốc BVTV', 'Phân bón', 'Hạt giống', 'Dụng cụ'];
-  int _selectedCat = 0;
+class _ProductListScreenState extends ConsumerState<ProductListScreen> {
+  late final TextEditingController _searchCtrl;
+  final _scroll = ScrollController();
+  Timer? _debounce;
+
+  @override
+  void initState() {
+    super.initState();
+    // Giữ từ khoá khi quay lại tab.
+    _searchCtrl = TextEditingController(text: ref.read(productListProvider).search);
+    _scroll.addListener(_onScroll);
+  }
+
+  @override
+  void dispose() {
+    _debounce?.cancel();
+    _searchCtrl.dispose();
+    _scroll.dispose();
+    super.dispose();
+  }
+
+  void _onScroll() {
+    // Đã lỗi thì chỉ thử lại khi người dùng bấm, không tự gọi lại mỗi lần cuộn
+    // (mất mạng sẽ dồn request liên tục).
+    if (ref.read(productListProvider).loadMoreError != null) return;
+    if (_scroll.position.pixels > _scroll.position.maxScrollExtent - 400) {
+      ref.read(productListProvider.notifier).loadMore();
+    }
+  }
+
+  void _onSearchChanged(String value) {
+    setState(() {}); // cập nhật nút xoá
+    _debounce?.cancel();
+    _debounce = Timer(ProductListScreen.searchDebounce,
+        () => ref.read(productListProvider.notifier).setSearch(value));
+  }
+
+  void _clearSearch() {
+    _debounce?.cancel();
+    _searchCtrl.clear();
+    setState(() {});
+    ref.read(productListProvider.notifier).setSearch('');
+  }
 
   @override
   Widget build(BuildContext context) {
+    final state = ref.watch(productListProvider);
+    final notifier = ref.read(productListProvider.notifier);
+
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
       appBar: AppBar(
         title: Text('Sản phẩm', style: AppTextStyles.h3),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.shopping_cart_outlined, color: AppColors.textPrimary),
-            onPressed: () => context.push(AppRoutes.cart),
-          ),
-          const SizedBox(width: 8),
-        ],
+        actions: const [CartIconButton(), SizedBox(width: 8)],
       ),
       body: Column(
         children: [
-          // Header Search & Filters
           Container(
             color: AppColors.surface,
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 12),
             child: Column(
               children: [
-                // Search Bar
-                Container(
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: AppColors.borderSubtle),
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
-                  ),
-                  child: TextField(
-                    controller: _searchCtrl,
-                    decoration: InputDecoration(
-                      hintText: 'Tìm kiếm sản phẩm...',
-                      hintStyle: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted),
-                      prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
-                      border: InputBorder.none,
-                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-                    ),
+                TextField(
+                  key: const Key('product_search'),
+                  controller: _searchCtrl,
+                  onChanged: _onSearchChanged,
+                  onSubmitted: (v) {
+                    _debounce?.cancel();
+                    notifier.setSearch(v);
+                  },
+                  textInputAction: TextInputAction.search,
+                  maxLength: CatalogRepository.maxSearchLength,
+                  decoration: InputDecoration(
+                    hintText: 'Tìm sản phẩm...',
+                    counterText: '',
+                    prefixIcon: const Icon(Icons.search, color: AppColors.textMuted),
+                    suffixIcon: _searchCtrl.text.isEmpty
+                        ? null
+                        : IconButton(
+                            tooltip: 'Xoá tìm kiếm',
+                            icon: const Icon(Icons.close, size: 18),
+                            onPressed: _clearSearch,
+                          ),
                   ),
                 ),
-                const SizedBox(height: 16),
-                // Categories
-                SizedBox(
-                  height: 36,
-                  child: ListView.separated(
-                    scrollDirection: Axis.horizontal, 
-                    itemCount: _categories.length, 
-                    separatorBuilder: (_, __) => const SizedBox(width: 8),
-                    itemBuilder: (_, i) {
-                      final isActive = _selectedCat == i;
-                      return GestureDetector(
-                        onTap: () => setState(() => _selectedCat = i),
-                        child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: isActive ? const Color(0xFF1B5E20) : Colors.white,
-                            borderRadius: BorderRadius.circular(20),
-                            border: Border.all(color: isActive ? const Color(0xFF1B5E20) : AppColors.borderSubtle),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            _categories[i],
-                            style: AppTextStyles.bodySmall.copyWith(
-                              color: isActive ? Colors.white : AppColors.textSecondary,
-                              fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
-                            ),
-                          ),
-                        ),
-                      );
-                    },
-                  ),
+                const SizedBox(height: 12),
+                _CategoryBar(
+                  selectedId: state.categoryId,
+                  onSelected: notifier.setCategory,
                 ),
               ],
             ),
           ),
-          // Product Grid
-          Expanded(
-            child: GridView.builder(
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-              gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                childAspectRatio: 0.65,
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
-              ),
-              itemCount: 10,
-              itemBuilder: (_, i) => _buildProductCard(context, i),
-            ),
-          ),
+          Expanded(child: _buildBody(state, notifier)),
         ],
       ),
     );
   }
 
-  Widget _buildProductCard(BuildContext context, int index) {
-    return GestureDetector(
-      onTap: () => context.push('/products/san-pham-$index'),
-      child: Container(
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.borderSubtle),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 4))],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _buildBody(ProductListState state, ProductListController notifier) {
+    if (state.isLoading && state.items.isEmpty) {
+      return GridView.builder(
+        padding: const EdgeInsets.all(16),
+        gridDelegate: _gridDelegate,
+        itemCount: 6,
+        itemBuilder: (_, __) => const ShimmerLoadingWidget(height: double.infinity),
+      );
+    }
+    if (state.error != null) {
+      return ErrorRetryWidget(error: state.error!, onRetry: notifier.refresh);
+    }
+    if (state.items.isEmpty) {
+      final filtered = state.search.isNotEmpty || state.categoryId != null;
+      return RefreshIndicator(
+        onRefresh: notifier.refresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           children: [
-            // Image Placeholder
-            Expanded(
-              child: Container(
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  color: AppColors.surfaceSubtle,
-                  borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
-                ),
-                child: const Center(child: Icon(Icons.inventory_2_outlined, size: 50, color: AppColors.borderStrong)),
-              ),
-            ),
-            // Info
-            Padding(
-              padding: const EdgeInsets.all(12),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                    decoration: BoxDecoration(
-                      color: AppColors.primaryLight,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text('Còn hàng', style: TextStyle(fontSize: 9, color: AppColors.primary, fontWeight: FontWeight.w600)),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    'Phân bón cao cấp NPK $index',
-                    style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600, color: AppColors.textPrimary),
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: 6),
-                  Text('150.000đ', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.primary, fontWeight: FontWeight.bold)),
-                  Text('/ bao 50kg', style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
-                ],
+            SizedBox(
+              height: 380,
+              child: EmptyDataWidget(
+                message: filtered
+                    ? 'Không tìm thấy sản phẩm phù hợp.\nThử từ khoá hoặc danh mục khác.'
+                    : 'Cửa hàng chưa có sản phẩm nào.',
+                fallbackIcon: Icons.search_off_outlined,
+                actionText: state.search.isNotEmpty ? 'Xoá tìm kiếm' : null,
+                onActionPressed: state.search.isNotEmpty ? _clearSearch : null,
               ),
             ),
           ],
         ),
+      );
+    }
+
+    return RefreshIndicator(
+      onRefresh: notifier.refresh,
+      child: CustomScrollView(
+        controller: _scroll,
+        physics: const AlwaysScrollableScrollPhysics(),
+        slivers: [
+          SliverPadding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+            sliver: SliverToBoxAdapter(
+              child: Text('${state.totalCount} sản phẩm',
+                  key: const Key('product_count'),
+                  style: AppTextStyles.caption
+                      .copyWith(color: AppColors.textMuted)),
+            ),
+          ),
+          SliverPadding(
+            padding: const EdgeInsets.all(16),
+            sliver: SliverGrid(
+              gridDelegate: _gridDelegate,
+              delegate: SliverChildBuilderDelegate(
+                (_, i) => ProductCard(product: state.items[i]),
+                childCount: state.items.length,
+              ),
+            ),
+          ),
+          SliverToBoxAdapter(child: _buildFooter(state, notifier)),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooter(ProductListState state, ProductListController notifier) {
+    if (state.isLoadingMore) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: Center(
+            child: SizedBox(
+                width: 24,
+                height: 24,
+                child: CircularProgressIndicator(strokeWidth: 2))),
+      );
+    }
+    if (state.loadMoreError != null) {
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 24),
+        child: Center(
+          child: TextButton.icon(
+            key: const Key('load_more_retry'),
+            onPressed: notifier.loadMore,
+            icon: const Icon(Icons.refresh),
+            label: const Text('Không tải thêm được. Thử lại'),
+          ),
+        ),
+      );
+    }
+    if (state.hasMore) {
+      // Màn hình cao, chưa cuộn được: cho phép bấm tải thêm.
+      return Padding(
+        padding: const EdgeInsets.only(bottom: 24),
+        child: Center(
+          child: TextButton(
+            key: const Key('load_more'),
+            onPressed: notifier.loadMore,
+            child: const Text('Xem thêm'),
+          ),
+        ),
+      );
+    }
+    return const SizedBox(height: 24);
+  }
+
+  static const _gridDelegate = SliverGridDelegateWithMaxCrossAxisExtent(
+    maxCrossAxisExtent: 220,
+    childAspectRatio: 0.62,
+    crossAxisSpacing: 12,
+    mainAxisSpacing: 12,
+  );
+}
+
+class _CategoryBar extends ConsumerWidget {
+  const _CategoryBar({required this.selectedId, required this.onSelected});
+
+  final String? selectedId;
+  final ValueChanged<String?> onSelected;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final categories = ref.watch(categoriesProvider);
+    final list = categories.valueOrNull ?? const [];
+    final entries = <(String?, String)>[
+      (null, 'Tất cả'),
+      for (final c in list) (c.id, c.name),
+    ];
+    return SizedBox(
+      height: 36,
+      child: ListView.separated(
+        scrollDirection: Axis.horizontal,
+        itemCount: entries.length + (categories.hasError ? 1 : 0),
+        separatorBuilder: (_, __) => const SizedBox(width: 8),
+        itemBuilder: (_, i) {
+          if (i == entries.length) {
+            // Không tải được danh mục: vẫn tìm được sản phẩm, cho thử lại.
+            return ActionChip(
+              key: const Key('category_retry'),
+              avatar: const Icon(Icons.refresh, size: 16),
+              label: const Text('Tải lại danh mục'),
+              onPressed: () => ref.invalidate(categoriesProvider),
+            );
+          }
+          final (id, name) = entries[i];
+          final active = id == selectedId;
+          return ChoiceChip(
+            key: Key('category_${id ?? 'all'}'),
+            label: Text(name),
+            selected: active,
+            showCheckmark: false,
+            selectedColor: AppColors.primaryDark,
+            labelStyle: AppTextStyles.bodySmall.copyWith(
+              color: active ? Colors.white : AppColors.textSecondary,
+              fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+            ),
+            onSelected: (_) => onSelected(id),
+          );
+        },
       ),
     );
   }

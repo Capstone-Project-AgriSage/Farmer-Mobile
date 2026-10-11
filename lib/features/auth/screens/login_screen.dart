@@ -1,42 +1,56 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/network/api_exception.dart';
 import '../../../router/app_router.dart';
+import '../data/auth_validators.dart';
+import '../providers/auth_controller.dart';
+import '../widgets/auth_widgets.dart';
 
 /// Login Screen — bám sát UI LoginPage.tsx của Farmer-Web
 /// Layout: logo top + form (email/phone, password) + forgot + submit
-class LoginScreen extends StatefulWidget {
+class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
 
   @override
-  State<LoginScreen> createState() => _LoginScreenState();
+  ConsumerState<LoginScreen> createState() => _LoginScreenState();
 }
 
-class _LoginScreenState extends State<LoginScreen> {
+class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _emailCtrl = TextEditingController();
+  final _identifierCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
-  bool _showPassword = false;
   bool _rememberMe = true;
   bool _isSubmitting = false;
   String _error = '';
 
   @override
   void dispose() {
-    _emailCtrl.dispose();
+    _identifierCtrl.dispose();
     _passwordCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _handleSubmit() async {
-    if (!_formKey.currentState!.validate()) return;
-    setState(() { _isSubmitting = true; _error = ''; });
-    // TODO: call AuthRepository.login()
-    await Future.delayed(const Duration(seconds: 1));
-    if (mounted) {
-      setState(() => _isSubmitting = false);
-      context.go(AppRoutes.home);
+    if (_isSubmitting || !_formKey.currentState!.validate()) return;
+    setState(() {
+      _isSubmitting = true;
+      _error = '';
+    });
+    try {
+      await ref.read(authControllerProvider).login(
+            _identifierCtrl.text,
+            _passwordCtrl.text,
+            rememberMe: _rememberMe,
+          );
+      // Thành công: router guard tự chuyển sang Home khi phiên được thiết lập.
+    } on ApiException catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
     }
   }
 
@@ -52,8 +66,8 @@ class _LoginScreenState extends State<LoginScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // Back button
                 IconButton(
+                  tooltip: 'Quay lại',
                   onPressed: () => context.go(AppRoutes.welcome),
                   icon: const Icon(Icons.arrow_back),
                   padding: EdgeInsets.zero,
@@ -61,60 +75,41 @@ class _LoginScreenState extends State<LoginScreen> {
                   color: AppColors.textPrimary,
                 ),
                 const SizedBox(height: 24),
-
-                // Header — bám sát "Đăng nhập / Chào mừng trở lại"
                 Text('Đăng nhập', style: AppTextStyles.h1),
                 const SizedBox(height: 6),
                 Text(
                   'Chào mừng trở lại với hệ sinh thái AgriSage',
-                  style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
+                  style: AppTextStyles.bodyMedium
+                      .copyWith(color: AppColors.textSecondary),
                 ),
                 const SizedBox(height: 32),
-
-                // Email / SĐT field
-                _FieldLabel('EMAIL HOẶC SỐ ĐIỆN THOẠI'),
+                Text('EMAIL HOẶC SỐ ĐIỆN THOẠI',
+                    style: AppTextStyles.labelSmall),
                 const SizedBox(height: 6),
                 TextFormField(
-                  controller: _emailCtrl,
+                  key: const Key('login_identifier'),
+                  controller: _identifierCtrl,
                   keyboardType: TextInputType.emailAddress,
+                  textInputAction: TextInputAction.next,
+                  autofillHints: const [AutofillHints.username],
                   decoration: const InputDecoration(
                     hintText: 'Nhập email hoặc số điện thoại',
                   ),
-                  validator: (v) {
-                    if (v == null || v.trim().isEmpty) {
-                      return 'Vui lòng nhập email hoặc số điện thoại';
-                    }
-                    return null;
-                  },
+                  validator: AuthValidators.identifier,
                 ),
                 const SizedBox(height: 16),
-
-                // Password field
-                _FieldLabel('MẬT KHẨU'),
+                Text('MẬT KHẨU', style: AppTextStyles.labelSmall),
                 const SizedBox(height: 6),
-                TextFormField(
+                PasswordField(
+                  fieldKey: const Key('login_password'),
                   controller: _passwordCtrl,
-                  obscureText: !_showPassword,
-                  decoration: InputDecoration(
-                    hintText: 'Nhập mật khẩu',
-                    suffixIcon: IconButton(
-                      icon: Icon(
-                        _showPassword ? Icons.visibility_off_outlined : Icons.visibility_outlined,
-                        color: AppColors.textMuted,
-                        size: 20,
-                      ),
-                      onPressed: () => setState(() => _showPassword = !_showPassword),
-                    ),
-                  ),
-                  validator: (v) {
-                    if (v == null || v.isEmpty) return 'Vui lòng nhập mật khẩu';
-                    if (v.length < 6) return 'Mật khẩu tối thiểu 6 ký tự';
-                    return null;
-                  },
+                  hint: 'Nhập mật khẩu',
+                  textInputAction: TextInputAction.done,
+                  autofillHints: const [AutofillHints.password],
+                  onSubmitted: _handleSubmit,
+                  validator: AuthValidators.existingPassword,
                 ),
                 const SizedBox(height: 12),
-
-                // Remember me + Forgot
                 Row(
                   children: [
                     GestureDetector(
@@ -125,14 +120,19 @@ class _LoginScreenState extends State<LoginScreen> {
                             width: 20,
                             height: 20,
                             child: Checkbox(
+                              key: const Key('login_remember'),
                               value: _rememberMe,
-                              onChanged: (v) => setState(() => _rememberMe = v!),
+                              onChanged: (v) =>
+                                  setState(() => _rememberMe = v ?? true),
                               activeColor: AppColors.primary,
-                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(4),
+                              ),
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text('Ghi nhớ đăng nhập', style: AppTextStyles.bodySmall),
+                          Text('Ghi nhớ đăng nhập',
+                              style: AppTextStyles.bodySmall),
                         ],
                       ),
                     ),
@@ -150,47 +150,17 @@ class _LoginScreenState extends State<LoginScreen> {
                     ),
                   ],
                 ),
-
-                // Error message
                 if (_error.isNotEmpty) ...[
                   const SizedBox(height: 12),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                    decoration: BoxDecoration(
-                      color: AppColors.statusErrorSurface,
-                      borderRadius: BorderRadius.circular(8),
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(Icons.error_outline, color: AppColors.statusError, size: 16),
-                        const SizedBox(width: 8),
-                        Expanded(
-                          child: Text(
-                            _error,
-                            style: AppTextStyles.bodySmall.copyWith(color: AppColors.statusError),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+                  AuthBanner(_error),
                 ],
-
                 const SizedBox(height: 24),
-
-                // Submit
-                ElevatedButton(
-                  onPressed: _isSubmitting ? null : _handleSubmit,
-                  child: _isSubmitting
-                      ? const SizedBox(
-                          height: 20,
-                          width: 20,
-                          child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white),
-                        )
-                      : const Text('Đăng nhập'),
+                AuthSubmitButton(
+                  label: 'Đăng nhập',
+                  isLoading: _isSubmitting,
+                  onPressed: _handleSubmit,
                 ),
                 const SizedBox(height: 24),
-
-                // Register link
                 Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
@@ -212,19 +182,6 @@ class _LoginScreenState extends State<LoginScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _FieldLabel extends StatelessWidget {
-  final String text;
-  const _FieldLabel(this.text);
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      text,
-      style: AppTextStyles.labelSmall,
     );
   }
 }

@@ -58,7 +58,7 @@ class AppTheme {
             foregroundColor: Colors.white,
             minimumSize: const Size(double.infinity, 50),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
             ),
             textStyle: GoogleFonts.inter(
               fontSize: 15,
@@ -73,7 +73,7 @@ class AppTheme {
             side: const BorderSide(color: AppColors.primary),
             minimumSize: const Size(double.infinity, 50),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(12),
             ),
             textStyle: GoogleFonts.inter(
               fontSize: 15,
@@ -86,19 +86,19 @@ class AppTheme {
           fillColor: AppColors.surface,
           contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: AppColors.borderSubtle),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: AppColors.borderSubtle),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: AppColors.primary, width: 1.5),
           ),
           errorBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(12),
             borderSide: const BorderSide(color: AppColors.statusError),
           ),
           hintStyle: GoogleFonts.inter(
@@ -114,17 +114,25 @@ class AppTheme {
         ),
         cardTheme: CardThemeData(
           color: AppColors.surface,
-          elevation: 0,
+          elevation: 8,
+          shadowColor: Colors.black.withOpacity(0.04),
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
-            side: const BorderSide(color: AppColors.borderSubtle),
+            borderRadius: BorderRadius.circular(16),
+            side: BorderSide.none,
           ),
           margin: EdgeInsets.zero,
         ),
         chipTheme: ChipThemeData(
           backgroundColor: AppColors.surfaceSecondary,
           selectedColor: AppColors.primaryLight,
-          labelStyle: GoogleFonts.inter(fontSize: 13),
+          // Phải có màu: labelStyle không màu sẽ ghi đè màu mặc định của chip
+          // và chữ bị vẽ thành trắng (gần như vô hình trên nền nhạt).
+          labelStyle:
+              GoogleFonts.inter(fontSize: 13, color: AppColors.textPrimary),
+          secondaryLabelStyle: GoogleFonts.inter(
+              fontSize: 13,
+              color: AppColors.primaryDark,
+              fontWeight: FontWeight.w600),
           padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           side: BorderSide.none,
