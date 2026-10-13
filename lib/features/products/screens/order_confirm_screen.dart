@@ -19,6 +19,8 @@ import '../../profile/providers/profile_providers.dart';
 import '../data/catalog_models.dart';
 import '../providers/catalog_providers.dart';
 import '../../home/providers/home_providers.dart';
+import '../../payment/providers/payment_providers.dart';
+import '../../payment/widgets/payment_actions.dart';
 
 /// Xác nhận đặt hàng (checkout) từ giỏ hàng hiện tại.
 class OrderConfirmScreen extends ConsumerStatefulWidget {
@@ -114,6 +116,8 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
     });
     final router = GoRouter.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    // Sau `router.go` màn này bị huỷ nên không dùng `ref` được nữa: lấy sẵn.
+    final launcher = ref.read(paymentLauncherProvider);
     try {
       final order = await ref.read(orderRepositoryProvider).checkout(
             settlementType:
@@ -131,18 +135,59 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
       // Đơn trả ngay giao tận nơi: cửa hàng chỉ xác nhận khi đã nhận đủ tiền.
       if (order.settlementType == SettlementType.full &&
           order.fulfillmentType == FulfillmentType.delivery) {
-        router.push('${AppRoutes.qrPayment}?orderId=${order.id}');
+        await openPayosPayment(
+          router: router,
+          messenger: messenger,
+          start: () => launcher.startOrderPayment(order.id),
+        );
       }
     } on ApiException catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.message);
-      // Giỏ có thể đã thay đổi (dòng ngừng bán, giá...): đồng bộ lại.
+      // Giỏ có thể đã thay đổi (dòng ngừng bán, giá...), hoặc đã thành đơn nếu chỉ mất phản hồi: đồng bộ lại.
       ref.read(cartProvider.notifier).refresh();
+      if (e.kind == ApiErrorKind.timeout) {
+        // Request đã đi nhưng mất câu trả lời: server có thể đã tạo đơn. KHÔNG mời đặt lại ngay
+        // (dễ trùng đơn), chỉ sang mục Đơn hàng để kiểm tra. (Cách xử lý của nhánh feature/mobile-diagnosis.)
+        invalidateOrders(ref);
+        setState(() {
+          _error = '';
+          _submitting = false;
+        });
+        await _warnMaybeCreated(router);
+        return;
+      }
+      setState(() => _error = e.message);
       if (e.statusCode == 404) ref.invalidate(addressesProvider);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
+
+  Future<void> _warnMaybeCreated(GoRouter router) => showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Chưa nhận được phản hồi'),
+          content: const Text(
+            'Đơn hàng có thể đã được tạo. Bạn hãy vào mục Đơn hàng để kiểm tra trước khi đặt lại, '
+            'tránh tạo đơn trùng.',
+          ),
+          actions: [
+            TextButton(
+              key: const Key('maybe_created_close'),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Đóng'),
+            ),
+            TextButton(
+              key: const Key('maybe_created_orders'),
+              onPressed: () {
+                Navigator.pop(ctx);
+                router.go(AppRoutes.orderList);
+              },
+              child: const Text('Xem đơn hàng'),
+            ),
+          ],
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {

@@ -9,12 +9,13 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/utils/money.dart';
-import '../../../router/app_router.dart';
 import '../../../shared/widgets/empty_data_widget.dart';
 import '../../../shared/widgets/error_retry_widget.dart';
 import '../../orders/widgets/order_widgets.dart';
 import '../data/debt_models.dart';
 import '../providers/debt_providers.dart';
+import '../../payment/providers/payment_providers.dart';
+import '../../payment/widgets/payment_actions.dart';
 
 /// Trả nợ qua payOS: nhập số tiền, xem tiền sẽ trừ vào khoản nào, rồi sang
 /// màn quét QR. Backend luôn trừ vào khoản đến hạn sớm nhất trước (không chọn
@@ -237,13 +238,19 @@ class _DebtRepayScreenState extends ConsumerState<DebtRepayScreen> {
               child: ElevatedButton.icon(
                 key: const Key('repay_submit'),
                 onPressed: valid
-                    ? () => context.push('${AppRoutes.qrPayment}?debtAmount=$amount')
+                    ? () => openPayosPayment(
+                          router: GoRouter.of(context),
+                          messenger: ScaffoldMessenger.of(context),
+                          start: () => ref
+                              .read(paymentLauncherProvider)
+                              .startDebtRepayment(amount),
+                        )
                     : null,
                 icon: const Icon(Icons.qr_code_2),
                 label: FittedBox(
                   child: Text(valid
-                      ? 'Thanh toán ${formatVnd(amount)} qua VietQR'
-                      : 'Thanh toán qua VietQR'),
+                      ? 'Thanh toán ${formatVnd(amount)} qua payOS'
+                      : 'Thanh toán qua payOS'),
                 ),
               ),
             ),

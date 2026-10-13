@@ -30,7 +30,8 @@ import 'package:farmer_mobile/features/products/screens/order_confirm_screen.dar
 import 'package:farmer_mobile/features/products/screens/order_detail_screen.dart';
 import 'package:farmer_mobile/features/products/screens/order_list_screen.dart';
 import 'package:farmer_mobile/features/payment/screens/payment_result_screen.dart';
-import 'package:farmer_mobile/features/payment/screens/qr_payment_screen.dart';
+import 'package:farmer_mobile/features/payment/data/pending_payment.dart';
+import 'package:farmer_mobile/features/payment/providers/payment_providers.dart';
 import 'package:farmer_mobile/features/debt/data/debt_repository.dart';
 import 'package:farmer_mobile/features/debt/screens/debt_history_screen.dart';
 import 'package:farmer_mobile/features/debt/screens/debt_detail_screen.dart';
@@ -58,6 +59,7 @@ import 'package:go_router/go_router.dart';
 import 'auth_fakes.dart';
 import 'catalog_fakes.dart';
 import 'debt_fakes.dart';
+import 'payment_test_support.dart';
 import 'diagnosis_fakes.dart';
 import 'return_fakes.dart';
 import 'notification_fakes.dart';
@@ -91,6 +93,7 @@ class AppHarness {
       notificationRepositoryProvider.overrideWithValue(notifications),
       diagnosisRepositoryProvider.overrideWithValue(diagnosis),
       photoPickerProvider.overrideWithValue(photos),
+      ...paymentTestOverrides(paymentStore),
       tokenStorageProvider.overrideWithValue(this.storage),
     ]);
   }
@@ -114,9 +117,8 @@ class AppHarness {
   /// Nhịp tự làm mới ca chẩn đoán đang chờ trong test (thật: 30 giây).
   Duration diagnosisPollInterval = const Duration(seconds: 30);
 
-  /// Nhịp hỏi trạng thái thanh toán trong test (thật: 3 giây).
-  Duration paymentPollInterval = const Duration(seconds: 3);
-  Duration paymentSyncAfter = const Duration(seconds: 60);
+  /// Kho khoản thanh toán payOS dở (bộ nhớ, thay cho shared_preferences).
+  final MemoryKeyValueStore paymentStore = MemoryKeyValueStore();
   final MemoryTokenStorage storage;
   late final ProviderContainer container;
   late GoRouter router;
@@ -244,23 +246,21 @@ class AppHarness {
           path: '/returns/:id',
           builder: (_, s) => ReturnDetailScreen(returnId: s.pathParameters['id']!),
         ),
+        // WebView không chạy được trong flutter test: màn thanh toán thật được thay bằng một
+        // màn giả hiện mã khoản thanh toán (WebView chỉ kiểm tra được trên emulator).
         GoRoute(
-          path: AppRoutes.qrPayment,
-          builder: (_, s) => QRPaymentScreen(
-            orderId: s.uri.queryParameters['orderId'],
-            debtAmount: int.tryParse(s.uri.queryParameters['debtAmount'] ?? ''),
-            pollInterval: paymentPollInterval,
-            syncAfter: paymentSyncAfter,
-            showDevTools: true,
-          ),
+          path: AppRoutes.payosCheckout,
+          builder: (_, s) {
+            final p = s.extra as PendingPayment;
+            return Scaffold(
+              appBar: AppBar(title: const Text('Thanh toán payOS')),
+              body: Center(child: Text('PAYOS ${p.paymentId}', key: const Key('payos_stub'))),
+            );
+          },
         ),
         GoRoute(
           path: AppRoutes.paymentResult,
-          builder: (_, s) => PaymentResultScreen(
-            success: s.uri.queryParameters['success'] == 'true',
-            orderId: s.uri.queryParameters['orderId'],
-            isDebt: s.uri.queryParameters['kind'] == 'debt',
-          ),
+          builder: (_, s) => PaymentResultScreen(args: s.extra as PaymentResultArgs),
         ),
         GoRoute(
           path: AppRoutes.debt,

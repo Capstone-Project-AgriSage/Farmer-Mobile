@@ -4,8 +4,7 @@ import 'package:farmer_mobile/features/debt/screens/debt_detail_screen.dart';
 import 'package:farmer_mobile/features/debt/screens/debt_history_screen.dart';
 import 'package:farmer_mobile/features/debt/screens/debt_list_screen.dart';
 import 'package:farmer_mobile/features/debt/screens/debt_repay_screen.dart';
-import 'package:farmer_mobile/features/payment/screens/payment_result_screen.dart';
-import 'package:farmer_mobile/features/payment/screens/qr_payment_screen.dart';
+import 'package:farmer_mobile/features/payment/providers/payment_providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -506,74 +505,25 @@ void main() {
       expect(find.byKey(const Key('repay_preview')), findsOneWidget);
     });
 
-    testWidgets('bấm Thanh toán: sang màn QR, tạo link trả nợ đúng số tiền', (tester) async {
+    testWidgets('bấm Thanh toán: tạo link trả nợ đúng số tiền, lưu khoản dở, mở trang payOS', (tester) async {
       final h = await repay(tester);
       await tester.enterText(find.byKey(const Key('repay_amount')), '1200000');
       await tester.pump(const Duration(milliseconds: 100));
       await tester.pumpAndSettle();
 
-      expect(find.textContaining('Thanh toán 1.200.000đ qua VietQR'), findsOneWidget);
+      expect(find.textContaining('Thanh toán 1.200.000đ qua payOS'), findsOneWidget);
       await tester.tap(find.byKey(const Key('repay_submit')));
       await tester.pump();
       await tester.pump();
 
-      expect(find.byType(QRPaymentScreen), findsOneWidget);
+      expect(find.byKey(const Key('payos_stub')), findsOneWidget);
+      expect(find.text('PAYOS pay1'), findsOneWidget);
       expect(h.payments.calls, contains('createDebt:1200000'));
-      await tester.pump();
-      expect(textOf(tester, 'pay_amount'), '1.200.000đ');
-      expect(find.byKey(const Key('pay_qr')), findsOneWidget);
-    });
-  });
-
-  group('Thanh toán nợ qua QR', () {
-    testWidgets('trả xong: sang màn kết quả riêng cho công nợ, làm mới số liệu', (tester) async {
-      final h = AppHarness()..signIn();
-      h.debt.account0 = accountOf();
-      h.payments.statuses.addAll(['PENDING', 'PAID']);
-      h.paymentPollInterval = const Duration(seconds: 1);
-      await h.pump(tester, initial: '/payment/qr?debtAmount=1000000');
-      await tester.pump();
-      await tester.pump();
-      expect(find.byKey(const Key('pay_waiting')), findsOneWidget);
-
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pump(const Duration(seconds: 1));
-      await tester.pumpAndSettle();
-
-      expect(find.byType(PaymentResultScreen), findsOneWidget);
-      expect(find.text('Thanh toán thành công!'), findsOneWidget);
-      expect(find.textContaining('Công nợ của bạn đã được cập nhật'), findsOneWidget);
-      expect(find.byKey(const Key('result_view_debt')), findsOneWidget);
-      expect(find.byKey(const Key('result_view_order')), findsNothing);
-    });
-
-    testWidgets('payOS chưa cấu hình (503): báo gián đoạn, nút về công nợ', (tester) async {
-      final h = AppHarness()..signIn();
-      h.payments.createError = const ApiException(
-          kind: ApiErrorKind.unavailable,
-          statusCode: 503,
-          message: 'Thanh toán online đang gián đoạn. Vui lòng thử lại sau hoặc thanh toán tại cửa hàng.');
-      await h.pump(tester, initial: '/payment/qr?debtAmount=1000000');
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('gián đoạn'), findsOneWidget);
-      expect(find.text('Về công nợ'), findsOneWidget);
-      expect(find.byKey(const Key('pay_qr')), findsNothing);
-    });
-
-    testWidgets('hủy phiên thanh toán nợ: quay về, không báo thành công', (tester) async {
-      final h = AppHarness()..signIn();
-      h.debt.account0 = accountOf();
-      await h.pump(tester, initial: '/payment/qr?debtAmount=500000');
-      await tester.pump();
-      await tester.pump();
-
-      await tester.ensureVisible(find.byKey(const Key('pay_cancel')));
-      await tester.tap(find.byKey(const Key('pay_cancel')));
-      await tester.pumpAndSettle();
-
-      expect(h.payments.calls, contains('cancel:pay1'));
-      expect(find.byType(PaymentResultScreen), findsNothing);
+      // Khoản thanh toán dở đã được nhớ TRƯỚC khi trang payOS mở.
+      final saved = h.container.read(pendingPaymentProvider);
+      expect(saved?.paymentId, 'pay1');
+      expect(saved?.isDebtRepayment, isTrue);
+      expect(saved?.amount, 1200000);
     });
   });
 

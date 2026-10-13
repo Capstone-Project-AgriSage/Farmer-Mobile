@@ -4,7 +4,6 @@ import 'package:farmer_mobile/core/network/api_exception.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:farmer_mobile/features/payment/screens/qr_payment_screen.dart';
 import 'package:farmer_mobile/features/products/screens/order_detail_screen.dart';
 
 import '../../helpers/app_harness.dart';
@@ -195,12 +194,12 @@ void main() {
     expect(h.orders.lastCheckout?.fulfillment, 'DELIVERY');
     expect(h.orders.lastCheckout?.addressId, 'home');
     expect(h.orders.lastCheckout?.note, 'Giao buổi sáng');
-    expect(find.byType(QRPaymentScreen), findsOneWidget);
+    expect(find.byKey(const Key('payos_stub')), findsOneWidget);
     expect(h.payments.calls, contains('create:new'));
     expect(find.text('Đặt hàng thành công: DH-new'), findsOneWidget);
     // Màn thanh toán đè lên chi tiết đơn: quay lại sẽ thấy đơn.
-    // Rời màn thanh toán (huỷ phiên) rồi quay lại thấy đơn.
-    await tester.tap(find.byKey(const Key('pay_cancel')));
+    // Đóng trang thanh toán (quay lại) thì thấy đơn vừa đặt.
+    await tester.pageBack();
     await tester.pumpAndSettle();
     expect(find.byType(OrderDetailScreen), findsOneWidget);
   });
@@ -236,6 +235,27 @@ void main() {
     expect(find.textContaining('không còn đặt được'), findsOneWidget);
     expect(find.text('Xác nhận đặt hàng'), findsOneWidget);
     expect(h.cart.calls.where((c) => c == 'get').length, greaterThan(getsBefore));
+  });
+
+  testWidgets('đặt bị timeout: KHÔNG mời đặt lại, cảnh báo có thể đã tạo đơn, dẫn tới Đơn hàng',
+      (tester) async {
+    final h = await openCheckout(tester, setup: (h) => h.orders.checkoutError = const ApiException(
+        kind: ApiErrorKind.timeout,
+        message: 'Máy chủ phản hồi quá lâu. Vui lòng thử lại.'));
+
+    await agree(tester);
+    await tester.tap(_submit);
+    await tester.pumpAndSettle();
+
+    expect(find.text('Chưa nhận được phản hồi'), findsOneWidget);
+    expect(find.textContaining('tránh tạo đơn trùng'), findsOneWidget);
+    expect(find.textContaining('quá lâu'), findsNothing);
+    expect(h.orders.calls.where((c) => c == 'checkout'), hasLength(1));
+
+    await tester.tap(find.byKey(const Key('maybe_created_orders')));
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump(const Duration(milliseconds: 500));
+    expect(h.location, '/orders');
   });
 
   testWidgets('giỏ có dòng không đặt được: cảnh báo, khoá nút Đặt hàng', (tester) async {

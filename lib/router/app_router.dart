@@ -35,7 +35,9 @@ import '../features/returns/screens/return_list_screen.dart';
 import '../features/returns/screens/return_request_screen.dart';
 
 // Payment
-import '../features/payment/screens/qr_payment_screen.dart';
+import '../features/payment/data/pending_payment.dart';
+import '../features/payment/providers/payment_providers.dart';
+import '../features/payment/screens/payos_checkout_screen.dart';
 import '../features/payment/screens/payment_result_screen.dart';
 
 // Debt
@@ -95,7 +97,7 @@ abstract class AppRoutes {
   static const returnList = '/returns';
 
   // Payment
-  static const qrPayment = '/payment/qr';
+  static const payosCheckout = '/payment/payos';
   static const paymentResult = '/payment/result';
 
   // Debt
@@ -371,31 +373,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       // ── Payment ───────────────────────────────────────────────
+      // Hai màn này nhận dữ liệu qua `extra` (khoản thanh toán dở): mất `extra` (mở lại từ
+      // đường dẫn, khôi phục điều hướng) thì không có gì để thanh toán → về Trang chủ.
       GoRoute(
-        path: AppRoutes.qrPayment,
-        builder: (_, state) {
-          final orderId = state.uri.queryParameters['orderId'];
-          final debtAmount =
-              int.tryParse(state.uri.queryParameters['debtAmount'] ?? '');
-          // Đường dẫn thiếu/sai tham số: không có gì để thanh toán.
-          if ((orderId == null || orderId.isEmpty) == (debtAmount == null)) {
-            return const Scaffold(
-              body: Center(child: Text('Liên kết thanh toán không hợp lệ.')),
-            );
-          }
-          return QRPaymentScreen(
-            orderId: orderId?.isEmpty ?? true ? null : orderId,
-            debtAmount: debtAmount,
-          );
-        },
+        path: AppRoutes.payosCheckout,
+        redirect: (_, state) => state.extra is PendingPayment ? null : AppRoutes.home,
+        builder: (_, state) =>
+            PayosCheckoutScreen(payment: state.extra as PendingPayment),
       ),
       GoRoute(
         path: AppRoutes.paymentResult,
-        builder: (_, state) => PaymentResultScreen(
-          success: state.uri.queryParameters['success'] == 'true',
-          orderId: state.uri.queryParameters['orderId'],
-          isDebt: state.uri.queryParameters['kind'] == 'debt',
-        ),
+        redirect: (_, state) => state.extra is PaymentResultArgs ? null : AppRoutes.home,
+        builder: (_, state) =>
+            PaymentResultScreen(args: state.extra as PaymentResultArgs),
       ),
     ],
     errorBuilder: (_, __) => const NotFoundScreen(),

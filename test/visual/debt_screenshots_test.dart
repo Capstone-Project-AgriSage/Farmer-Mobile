@@ -154,16 +154,6 @@ void main() {
         await open(tester, '/debt/history');
         await shoot(tester, '${tag}_debt_history');
       });
-
-      testWidgets('QR trả nợ', (tester) async {
-        await open(tester, '/payment/qr?debtAmount=2350000', settle: false);
-        await shoot(tester, '${tag}_debt_qr');
-      });
-
-      testWidgets('kết quả trả nợ', (tester) async {
-        await open(tester, '/payment/result?success=true&kind=debt');
-        await shoot(tester, '${tag}_debt_result_ok');
-      });
     });
   }
 }

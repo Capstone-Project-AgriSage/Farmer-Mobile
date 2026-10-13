@@ -25,6 +25,20 @@ abstract class AppConfig {
   /// Nguồn gửi lên khi đặt hàng (`CheckoutRequest.source`).
   static const String orderSource = 'FARMER_MOBILE';
 
+  /// Hai trang payOS đưa người mua quay lại (thanh toán xong / bấm huỷ). So khớp CHỈ
+  /// theo đường dẫn nên đổi máy chủ web vẫn chạy. Ghi đè bằng `--dart-define`.
+  static const String payosReturnPath = String.fromEnvironment(
+    'PAYOS_RETURN_PATH',
+    defaultValue: '/payments/payos/return',
+  );
+  static const String payosCancelPath = String.fromEnvironment(
+    'PAYOS_CANCEL_PATH',
+    defaultValue: '/payments/payos/cancel',
+  );
+
+  /// Hiện mục "Công cụ phát triển" ở màn Tài khoản (chỉ build thử, xem `env/*.json`).
+  static const bool showDevTools = bool.fromEnvironment('SHOW_DEV_TOOLS');
+
   static const Duration connectTimeout = Duration(seconds: 15);
   static const Duration receiveTimeout = Duration(seconds: 30);
 

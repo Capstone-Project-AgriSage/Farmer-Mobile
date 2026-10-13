@@ -249,6 +249,9 @@ class FakePaymentRepository extends PaymentRepository {
   /// Trạng thái trả về ở lần get/sync tiếp theo, theo thứ tự (hết thì PENDING).
   final List<String> statuses = [];
   Object? getError;
+  Object? cancelError;
+  Object? simulateError;
+  String simulateStatus = PaymentStatus.paid;
   DateTime? expiresAt;
   String? qrCode = '00020101021238570010A000000727012700069704220113VQRQ00000000208QRIBFTTA53037045405150005802VN62110807PM0000016304ABCD';
 
@@ -313,13 +316,15 @@ class FakePaymentRepository extends PaymentRepository {
   @override
   Future<Payment> cancel(String paymentId) async {
     calls.add('cancel:$paymentId');
+    if (cancelError != null) throw cancelError!;
     return _payment(paymentId, PaymentStatus.cancelled);
   }
 
   @override
   Future<Payment> simulatePaid(String paymentId) async {
     calls.add('simulate:$paymentId');
-    return _payment(paymentId, PaymentStatus.paid);
+    if (simulateError != null) throw simulateError!;
+    return _payment(paymentId, simulateStatus);
   }
 }
 

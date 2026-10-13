@@ -5,6 +5,7 @@ import 'package:farmer_mobile/core/network/api_exception.dart';
 import 'package:farmer_mobile/core/network/dio_client.dart';
 import 'package:farmer_mobile/features/ai_doctor/data/diagnosis_models.dart';
 import 'package:farmer_mobile/features/ai_doctor/data/diagnosis_repository.dart';
+import 'package:farmer_mobile/features/ai_doctor/data/photo_type.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../helpers/auth_fakes.dart';
@@ -52,6 +53,19 @@ void main() {
       }
     });
 
+    test('đã đọc byte đầu: loại THẬT quyết định, đuôi file sai vẫn nhận', () {
+      // Tên .heic nhưng thực chất là JPEG (điện thoại đổi tên) → nhận.
+      expect(
+          DiagnosisRepository.validatePhoto(const PickedPhoto(
+              path: 'p', name: 'a.heic', sizeBytes: 10, type: PhotoType.jpeg, typeChecked: true)),
+          isNull);
+      // Tên .jpg nhưng không phải ảnh → từ chối.
+      expect(
+          DiagnosisRepository.validatePhoto(
+              const PickedPhoto(path: 'p', name: 'a.jpg', sizeBytes: 10, typeChecked: true)),
+          contains('JPEG, PNG hoặc WebP'));
+    });
+
     test('đúng 5 MB hợp lệ; quá 5 MB và file rỗng bị từ chối', () {
       expect(DiagnosisRepository.validatePhoto(photo(size: 5 * 1024 * 1024)), isNull);
       expect(DiagnosisRepository.validatePhoto(photo(size: 5 * 1024 * 1024 + 1)),
@@ -85,6 +99,15 @@ void main() {
       use((o) => jsonBody(201, caseJson('c1')));
       await repo.create(photo: photo(), note: '   ');
       expect((adapter.requests.single.data as FormData).fields, isEmpty);
+    });
+
+    test('gửi theo loại THẬT của ảnh, không theo đuôi file', () async {
+      use((o) => jsonBody(201, caseJson('c1')));
+      await repo.create(
+          photo: PickedPhoto(
+              path: jpg.path, name: 'a.heic', sizeBytes: 64, type: PhotoType.png, typeChecked: true));
+      expect((adapter.requests.single.data as FormData).files.single.value.contentType.toString(),
+          'image/png');
     });
 
     test('PNG / WebP gửi đúng content type', () async {

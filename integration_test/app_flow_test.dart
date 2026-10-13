@@ -14,12 +14,14 @@ import 'dart:math';
 
 import 'package:farmer_mobile/app.dart';
 import 'package:farmer_mobile/features/ai_doctor/data/diagnosis_repository.dart';
+import 'package:farmer_mobile/core/storage/app_prefs.dart';
 import 'package:farmer_mobile/features/auth/widgets/auth_widgets.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const _png =
     'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
@@ -31,6 +33,9 @@ class _FilePicker implements PhotoPicker {
       ..writeAsBytesSync(base64Decode(_png));
     return PickedPhoto(path: f.path, name: 'e2e_leaf.png', sizeBytes: f.lengthSync());
   }
+
+  @override
+  Future<PickedPhoto?> recoverLost() async => null;
 }
 
 void main() {
@@ -71,7 +76,13 @@ void main() {
   }
 
   Future<void> back(WidgetTester t) async {
-    await t.pageBack();
+    // Emulator chậm: chờ nút Back của AppBar sẵn sàng (vd. đang chờ server trả lời).
+    final backButton = find.byType(BackButton);
+    for (var i = 0; i < 60 && backButton.evaluate().isEmpty; i++) {
+      await t.pump(const Duration(milliseconds: 250));
+    }
+    // Không dùng t.pageBack(): nó tìm nút theo tooltip tiếng Anh "Back", app dùng tiếng Việt ("Quay lại").
+    await t.tap(backButton.last);
     await settle(t, 800);
   }
 
@@ -83,9 +94,13 @@ void main() {
   }
 
   Future<void> launch(WidgetTester t, {Object? key}) async {
+    final prefs = await SharedPreferences.getInstance();
     await t.pumpWidget(ProviderScope(
       key: ValueKey(key ?? 'app'),
-      overrides: [photoPickerProvider.overrideWithValue(_FilePicker())],
+      overrides: [
+        photoPickerProvider.overrideWithValue(_FilePicker()),
+        sharedPreferencesProvider.overrideWithValue(prefs),
+      ],
       child: const AgriSageApp(),
     ));
   }

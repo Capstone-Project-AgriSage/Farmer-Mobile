@@ -25,6 +25,19 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
   bool _sending = false;
 
   @override
+  void initState() {
+    super.initState();
+    // Camera có thể làm Android đóng app lúc đang chụp: lấy lại ảnh vừa chụp khi app mở lại.
+    WidgetsBinding.instance.addPostFrameCallback((_) => _recoverLost());
+  }
+
+  Future<void> _recoverLost() async {
+    final p = await ref.read(photoPickerProvider).recoverLost();
+    if (p == null || !mounted || _photo != null) return;
+    _accept(p);
+  }
+
+  @override
   void dispose() {
     _note.dispose();
     super.dispose();
@@ -35,18 +48,22 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
     try {
       final p = await ref.read(photoPickerProvider).pick(source);
       if (p == null || !mounted) return;
-      final problem = DiagnosisRepository.validatePhoto(p);
-      setState(() {
-        if (problem == null) {
-          _photo = p;
-          _error = null;
-        } else {
-          _error = problem;
-        }
-      });
+      _accept(p);
     } on PhotoPickerException catch (e) {
       if (mounted) setState(() => _error = e.message);
     }
+  }
+
+  void _accept(PickedPhoto p) {
+    final problem = DiagnosisRepository.validatePhoto(p);
+    setState(() {
+      if (problem == null) {
+        _photo = p;
+        _error = null;
+      } else {
+        _error = problem;
+      }
+    });
   }
 
   Future<void> _send() async {

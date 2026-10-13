@@ -15,6 +15,8 @@ import '../../orders/data/order_repository.dart';
 import '../../orders/providers/order_providers.dart';
 import '../../orders/widgets/order_widgets.dart';
 import '../../home/providers/home_providers.dart';
+import '../../payment/providers/payment_providers.dart';
+import '../../payment/widgets/payment_actions.dart';
 
 class OrderDetailScreen extends ConsumerStatefulWidget {
   final String orderId;
@@ -164,8 +166,13 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                           onPressed: _cancelling
                               ? null
                               : () async {
-                                  await context.push(
-                                      '${AppRoutes.qrPayment}?orderId=${order.id}');
+                                  await openPayosPayment(
+                                    router: GoRouter.of(context),
+                                    messenger: ScaffoldMessenger.of(context),
+                                    start: () => ref
+                                        .read(paymentLauncherProvider)
+                                        .startOrderPayment(order.id),
+                                  );
                                   if (mounted) _refreshAll();
                                 },
                           child: FittedBox(

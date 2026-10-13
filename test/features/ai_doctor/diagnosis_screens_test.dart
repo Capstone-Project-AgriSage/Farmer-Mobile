@@ -46,6 +46,24 @@ void main() {
       expect(h.photos.asked, [PhotoSource.gallery, PhotoSource.camera]);
     });
 
+    testWidgets('Android đóng app lúc chụp: ảnh vừa chụp được lấy lại khi mở màn chụp', (tester) async {
+      final h = await open(tester, '/ai-scan/capture', setup: (h) {
+        h.photos.lost = const PickedPhoto(path: 'lost.jpg', name: 'lost.jpg', sizeBytes: 90000);
+      });
+      expect(find.text('Ảnh sẵn sàng'), findsOneWidget);
+      expect(find.byKey(const Key('cap_send')), findsOneWidget);
+      expect(h.photos.asked, isEmpty, reason: 'không cần chọn lại');
+    });
+
+    testWidgets('ảnh bị mất nhưng không phải ảnh JPEG/PNG/WebP: báo lỗi', (tester) async {
+      await open(tester, '/ai-scan/capture', setup: (h) {
+        h.photos.lost = const PickedPhoto(
+            path: 'x.jpg', name: 'x.jpg', sizeBytes: 1000, typeChecked: true);
+      });
+      expect(find.textContaining('JPEG, PNG hoặc WebP'), findsOneWidget);
+      expect(find.byKey(const Key('cap_send')), findsNothing);
+    });
+
     testWidgets('người dùng bỏ qua (không chọn ảnh): không có gì thay đổi', (tester) async {
       await open(tester, '/ai-scan/capture', setup: (h) => h.photos.next = null);
       await tester.tap(find.byKey(const Key('cap_gallery')));
@@ -54,14 +72,14 @@ void main() {
       expect(find.byKey(const Key('cap_error')), findsNothing);
     });
 
-    testWidgets('không mở được camera: hiện hướng dẫn cấp quyền', (tester) async {
+    testWidgets('không mở được camera: báo lỗi, không có nút gửi', (tester) async {
       await open(tester, '/ai-scan/capture', setup: (h) {
         h.photos.error = const PhotoPickerException(
-            'Không mở được camera. Hãy cấp quyền camera cho ứng dụng.');
+            'Không mở được camera. Vui lòng thử lại.');
       });
       await tester.tap(find.byKey(const Key('cap_camera')));
       await tester.pumpAndSettle();
-      expect(find.textContaining('cấp quyền camera'), findsOneWidget);
+      expect(find.textContaining('Không mở được camera'), findsOneWidget);
       expect(find.byKey(const Key('cap_send')), findsNothing);
     });
 

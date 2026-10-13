@@ -15,6 +15,7 @@ import '../../notifications/widgets/notification_bell.dart';
 import '../../orders/data/order_models.dart';
 import '../../orders/widgets/order_widgets.dart';
 import '../providers/home_providers.dart';
+import '../../payment/widgets/pending_payment_banner.dart';
 
 /// Trang chủ: lối tắt và tóm tắt DỮ LIỆU THẬT của chính nông dân (chẩn đoán gần
 /// đây, đơn hàng, công nợ). Không có nội dung mẫu.
@@ -53,6 +54,7 @@ class HomeScreen extends ConsumerWidget {
                 Text('Hôm nay bạn cần hỗ trợ gì?',
                     style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
                 const SizedBox(height: 20),
+                const PendingPaymentBanner(),
                 _buildAiBanner(context),
                 const SizedBox(height: 20),
                 const _DiagnosisCard(),
@@ -437,17 +439,21 @@ class _DiagnosisBody extends ConsumerWidget {
                 ),
               ),
           ],
-          const SizedBox(height: 10),
-          Row(
-            children: [
-              const Icon(Icons.verified_user_outlined, size: 16, color: AppColors.primary),
-              const SizedBox(width: 6),
-              Expanded(
-                child: Text('Kết luận do chuyên gia của cửa hàng xác nhận',
-                    style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
-              ),
-            ],
-          ),
+          // Chỉ ca đã có kết luận mới "do chuyên gia xác nhận" (ca đang chờ/huỷ/chụp lại thì không).
+          if (verified) ...[
+            const SizedBox(height: 10),
+            Row(
+              key: const Key('home_diag_verified_note'),
+              children: [
+                const Icon(Icons.verified_user_outlined, size: 16, color: AppColors.primary),
+                const SizedBox(width: 6),
+                Expanded(
+                  child: Text('Kết luận do chuyên gia của cửa hàng xác nhận',
+                      style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+                ),
+              ],
+            ),
+          ],
         ],
       ),
     );

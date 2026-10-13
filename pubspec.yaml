@@ -9,6 +9,8 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_localizations:  # hộp chọn ngày, hộp thoại hệ thống bằng tiếng Việt
+    sdk: flutter
 
   # Navigation
   go_router: ^14.6.3
@@ -27,16 +29,17 @@ dependencies:
   cached_network_image: ^3.4.1
   shimmer: ^3.0.0
   image_picker: ^1.1.2
-  qr_flutter: ^4.1.0
   smooth_page_indicator: ^1.2.0+3  # Onboarding dots
 
   # Utils
-  intl: ^0.19.0
+  intl: ^0.20.2
   url_launcher: ^6.3.1
 
   # Fonts (Google Fonts — bám sát Inter + Be Vietnam Pro của web)
   google_fonts: ^6.2.1
   lottie: ^3.6.1
+  webview_flutter: ^4.10.0  # trang thanh toán payOS
+  shared_preferences: ^2.3.3  # thanh toán payOS đang dở
 
 dev_dependencies:
   flutter_test:

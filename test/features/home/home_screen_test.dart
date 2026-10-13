@@ -155,6 +155,8 @@ void main() {
       expect(find.text('Chờ chuyên gia xem'), findsOneWidget);
       expect(find.textContaining('Chuyên gia đang xem ảnh của bạn'), findsOneWidget);
       expect(find.byKey(const Key('home_diag_disease')), findsNothing);
+      expect(find.byKey(const Key('home_diag_verified_note')), findsNothing,
+          reason: 'chưa có kết luận thì không ghi "do chuyên gia xác nhận"');
     });
 
     testWidgets('đã có kết luận: tên bệnh tiếng Việt + tối đa 2 sản phẩm gợi ý, bấm mở sản phẩm',
@@ -182,6 +184,7 @@ void main() {
       expect(find.text('Thuốc 2'), findsOneWidget);
       expect(find.text('Thuốc 3'), findsNothing, reason: 'chỉ hiện 2 sản phẩm đầu');
       expect(find.text('Đã có kết quả'), findsOneWidget);
+      expect(find.byKey(const Key('home_diag_verified_note')), findsOneWidget);
     });
 
     testWidgets('bấm ca gần đây mở chi tiết ca', (tester) async {
@@ -199,6 +202,15 @@ void main() {
         h.diagnosis.list0 = [diagSummaryOf('i', status: 'INCONCLUSIVE')];
       });
       expect(find.textContaining('Ảnh chưa đủ rõ'), findsOneWidget);
+      expect(find.byKey(const Key('home_diag_verified_note')), findsNothing);
+    });
+
+    testWidgets('ca đã huỷ: ghi đã huỷ, KHÔNG ghi "kết luận do chuyên gia xác nhận"', (tester) async {
+      await open(tester, setup: (h) {
+        h.diagnosis.list0 = [diagSummaryOf('c', status: 'CANCELLED')];
+      });
+      expect(find.textContaining('Bạn đã huỷ ca này'), findsOneWidget);
+      expect(find.byKey(const Key('home_diag_verified_note')), findsNothing);
     });
 
     testWidgets('lỗi mạng: thông báo trong thẻ, các thẻ khác vẫn có dữ liệu', (tester) async {

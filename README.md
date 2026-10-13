@@ -8,7 +8,11 @@ App chỉ dành cho tài khoản role `FARMER`.
 - **Tài khoản**: đăng ký, đăng nhập (ghi nhớ), quên/đặt lại mật khẩu, đổi mật khẩu, xác minh SĐT/email,
   hồ sơ, sổ địa chỉ, danh sách thiết bị đăng nhập và đăng xuất từng thiết bị/tất cả.
 - **Mua hàng**: danh mục và tìm kiếm sản phẩm, giỏ hàng (giá do server tính), đặt hàng giao tận nơi hoặc nhận tại
-  cửa hàng, trả ngay qua payOS (VietQR) hoặc mua ghi nợ theo hạn mức, danh sách/chi tiết đơn, theo dõi giao hàng, huỷ đơn.
+  cửa hàng, trả ngay qua payOS hoặc mua ghi nợ theo hạn mức, danh sách/chi tiết đơn, theo dõi giao hàng, huỷ đơn.
+- **Thanh toán payOS**: mở trang payOS trong WebView ngay trong app; link app ngân hàng (`intent://`, scheme riêng)
+  chuyển cho hệ thống; trang trả về/huỷ được nhận ra theo đường dẫn và không bao giờ được tin: kết quả luôn hỏi server.
+  Khoản thanh toán dở được lưu trước khi mở trang payOS nên app bị tắt (đang ở app ngân hàng) vẫn tìm lại được
+  (banner ở Trang chủ). Đặt hàng bị timeout thì không cho đặt lại ngay mà nhắc kiểm tra mục Đơn hàng (tránh trùng đơn).
 - **Công nợ**: hạn mức, tổng nợ, danh sách và chi tiết khoản nợ, khiếu nại, xem trước phân bổ và trả nợ qua payOS, lịch sử trả nợ.
 - **Trả hàng**: chọn hàng đã nhận để yêu cầu trả, theo dõi tiến trình, hoàn tiền, huỷ yêu cầu.
 - **Chẩn đoán bệnh lúa**: gửi ảnh lá lúa; chuyên gia của cửa hàng xem và kết luận (nông dân **không** thấy kết quả AI),
@@ -19,8 +23,9 @@ Chưa có API ở backend nên app hiển thị "Sắp ra mắt" hoặc không c
 cài đặt thông báo, thông báo đẩy (FCM), ảnh đại diện, đổi SĐT/email. Không có dữ liệu mẫu trong app.
 
 ## Tech stack
-Flutter (Dart) · Riverpod (không codegen) · GoRouter · Dio (interceptor Bearer + refresh token) ·
-flutter_secure_storage · qr_flutter (VietQR) · image_picker · cached_network_image.
+Flutter 3.47.4 (Dart 3.13) · Riverpod (không codegen) · GoRouter · Dio (interceptor Bearer + refresh token) ·
+flutter_secure_storage · webview_flutter (trang payOS) · shared_preferences (thanh toán dở) · image_picker ·
+cached_network_image · flutter_localizations (tiếng Việt).
 
 ## Cấu trúc
 ```
@@ -41,6 +46,11 @@ flutter pub get
 flutter run                                   # Android emulator tự dùng http://10.0.2.2:5206
 flutter run --dart-define=API_BASE_URL=http://192.168.1.10:5206   # máy thật: IP LAN của máy chạy backend
 ```
+Hoặc dùng file cấu hình: `flutter run --dart-define-from-file=env/emulator.json` (điện thoại thật: chép
+`env/device.example.json` thành `env/device.json`, chạy `adb reverse tcp:5206 tcp:5206`). Hai file này bật
+`SHOW_DEV_TOOLS`: màn Tài khoản có mục "Công cụ phát triển" để thử WebView payOS với trang giả
+(`node`/`python -m http.server 8099` trong `tool/payos_webview_test/`).
+
 Bản **release bắt buộc** build với `--dart-define=API_BASE_URL=https://<máy-chủ>` (không có thì app báo chưa cấu hình
 thay vì gọi nhầm địa chỉ dev). Bản debug được phép dùng HTTP; bản release chỉ HTTPS.
 
@@ -59,6 +69,8 @@ SCREENSHOTS=1 FLUTTER_ROOT=/path/to/flutter flutter test --update-goldens test/v
 flutter drive --driver=test_driver/integration_test.dart --target=integration_test/app_flow_test.dart -d <device-id>
 ```
 Backend giới hạn đăng nhập/đăng ký 10 yêu cầu/phút/IP nên các live test tự điều tốc.
+CI (`.github/workflows/flutter-ci.yml`) chạy `flutter analyze` và `flutter test` cho mỗi PR và mỗi lần push lên `main`.
+WebView không chạy trong `flutter test` (test dùng màn giả); kiểm tra WebView thật bằng mục "Công cụ phát triển".
 
 ## Màu sắc (bám sát Farmer-Web)
 Primary `#2E7D32` · Background `#F5FBF4` · Text `#172118`

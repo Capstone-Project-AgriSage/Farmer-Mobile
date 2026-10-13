@@ -189,6 +189,8 @@ class FakeDiagnosisRepository extends DiagnosisRepository {
 }
 
 class FakePhotoPicker implements PhotoPicker {
+  /// Ảnh "bị mất" khi Android đóng app lúc đang chụp (trả về khi màn chụp mở lại).
+  PickedPhoto? lost;
   PickedPhoto? next = const PickedPhoto(path: 'leaf.jpg', name: 'leaf.jpg', sizeBytes: 200000);
   Object? error;
   final List<PhotoSource> asked = [];
@@ -198,5 +200,12 @@ class FakePhotoPicker implements PhotoPicker {
     asked.add(source);
     if (error != null) throw error!;
     return next;
+  }
+
+  @override
+  Future<PickedPhoto?> recoverLost() async {
+    final p = lost;
+    lost = null;
+    return p;
   }
 }

@@ -1,0 +1,22 @@
+name: Flutter CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  analyze-and-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          # Cùng phiên bản với máy dev (pubspec.lock được tạo bằng bản này).
+          flutter-version: 3.47.4
+          cache: true
+      - run: flutter pub get
+      - run: flutter analyze
+      # Test với backend thật (LIVE_API) và ảnh chụp (SCREENSHOTS) tự bỏ qua khi không đặt cờ.
+      - run: flutter test
