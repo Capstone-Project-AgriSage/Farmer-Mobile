@@ -13,11 +13,15 @@ class NotificationBell extends ConsumerStatefulWidget {
   const NotificationBell({
     super.key,
     required this.route,
+    this.color = AppColors.textPrimary,
     @visibleForTesting this.pollInterval = const Duration(seconds: 60),
   });
 
   /// Màn thông báo để mở khi bấm.
   final String route;
+
+  /// Màu biểu tượng chuông (vd. trắng khi đặt trên nền xanh).
+  final Color color;
   final Duration pollInterval;
 
   @override
@@ -64,7 +68,7 @@ class _NotificationBellState extends ConsumerState<NotificationBell>
             count > 0 ? Icons.notifications : Icons.notifications_none_outlined,
             size: 28,
           ),
-          color: AppColors.textPrimary,
+          color: widget.color,
           onPressed: () async {
             await context.push(widget.route);
             _refresh();

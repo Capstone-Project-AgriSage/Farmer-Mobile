@@ -3,12 +3,15 @@ import 'package:farmer_mobile/features/ai_doctor/screens/ai_scan_home_screen.dar
 import 'package:farmer_mobile/features/ai_doctor/screens/diagnose_case_screen.dart';
 import 'package:farmer_mobile/features/debt/screens/debt_overview_screen.dart';
 import 'package:farmer_mobile/features/orders/data/order_models.dart';
+import 'package:farmer_mobile/features/products/screens/cart_screen.dart';
 import 'package:farmer_mobile/features/products/screens/order_detail_screen.dart';
 import 'package:farmer_mobile/features/products/screens/order_list_screen.dart';
+import 'package:farmer_mobile/features/products/screens/product_list_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../helpers/app_harness.dart';
+import '../../helpers/catalog_fakes.dart';
 import '../../helpers/debt_fakes.dart';
 import '../../helpers/diagnosis_fakes.dart';
 import '../../helpers/notification_fakes.dart';
@@ -43,10 +46,50 @@ List<OrderSummary> sampleOrders() => [
     ];
 
 void main() {
+  group('Lối tắt', () {
+    for (final (key, screen) in [
+      ('home_qa_shop', ProductListScreen),
+      ('home_qa_cart', CartScreen),
+      ('home_qa_orders', OrderListScreen),
+      ('home_qa_debt', DebtOverviewScreen),
+    ]) {
+      testWidgets('ô $key mở đúng màn', (tester) async {
+        await open(tester);
+        await tester.tap(find.byKey(Key(key)));
+        await tester.pumpAndSettle();
+        expect(find.byType(screen), findsOneWidget);
+      });
+    }
+
+    testWidgets('giỏ có hàng: số món trên ô Giỏ hàng; nợ quá hạn: chấm đỏ ở ô Công nợ',
+        (tester) async {
+      await open(tester, setup: (h) {
+        h.cart.cart = cartOf([line('a'), line('b', packagingId: 'k')]);
+        h.debt.account0 = accountOf(balance: 4100000, overdue: 2350000);
+      });
+      Badge badgeOf(String key) => tester.widget<Badge>(
+          find.descendant(of: find.byKey(Key(key)), matching: find.byType(Badge)));
+      expect(badgeOf('home_qa_cart').isLabelVisible, isTrue);
+      expect(find.descendant(of: find.byKey(const Key('home_qa_cart')), matching: find.text('2')),
+          findsOneWidget);
+      expect(badgeOf('home_qa_debt').isLabelVisible, isTrue);
+    });
+
+    testWidgets('giỏ trống, không nợ quá hạn: không có số hay chấm đỏ', (tester) async {
+      await open(tester);
+      for (final key in ['home_qa_cart', 'home_qa_debt']) {
+        final b = tester.widget<Badge>(
+            find.descendant(of: find.byKey(Key(key)), matching: find.byType(Badge)));
+        expect(b.isLabelVisible, isFalse, reason: key);
+      }
+    });
+  });
+
   group('Trang chủ: lời chào và các thẻ', () {
     testWidgets('chào đúng tên người dùng; không còn nội dung mẫu', (tester) async {
       await open(tester);
-      expect(textOf(tester, 'home_greeting'), contains('Xin chào, '));
+      expect(textOf(tester, 'home_greeting'), 'Trần Văn Hải');
+      expect(find.textContaining('Chào buổi'), findsOneWidget);
       // Những chuỗi của dữ liệu mẫu cũ không được xuất hiện nữa.
       for (final fake in ['DH-8842', 'Fuji-One', '85.000đ', '04/12/2024', 'Đại lý Cần Thơ', 'Thới Phước', '13']) {
         expect(find.text(fake), findsNothing, reason: fake);
