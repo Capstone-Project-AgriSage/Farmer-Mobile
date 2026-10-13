@@ -11,7 +11,7 @@ class HelpSupportScreen extends StatelessWidget {
   static const faq = <(String, String)>[
     (
       'Làm sao để thanh toán công nợ?',
-      'Vào tab Công nợ, bấm "Trả nợ", nhập số tiền rồi quét mã VietQR bằng app ngân hàng. '
+      'Vào tab Công nợ, bấm "Trả nợ", nhập số tiền rồi thanh toán trên trang payOS (quét mã VietQR hoặc mở app ngân hàng). '
           'Tiền luôn được trừ vào khoản đến hạn sớm nhất trước. Bạn cũng có thể trả trực tiếp tại cửa hàng.',
     ),
     (

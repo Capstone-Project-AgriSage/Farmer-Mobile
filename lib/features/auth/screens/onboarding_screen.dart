@@ -46,7 +46,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       iconColor: Color(0xFFE65100),
       title: 'Sổ nợ minh bạch',
       description:
-          'Theo dõi hạn mức, khoản nợ và hạn trả với cửa hàng. Trả nợ bằng mã QR, khiếu nại ngay trong ứng dụng nếu thấy sai lệch.',
+          'Theo dõi hạn mức, khoản nợ và hạn trả với cửa hàng. Trả nợ online qua payOS, khiếu nại ngay trong ứng dụng nếu thấy sai lệch.',
     ),
   ];
 
