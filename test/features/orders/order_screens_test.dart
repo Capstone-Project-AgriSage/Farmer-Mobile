@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:farmer_mobile/core/network/api_exception.dart';
 import 'package:farmer_mobile/features/orders/data/order_models.dart';
 import 'package:farmer_mobile/features/payment/screens/qr_payment_screen.dart';

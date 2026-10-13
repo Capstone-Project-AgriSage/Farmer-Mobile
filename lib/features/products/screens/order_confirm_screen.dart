@@ -18,6 +18,7 @@ import '../../orders/widgets/order_widgets.dart';
 import '../../profile/providers/profile_providers.dart';
 import '../data/catalog_models.dart';
 import '../providers/catalog_providers.dart';
+import '../../home/providers/home_providers.dart';
 
 /// Xác nhận đặt hàng (checkout) từ giỏ hàng hiện tại.
 class OrderConfirmScreen extends ConsumerStatefulWidget {
@@ -41,7 +42,11 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
   @override
   void initState() {
     super.initState();
-    // Giá có thể đổi từ lúc xem giỏ: lấy giỏ mới nhất trước khi đặt.
+    Future.microtask(() => ref.read(cartProvider.notifier).refresh());
+    // Snackbar của màn trước (vd. "Đã thêm vào giỏ") không được che ô tick/nút đặt hàng.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ScaffoldMessenger.of(context).clearSnackBars();
+    });
     Future.microtask(() => ref.read(cartProvider.notifier).refresh());
   }
 
@@ -119,7 +124,7 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
           );
       // Giỏ đã chuyển thành đơn: tải lại (rỗng) và làm mới danh sách đơn.
       ref.read(cartProvider.notifier).refresh();
-      ref.invalidate(myOrdersProvider);
+      invalidateOrders(ref);
       messenger.showSnackBar(
           SnackBar(content: Text('Đặt hàng thành công: ${order.orderNumber}')));
       router.go('/orders/${order.id}');

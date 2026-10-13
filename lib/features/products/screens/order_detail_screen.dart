@@ -14,6 +14,7 @@ import '../../orders/data/order_models.dart';
 import '../../orders/data/order_repository.dart';
 import '../../orders/providers/order_providers.dart';
 import '../../orders/widgets/order_widgets.dart';
+import '../../home/providers/home_providers.dart';
 
 class OrderDetailScreen extends ConsumerStatefulWidget {
   final String orderId;
@@ -53,7 +54,7 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
     final messenger = ScaffoldMessenger.of(context);
     try {
       await ref.read(orderRepositoryProvider).cancel(_id, reason: reason);
-      ref.invalidate(myOrdersProvider);
+      invalidateOrders(ref);
       await _refreshAll();
       final refunded = (payments?.paidAmount ?? 0) > 0;
       messenger.showSnackBar(SnackBar(
@@ -114,6 +115,10 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                 const SizedBox(height: 12),
                 _DeliverySection(orderId: _id),
               ],
+              if (OrderStatus.canReturn(o.status)) ...[
+                const SizedBox(height: 12),
+                _ReturnSection(orderId: _id),
+              ],
               const SizedBox(height: 24),
             ],
           ),
@@ -173,6 +178,48 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                 ),
               ),
             ),
+    );
+  }
+}
+
+/// Lối vào trả hàng: chỉ hiện khi đơn đã có hàng giao/nhận.
+class _ReturnSection extends StatelessWidget {
+  const _ReturnSection({required this.orderId});
+
+  final String orderId;
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      icon: Icons.assignment_return_outlined,
+      title: 'TRẢ HÀNG',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Hàng nhận được có vấn đề? Bạn có thể gửi yêu cầu trả hàng cho cửa hàng.',
+            style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+          ),
+          const SizedBox(height: 12),
+          SizedBox(
+            width: double.infinity,
+            child: OutlinedButton.icon(
+              key: const Key('order_return'),
+              onPressed: () => context.push('/orders/$orderId/return'),
+              icon: const Icon(Icons.assignment_return_outlined),
+              label: const Text('Yêu cầu trả hàng'),
+            ),
+          ),
+          Align(
+            alignment: Alignment.centerLeft,
+            child: TextButton(
+              key: const Key('order_return_list'),
+              onPressed: () => context.push('/returns'),
+              child: const Text('Xem các yêu cầu đã gửi'),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

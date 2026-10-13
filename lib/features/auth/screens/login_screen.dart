@@ -111,10 +111,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
                 const SizedBox(height: 12),
                 Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
                   children: [
-                    GestureDetector(
+                    Flexible(
+                      child: GestureDetector(
                       onTap: () => setState(() => _rememberMe = !_rememberMe),
                       child: Row(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
                           SizedBox(
                             width: 20,
@@ -131,12 +134,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             ),
                           ),
                           const SizedBox(width: 8),
-                          Text('Ghi nhớ đăng nhập',
-                              style: AppTextStyles.bodySmall),
+                          Flexible(child: Text('Ghi nhớ đăng nhập',
+                              style: AppTextStyles.bodySmall)),
                         ],
                       ),
-                    ),
-                    const Spacer(),
+                    )),
+                    const SizedBox(width: 8),
                     TextButton(
                       onPressed: () => context.go(AppRoutes.forgotPassword),
                       style: TextButton.styleFrom(padding: EdgeInsets.zero),

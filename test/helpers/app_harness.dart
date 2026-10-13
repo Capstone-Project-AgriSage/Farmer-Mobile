@@ -10,7 +10,13 @@ import 'package:farmer_mobile/features/auth/screens/register_screen.dart';
 import 'package:farmer_mobile/features/auth/screens/reset_password_screen.dart';
 import 'package:farmer_mobile/features/auth/screens/splash_screen.dart';
 import 'package:farmer_mobile/features/auth/screens/welcome_screen.dart';
+import 'package:farmer_mobile/features/home/screens/home_screen.dart';
 import 'package:farmer_mobile/features/profile/data/profile_repository.dart';
+import 'package:farmer_mobile/features/profile/screens/help_support_screen.dart';
+import 'package:farmer_mobile/features/profile/screens/notification_settings_screen.dart';
+import 'package:farmer_mobile/features/profile/screens/privacy_screen.dart';
+import 'package:farmer_mobile/features/profile/screens/sessions_screen.dart';
+import 'package:farmer_mobile/features/profile/screens/terms_screen.dart';
 import 'package:farmer_mobile/features/profile/screens/address_form_screen.dart';
 import 'package:farmer_mobile/features/profile/screens/address_list_screen.dart';
 import 'package:farmer_mobile/features/profile/screens/change_password_screen.dart';
@@ -25,7 +31,24 @@ import 'package:farmer_mobile/features/products/screens/order_detail_screen.dart
 import 'package:farmer_mobile/features/products/screens/order_list_screen.dart';
 import 'package:farmer_mobile/features/payment/screens/payment_result_screen.dart';
 import 'package:farmer_mobile/features/payment/screens/qr_payment_screen.dart';
+import 'package:farmer_mobile/features/debt/data/debt_repository.dart';
+import 'package:farmer_mobile/features/debt/screens/debt_history_screen.dart';
+import 'package:farmer_mobile/features/debt/screens/debt_detail_screen.dart';
+import 'package:farmer_mobile/features/debt/screens/debt_list_screen.dart';
+import 'package:farmer_mobile/features/debt/screens/debt_overview_screen.dart';
+import 'package:farmer_mobile/features/debt/screens/debt_repay_screen.dart';
 import 'package:farmer_mobile/features/orders/data/order_repository.dart';
+import 'package:farmer_mobile/features/ai_doctor/data/diagnosis_repository.dart';
+import 'package:farmer_mobile/features/ai_doctor/screens/ai_scan_home_screen.dart';
+import 'package:farmer_mobile/features/ai_doctor/screens/diagnose_case_screen.dart';
+import 'package:farmer_mobile/features/ai_doctor/screens/diagnose_history_screen.dart';
+import 'package:farmer_mobile/features/ai_doctor/screens/image_capture_screen.dart';
+import 'package:farmer_mobile/features/home/screens/notification_screen.dart';
+import 'package:farmer_mobile/features/notifications/data/notification_repository.dart';
+import 'package:farmer_mobile/features/returns/data/return_repository.dart';
+import 'package:farmer_mobile/features/returns/screens/return_detail_screen.dart';
+import 'package:farmer_mobile/features/returns/screens/return_list_screen.dart';
+import 'package:farmer_mobile/features/returns/screens/return_request_screen.dart';
 import 'package:farmer_mobile/router/app_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -34,6 +57,10 @@ import 'package:go_router/go_router.dart';
 
 import 'auth_fakes.dart';
 import 'catalog_fakes.dart';
+import 'debt_fakes.dart';
+import 'diagnosis_fakes.dart';
+import 'return_fakes.dart';
+import 'notification_fakes.dart';
 import 'order_fakes.dart';
 import 'profile_fakes.dart';
 
@@ -59,6 +86,11 @@ class AppHarness {
       orderRepositoryProvider.overrideWithValue(orders),
       paymentRepositoryProvider.overrideWithValue(payments),
       creditRepositoryProvider.overrideWithValue(credit),
+      debtRepositoryProvider.overrideWithValue(debt),
+      returnRepositoryProvider.overrideWithValue(returns),
+      notificationRepositoryProvider.overrideWithValue(notifications),
+      diagnosisRepositoryProvider.overrideWithValue(diagnosis),
+      photoPickerProvider.overrideWithValue(photos),
       tokenStorageProvider.overrideWithValue(this.storage),
     ]);
   }
@@ -70,6 +102,17 @@ class AppHarness {
   final FakeOrderRepository orders = FakeOrderRepository();
   final FakePaymentRepository payments = FakePaymentRepository();
   final FakeCreditRepository credit = FakeCreditRepository();
+  final FakeDebtRepository debt = FakeDebtRepository();
+  final FakeReturnRepository returns = FakeReturnRepository();
+  final FakeNotificationRepository notifications = FakeNotificationRepository();
+  final FakeDiagnosisRepository diagnosis = FakeDiagnosisRepository();
+  final FakePhotoPicker photos = FakePhotoPicker();
+
+  /// Dùng HomeScreen thật thay cho màn giả "HOME" (các test cũ dựa vào chữ HOME).
+  bool realHome = false;
+
+  /// Nhịp tự làm mới ca chẩn đoán đang chờ trong test (thật: 30 giây).
+  Duration diagnosisPollInterval = const Duration(seconds: 30);
 
   /// Nhịp hỏi trạng thái thanh toán trong test (thật: 3 giây).
   Duration paymentPollInterval = const Duration(seconds: 3);
@@ -136,10 +179,22 @@ class AppHarness {
         ),
         GoRoute(
           path: AppRoutes.home,
-          builder: (_, __) => const Scaffold(body: Center(child: Text('HOME'))),
+          builder: (_, __) => realHome
+              ? const HomeScreen()
+              : const Scaffold(body: Center(child: Text('HOME'))),
         ),
         GoRoute(
             path: AppRoutes.profile, builder: (_, __) => const ProfileScreen()),
+        GoRoute(
+            path: AppRoutes.sessions, builder: (_, __) => const SessionsScreen()),
+        GoRoute(
+            path: AppRoutes.helpSupport,
+            builder: (_, __) => const HelpSupportScreen()),
+        GoRoute(path: AppRoutes.terms, builder: (_, __) => const TermsScreen()),
+        GoRoute(path: AppRoutes.privacy, builder: (_, __) => const PrivacyScreen()),
+        GoRoute(
+            path: AppRoutes.notificationSettings,
+            builder: (_, __) => const NotificationSettingsScreen()),
         GoRoute(
             path: AppRoutes.changePassword,
             builder: (_, __) => const ChangePasswordScreen()),
@@ -167,9 +222,33 @@ class AppHarness {
           builder: (_, s) => OrderDetailScreen(orderId: s.pathParameters['id']!),
         ),
         GoRoute(
+          path: '/orders/:id/return',
+          builder: (_, s) => ReturnRequestScreen(orderId: s.pathParameters['id']!),
+        ),
+        GoRoute(path: '/ai-scan', builder: (_, __) => const AiScanHomeScreen()),
+        GoRoute(
+            path: '/ai-scan/capture', builder: (_, __) => const ImageCaptureScreen()),
+        GoRoute(
+            path: '/ai-scan/history',
+            builder: (_, __) => const DiagnoseHistoryScreen()),
+        GoRoute(
+          path: '/ai-scan/case/:id',
+          builder: (_, s) => DiagnoseCaseScreen(
+              caseId: s.pathParameters['id']!, pollInterval: diagnosisPollInterval),
+        ),
+        GoRoute(
+            path: '/home/notifications',
+            builder: (_, __) => const NotificationScreen()),
+        GoRoute(path: '/returns', builder: (_, __) => const ReturnListScreen()),
+        GoRoute(
+          path: '/returns/:id',
+          builder: (_, s) => ReturnDetailScreen(returnId: s.pathParameters['id']!),
+        ),
+        GoRoute(
           path: AppRoutes.qrPayment,
           builder: (_, s) => QRPaymentScreen(
-            orderId: s.uri.queryParameters['orderId'] ?? '',
+            orderId: s.uri.queryParameters['orderId'],
+            debtAmount: int.tryParse(s.uri.queryParameters['debtAmount'] ?? ''),
             pollInterval: paymentPollInterval,
             syncAfter: paymentSyncAfter,
             showDevTools: true,
@@ -180,7 +259,27 @@ class AppHarness {
           builder: (_, s) => PaymentResultScreen(
             success: s.uri.queryParameters['success'] == 'true',
             orderId: s.uri.queryParameters['orderId'],
+            isDebt: s.uri.queryParameters['kind'] == 'debt',
           ),
+        ),
+        GoRoute(
+          path: AppRoutes.debt,
+          builder: (_, __) => const DebtOverviewScreen(),
+          routes: [
+            GoRoute(path: 'list', builder: (_, __) => const DebtListScreen()),
+            GoRoute(path: 'history', builder: (_, __) => const DebtHistoryScreen()),
+            GoRoute(
+              path: 'repay',
+              builder: (_, s) => DebtRepayScreen(
+                initialAmount: int.tryParse(s.uri.queryParameters['amount'] ?? ''),
+                previewDelay: const Duration(milliseconds: 50),
+              ),
+            ),
+            GoRoute(
+              path: ':id',
+              builder: (_, s) => DebtDetailScreen(debtId: s.pathParameters['id']!),
+            ),
+          ],
         ),
         GoRoute(
             path: AppRoutes.editProfile,

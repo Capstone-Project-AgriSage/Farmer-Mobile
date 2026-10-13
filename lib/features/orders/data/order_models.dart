@@ -52,6 +52,10 @@ abstract class OrderStatus {
   /// Chỉ huỷ online được khi cửa hàng chưa xác nhận.
   static bool canCancel(String s) => s == pending;
 
+  /// Đơn đã có hàng giao/nhận nên có thể yêu cầu trả hàng.
+  static bool canReturn(String s) =>
+      s == partiallyFulfilled || s == completed || s == partiallyCancelled;
+
   /// Đơn còn nhận thanh toán (theo backend).
   static bool canPay(String s) =>
       s != cancelled && s != partiallyCancelled && s != completed;

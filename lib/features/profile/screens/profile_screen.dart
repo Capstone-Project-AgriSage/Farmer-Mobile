@@ -59,7 +59,7 @@ class ProfileScreen extends ConsumerWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withOpacity(0.5), width: 4),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.5), width: 4),
                     ),
                     alignment: Alignment.center,
                     child: Text(user?.initials ?? '?', style: const TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.bold, fontSize: 24)),
@@ -73,7 +73,7 @@ class ProfileScreen extends ConsumerWidget {
                         const SizedBox(height: 4),
                         Text(user?.fullName ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.h3.copyWith(color: Colors.white)),
                         const SizedBox(height: 4),
-                        Text(user?.phoneNumber ?? user?.email ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.bodyMedium.copyWith(color: Colors.white.withOpacity(0.9))),
+                        Text(user?.phoneNumber ?? user?.email ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.bodyMedium.copyWith(color: Colors.white.withValues(alpha: 0.9))),
                       ],
                     ),
                   ),
@@ -91,7 +91,9 @@ class ProfileScreen extends ConsumerWidget {
                       [
                         _buildTile(Icons.person_outline, 'Thông tin cá nhân', () => context.push('/profile/edit')),
                         _buildTile(Icons.location_on_outlined, 'Quản lý địa chỉ', () => context.push('/profile/addresses')),
+                        _buildTile(Icons.assignment_return_outlined, 'Yêu cầu trả hàng', () => context.push('/returns')),
                         _buildTile(Icons.lock_outline, 'Đổi mật khẩu', () => context.push('/profile/password')),
+                        _buildTile(Icons.devices_outlined, 'Thiết bị đăng nhập', () => context.push(AppRoutes.sessions)),
                         _buildTile(Icons.notifications_outlined, 'Cài đặt thông báo', () => context.push('/profile/notifications')),
                         if (user != null && user.phoneNumber != null && !user.phoneVerified)
                           _buildTile(Icons.sms_outlined, 'Xác minh số điện thoại', () => context.push('${AppRoutes.otpVerify}?channel=phone&to=${Uri.encodeQueryComponent(user.phoneNumber!)}')),
@@ -119,7 +121,7 @@ class ProfileScreen extends ConsumerWidget {
                       label: Text('Đăng xuất', style: AppTextStyles.labelLarge.copyWith(color: AppColors.statusError)),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: BorderSide(color: AppColors.statusError.withOpacity(0.3)),
+                        side: BorderSide(color: AppColors.statusError.withValues(alpha: 0.3)),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                         backgroundColor: Colors.white,
                       ),
@@ -147,7 +149,7 @@ class ProfileScreen extends ConsumerWidget {
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(16),
             border: Border.all(color: AppColors.borderSubtle),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 4))],
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.02), blurRadius: 8, offset: const Offset(0, 4))],
           ),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(16),

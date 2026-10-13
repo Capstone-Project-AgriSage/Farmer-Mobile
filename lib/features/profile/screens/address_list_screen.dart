@@ -195,7 +195,7 @@ class _AddressCard extends StatelessWidget {
               ),
               if (a.isDefault) ...[
                 const SizedBox(width: 8),
-                _Badge('Mặc định', AppColors.primary, AppColors.primaryLight),
+                const _Badge('Mặc định', AppColors.primary, AppColors.primaryLight),
               ],
               const SizedBox(width: 8),
               _Badge(AddressType.label(a.addressType), AppColors.textSecondary,

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_provider.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/network/api_call.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/token_storage.dart';
 
@@ -57,18 +58,7 @@ class AuthRepository {
 
   final Dio _dio;
 
-  Future<T> _run<T>(Future<T> Function() call,
-      {Map<int, String> messages = const {}}) async {
-    try {
-      return await call();
-    } on DioException catch (e) {
-      final error = ApiException.from(e);
-      final override = messages[error.statusCode];
-      throw override == null ? error : error.withMessage(override);
-    }
-  }
-
-  Future<AuthResult> login(String identifier, String password) => _run(
+  Future<AuthResult> login(String identifier, String password) => apiCall(
         () async {
           final res = await _dio.post<Map<String, dynamic>>(
             '/api/auth/login',
@@ -88,7 +78,7 @@ class AuthRepository {
     String? email,
     required String password,
   }) =>
-      _run(
+      apiCall(
         () async {
           final res = await _dio.post<Map<String, dynamic>>(
             '/api/auth/register',
@@ -107,13 +97,13 @@ class AuthRepository {
         },
       );
 
-  Future<SessionUser> me() => _run(() async {
+  Future<SessionUser> me() => apiCall(() async {
         final res = await _dio.get<Map<String, dynamic>>('/api/auth/me');
         return SessionUser.fromJson(res.data!);
       });
 
   /// Đăng xuất phiên hiện tại. [accessToken] dùng khi chưa lưu token.
-  Future<void> logout({String? accessToken}) => _run(() async {
+  Future<void> logout({String? accessToken}) => apiCall(() async {
         await _dio.post<void>(
           '/api/auth/logout',
           options: accessToken == null
@@ -123,9 +113,9 @@ class AuthRepository {
       });
 
   Future<void> logoutAll() =>
-      _run(() => _dio.post<void>('/api/auth/logout-all'));
+      apiCall(() => _dio.post<void>('/api/auth/logout-all'));
 
-  Future<List<AuthSession>> sessions() => _run(() async {
+  Future<List<AuthSession>> sessions() => apiCall(() async {
         final res = await _dio.get<List<dynamic>>('/api/auth/sessions');
         return [
           for (final s in res.data!)
@@ -134,10 +124,10 @@ class AuthRepository {
       });
 
   Future<void> revokeSession(String id) =>
-      _run(() => _dio.delete<void>('/api/auth/sessions/$id'));
+      apiCall(() => _dio.delete<void>('/api/auth/sessions/$id'));
 
   /// Đổi mật khẩu thành công thì backend huỷ MỌI phiên (kể cả phiên này).
-  Future<void> changePassword(String current, String next) => _run(
+  Future<void> changePassword(String current, String next) => apiCall(
         () => _dio.post<void>(
           '/api/auth/change-password',
           data: {'currentPassword': current, 'newPassword': next},
@@ -150,7 +140,7 @@ class AuthRepository {
 
   /// Luôn 202 dù tài khoản có tồn tại hay không (không lộ thông tin).
   /// 503 khi máy chủ chưa cấu hình kênh gửi email/SMS.
-  Future<void> forgotPassword(String identifier) => _run(
+  Future<void> forgotPassword(String identifier) => apiCall(
         () => _dio.post<void>(
           '/api/auth/forgot-password',
           data: {'identifier': identifier.trim()},
@@ -160,7 +150,7 @@ class AuthRepository {
         },
       );
 
-  Future<void> resetPassword(String token, String newPassword) => _run(
+  Future<void> resetPassword(String token, String newPassword) => apiCall(
         () => _dio.post<void>(
           '/api/auth/reset-password',
           data: {'token': token.trim(), 'newPassword': newPassword},
@@ -170,7 +160,7 @@ class AuthRepository {
         },
       );
 
-  Future<void> requestPhoneVerification() => _run(
+  Future<void> requestPhoneVerification() => apiCall(
         () => _dio.post<void>('/api/auth/phone-verification/request'),
         messages: {
           503: 'Hiện chưa gửi được mã qua SMS. Vui lòng thử lại sau.',
@@ -178,7 +168,7 @@ class AuthRepository {
         },
       );
 
-  Future<void> confirmPhone(String code) => _run(
+  Future<void> confirmPhone(String code) => apiCall(
         () => _dio.post<void>(
           '/api/auth/phone-verification/confirm',
           data: {'code': code.trim()},
@@ -186,7 +176,7 @@ class AuthRepository {
         messages: {422: 'Mã OTP không đúng hoặc đã hết hạn.'},
       );
 
-  Future<void> requestEmailVerification() => _run(
+  Future<void> requestEmailVerification() => apiCall(
         () => _dio.post<void>('/api/auth/email-verification/request'),
         messages: {
           503: 'Hiện chưa gửi được email. Vui lòng thử lại sau.',
@@ -194,7 +184,7 @@ class AuthRepository {
         },
       );
 
-  Future<void> confirmEmail(String token) => _run(
+  Future<void> confirmEmail(String token) => apiCall(
         () => _dio.post<void>(
           '/api/auth/email-verification/confirm',
           data: {'token': token.trim()},

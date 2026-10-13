@@ -6,7 +6,7 @@ import '../constants/app_colors.dart';
 class AppTheme {
   static ThemeData get light => ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme(
+        colorScheme: const ColorScheme(
           brightness: Brightness.light,
           primary: AppColors.primary,
           onPrimary: Colors.white,
@@ -115,7 +115,7 @@ class AppTheme {
         cardTheme: CardThemeData(
           color: AppColors.surface,
           elevation: 8,
-          shadowColor: Colors.black.withOpacity(0.04),
+          shadowColor: Colors.black.withValues(alpha: 0.04),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(16),
             side: BorderSide.none,

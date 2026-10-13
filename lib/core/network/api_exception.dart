@@ -123,9 +123,12 @@ class ApiException implements Exception {
     }
 
     final (kind, fallback) = _classify(status);
-    // Với 400/409/422, `detail` là lý do nghiệp vụ nên ưu tiên hiển thị.
+    // Với 400/409/422, `detail` là lý do nghiệp vụ nên ưu tiên hiển thị - nhưng
+    // chỉ khi đã là tiếng Việt: backend trả tiếng Anh, và người dùng không đọc được
+    // nên thà hiện câu tiếng Việt chung còn hơn lộ câu tiếng Anh chưa được dịch.
     final useDetail = detail != null &&
         detail.isNotEmpty &&
+        _isVietnamese(detail) &&
         (kind == ApiErrorKind.validation ||
             kind == ApiErrorKind.conflict ||
             kind == ApiErrorKind.businessRule);
@@ -139,6 +142,9 @@ class ApiException implements Exception {
       traceId: traceId,
     );
   }
+
+  /// Câu tiếng Việt có ký tự ngoài ASCII (dấu); câu kỹ thuật tiếng Anh thì không.
+  static bool _isVietnamese(String s) => s.codeUnits.any((c) => c > 127);
 
   static (ApiErrorKind, String) _classify(int status) {
     switch (status) {

@@ -8,6 +8,11 @@ abstract class AppConfig {
 
   static const int _port = 5206;
 
+  /// Bản release PHẢI truyền `API_BASE_URL` (địa chỉ HTTPS của máy chủ): địa chỉ
+  /// mặc định bên dưới chỉ dành cho máy dev nên bản release không có nó thì
+  /// không dùng được. `main()` chặn khởi động và báo rõ thay vì gọi nhầm máy chủ.
+  static bool get isConfigured => _override.isNotEmpty || !kReleaseMode;
+
   /// Android emulator thấy máy host qua 10.0.2.2, không phải localhost.
   static String get apiBaseUrl {
     if (_override.isNotEmpty) return _override;

@@ -45,12 +45,19 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       _offline = false;
     });
     // Chạy song song: logo hiện tối thiểu 1.5s, trong lúc đó khôi phục phiên.
-    final results = await Future.wait([
-      ref.read(authControllerProvider).bootstrap(),
-      Future<void>.delayed(const Duration(milliseconds: 1500)),
-    ]);
+    BootstrapResult result;
+    try {
+      final results = await Future.wait([
+        ref.read(authControllerProvider).bootstrap(),
+        Future<void>.delayed(const Duration(milliseconds: 1500)),
+      ]);
+      result = results.first as BootstrapResult;
+    } catch (_) {
+      // Lỗi ngoài dự kiến: cho thử lại thay vì kẹt ở màn splash.
+      result = BootstrapResult.offline;
+    }
     if (!mounted) return;
-    switch (results.first as BootstrapResult) {
+    switch (result) {
       case BootstrapResult.authenticated:
         // Router guard đã chuyển sang Home khi phiên được thiết lập.
         break;

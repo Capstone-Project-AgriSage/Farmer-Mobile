@@ -14,11 +14,14 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/utils/money.dart';
 import '../../../router/app_router.dart';
 import '../../auth/widgets/auth_widgets.dart';
+import '../../debt/providers/debt_providers.dart';
 import '../../orders/data/order_models.dart';
 import '../../orders/data/order_repository.dart';
 import '../../orders/providers/order_providers.dart';
+import '../../home/providers/home_providers.dart';
 
-/// Thanh toán đơn hàng qua payOS (VietQR).
+/// Thanh toán qua payOS (VietQR): trả tiền đơn hàng ([orderId]) hoặc trả nợ
+/// ([debtAmount], nguyên đồng).
 ///
 /// Tiền chỉ được coi là đã trả khi server báo PAID (`GET /api/me/payments/{id}`),
 /// không dựa vào trang trả về của payOS. Màn hình tự hỏi lại định kỳ, hỏi ngay
@@ -27,13 +30,16 @@ import '../../orders/providers/order_providers.dart';
 class QRPaymentScreen extends ConsumerStatefulWidget {
   const QRPaymentScreen({
     super.key,
-    required this.orderId,
+    this.orderId,
+    this.debtAmount,
     @visibleForTesting this.pollInterval = const Duration(seconds: 3),
     @visibleForTesting this.syncAfter = const Duration(seconds: 60),
     @visibleForTesting this.showDevTools = kDebugMode,
-  });
+  }) : assert((orderId == null) != (debtAmount == null),
+            'Truyền đúng một trong orderId hoặc debtAmount');
 
-  final String orderId;
+  final String? orderId;
+  final int? debtAmount;
   final Duration pollInterval;
 
   /// Chờ lâu hơn mốc này mà vẫn PENDING thì gọi sync (webhook có thể chậm).
@@ -97,7 +103,10 @@ class _QRPaymentScreenState extends ConsumerState<QRPaymentScreen>
       _waited = Duration.zero;
     });
     try {
-      final link = await _repo.createForOrder(widget.orderId);
+      final order = widget.orderId;
+      final link = order != null
+          ? await _repo.createForOrder(order)
+          : await _repo.createForDebt(widget.debtAmount!.toDouble());
       if (!mounted) return;
       setState(() {
         _link = link;
@@ -179,11 +188,28 @@ class _QRPaymentScreenState extends ConsumerState<QRPaymentScreen>
     _finished = true;
     _poll?.cancel();
     _ticker?.cancel();
-    ref.invalidate(orderPaymentsProvider(widget.orderId));
-    ref.invalidate(orderDetailProvider(widget.orderId));
-    ref.invalidate(myOrdersProvider);
-    context.pushReplacement(
-        '${AppRoutes.paymentResult}?success=$success&orderId=${widget.orderId}');
+    final order = widget.orderId;
+    if (order != null) {
+      ref.invalidate(orderPaymentsProvider(order));
+      ref.invalidate(orderDetailProvider(order));
+      invalidateOrders(ref);
+      context.pushReplacement(
+          '${AppRoutes.paymentResult}?success=$success&orderId=$order');
+    } else {
+      invalidateDebt(ref);
+      ref.invalidate(myCreditProvider);
+      context.pushReplacement('${AppRoutes.paymentResult}?success=$success&kind=debt');
+    }
+  }
+
+  /// Rời màn thanh toán: về lại màn trước, nếu không có thì về đơn hàng / công nợ.
+  void _leave() {
+    if (context.canPop()) {
+      context.pop();
+    } else {
+      final order = widget.orderId;
+      context.go(order != null ? '/orders/$order' : AppRoutes.debt);
+    }
   }
 
   Future<void> _cancelPayment() async {
@@ -201,9 +227,10 @@ class _QRPaymentScreenState extends ConsumerState<QRPaymentScreen>
       }
       _poll?.cancel();
       _ticker?.cancel();
-      ref.invalidate(orderPaymentsProvider(widget.orderId));
+      final order = widget.orderId;
+      if (order != null) ref.invalidate(orderPaymentsProvider(order));
       messenger.showSnackBar(const SnackBar(content: Text('Đã huỷ phiên thanh toán.')));
-      context.canPop() ? context.pop() : context.go('/orders/${widget.orderId}');
+      _leave();
     } on ApiException catch (e) {
       messenger.showSnackBar(SnackBar(content: Text(e.message)));
     } finally {
@@ -269,8 +296,8 @@ class _QRPaymentScreenState extends ConsumerState<QRPaymentScreen>
           phase: _phase,
           message: _error,
           onRetry: _create,
-          onBack: () =>
-              context.canPop() ? context.pop() : context.go('/orders/${widget.orderId}'),
+          onBack: _leave,
+          isDebt: widget.orderId == null,
         );
       case _Phase.waiting:
         return _waiting(_link!);
@@ -440,8 +467,10 @@ class _ProblemView extends StatelessWidget {
     required this.message,
     required this.onRetry,
     required this.onBack,
+    required this.isDebt,
   });
 
+  final bool isDebt;
   final _Phase phase;
   final String message;
   final VoidCallback onRetry;
@@ -474,7 +503,7 @@ class _ProblemView extends StatelessWidget {
             TextButton(
               key: const Key('pay_back'),
               onPressed: onBack,
-              child: const Text('Về đơn hàng'),
+              child: Text(isDebt ? 'Về công nợ' : 'Về đơn hàng'),
             ),
           ],
         ),

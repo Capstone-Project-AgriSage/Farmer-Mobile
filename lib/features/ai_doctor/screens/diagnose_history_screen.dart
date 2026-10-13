@@ -1,134 +1,183 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../data/mock/mock_diagnoses.dart';
-import '../../../data/models/diagnose.dart';
+import '../../../router/app_router.dart';
+import '../../../shared/widgets/empty_data_widget.dart';
+import '../../../shared/widgets/error_retry_widget.dart';
+import '../../../shared/widgets/shimmer_loading_widget.dart';
+import '../../orders/widgets/order_widgets.dart';
+import '../data/diagnosis_models.dart';
+import '../providers/diagnosis_providers.dart';
+import '../widgets/diagnosis_widgets.dart';
 
-class DiagnoseHistoryScreen extends StatefulWidget {
+class DiagnoseHistoryScreen extends ConsumerStatefulWidget {
   const DiagnoseHistoryScreen({super.key});
+
   @override
-  State<DiagnoseHistoryScreen> createState() => _DiagnoseHistoryScreenState();
+  ConsumerState<DiagnoseHistoryScreen> createState() => _DiagnoseHistoryScreenState();
 }
 
-class _DiagnoseHistoryScreenState extends State<DiagnoseHistoryScreen> {
-  int _selectedFilter = 0;
-  static const _filters = ['Tất cả', 'Đã chẩn đoán', 'Không xác định'];
+class _DiagnoseHistoryScreenState extends ConsumerState<DiagnoseHistoryScreen> {
+  final _scroll = ScrollController();
 
-  List<DiagnoseRecord> get _filteredList {
-    if (_selectedFilter == 0) return mockDiagnoses;
-    if (_selectedFilter == 1) {
-      return mockDiagnoses.where((d) => d.status != DiagnoseStatus.uncertain).toList();
-    }
-    return mockDiagnoses.where((d) => d.status == DiagnoseStatus.uncertain).toList();
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(() {
+      final s = ref.read(myDiagnosesProvider);
+      if (s.loadMoreError != null) return;
+      if (_scroll.position.pixels > _scroll.position.maxScrollExtent - 300) {
+        ref.read(myDiagnosesProvider.notifier).loadMore();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final list = _filteredList;
+    final state = ref.watch(myDiagnosesProvider);
+    final notifier = ref.read(myDiagnosesProvider.notifier);
 
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
       appBar: AppBar(title: const Text('Lịch sử khám cây')),
       body: Column(
         children: [
-          // ── Filter Tabs ─────────────────────────────────────────
           Container(
             color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              children: List.generate(_filters.length, (i) {
-                final selected = _selectedFilter == i;
-                return Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: GestureDetector(
-                    onTap: () => setState(() => _selectedFilter = i),
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
-                      decoration: BoxDecoration(
-                        color: selected ? AppColors.primaryDark : AppColors.surfaceSubtle,
-                        borderRadius: BorderRadius.circular(20),
-                        border: Border.all(color: selected ? AppColors.primaryDark : AppColors.borderSubtle),
-                      ),
-                      child: Text(
-                        _filters[i],
-                        style: AppTextStyles.bodySmall.copyWith(
-                          color: selected ? Colors.white : AppColors.textSecondary,
-                          fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                        ),
-                      ),
+            padding: const EdgeInsets.symmetric(vertical: 12),
+            child: SizedBox(
+              height: 36,
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                scrollDirection: Axis.horizontal,
+                itemCount: DiagnosisStatus.filters.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (_, i) {
+                  final s = DiagnosisStatus.filters[i];
+                  final active = s == state.status;
+                  return ChoiceChip(
+                    key: Key('diag_filter_${s ?? 'all'}'),
+                    label: Text(DiagnosisStatus.label(s)),
+                    selected: active,
+                    showCheckmark: false,
+                    selectedColor: AppColors.primaryDark,
+                    labelStyle: AppTextStyles.bodySmall.copyWith(
+                      color: active ? Colors.white : AppColors.textSecondary,
+                      fontWeight: active ? FontWeight.w600 : FontWeight.w500,
                     ),
-                  ),
-                );
-              }),
+                    onSelected: (_) => notifier.setStatus(s),
+                  );
+                },
+              ),
             ),
           ),
-
-          // ── Result Count ────────────────────────────────────────
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: Row(
-              children: [
-                const Icon(Icons.history, size: 16, color: AppColors.textMuted),
-                const SizedBox(width: 6),
-                Text('${list.length} kết quả', style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
-              ],
-            ),
-          ),
-
-          // ── List ────────────────────────────────────────────────
-          Expanded(
-            child: list.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Container(
-                          width: 72,
-                          height: 72,
-                          decoration: const BoxDecoration(
-                            color: AppColors.surfaceSubtle,
-                            shape: BoxShape.circle,
-                          ),
-                          child: const Icon(Icons.search_off, size: 36, color: AppColors.textMuted),
-                        ),
-                        const SizedBox(height: 16),
-                        Text('Chưa có lịch sử khám cây', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMuted)),
-                        const SizedBox(height: 6),
-                        Text('Chụp ảnh lá lúa để bắt đầu', style: AppTextStyles.caption),
-                      ],
-                    ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 16),
-                    itemCount: list.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (_, i) => _HistoryCard(record: list[i]),
-                  ),
-          ),
+          Expanded(child: _body(state, notifier)),
         ],
       ),
     );
   }
+
+  Widget _body(DiagnosisListState state, MyDiagnosesController notifier) {
+    if (state.isLoading && state.items.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: ShimmerListWidget(itemCount: 4, itemHeight: 90),
+      );
+    }
+    if (state.error != null) {
+      return ErrorRetryWidget(error: state.error!, onRetry: notifier.refresh);
+    }
+    if (state.items.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: notifier.refresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          children: [
+            SizedBox(
+              height: 400,
+              child: EmptyDataWidget(
+                message: state.status == null
+                    ? 'Chưa có lịch sử khám cây.\nChụp ảnh lá lúa để bắt đầu.'
+                    : 'Không có ca "${DiagnosisStatus.label(state.status)}".',
+                fallbackIcon: Icons.search_off,
+                actionText: state.status == null ? 'Chụp ảnh lá lúa' : null,
+                onActionPressed:
+                    state.status == null ? () => context.push(AppRoutes.imageCapture) : null,
+              ),
+            ),
+          ],
+        ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: notifier.refresh,
+      child: ListView.separated(
+        controller: _scroll,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: state.items.length + 1,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (_, i) {
+          if (i == state.items.length) return _footer(state, notifier);
+          return _HistoryCard(item: state.items[i]);
+        },
+      ),
+    );
+  }
+
+  Widget _footer(DiagnosisListState state, MyDiagnosesController notifier) {
+    if (state.isLoadingMore) {
+      return const Padding(
+        padding: EdgeInsets.all(12),
+        child: Center(
+            child: SizedBox(
+                width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))),
+      );
+    }
+    if (state.loadMoreError != null) {
+      return Center(
+        child: TextButton.icon(
+          key: const Key('diag_load_more_retry'),
+          onPressed: notifier.loadMore,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Không tải thêm được. Thử lại'),
+        ),
+      );
+    }
+    if (state.hasMore) {
+      return Center(
+        child: TextButton(
+          key: const Key('diag_load_more'),
+          onPressed: notifier.loadMore,
+          child: const Text('Xem thêm'),
+        ),
+      );
+    }
+    return const SizedBox(height: 16);
+  }
 }
 
 class _HistoryCard extends StatelessWidget {
-  final DiagnoseRecord record;
-  const _HistoryCard({required this.record});
+  const _HistoryCard({required this.item});
+
+  final DiagnosisSummary item;
 
   @override
   Widget build(BuildContext context) {
-    final isUncertain = record.status == DiagnoseStatus.uncertain;
-    final confidencePercent = (record.confidence * 100).toInt();
-
-    return GestureDetector(
-      onTap: () {
-        if (isUncertain) {
-          context.push('/ai-scan/uncertain');
-        } else {
-          context.push('/ai-scan/result');
-        }
-      },
+    final verified = item.status == DiagnosisStatus.verified;
+    return InkWell(
+      key: Key('diag_${item.id}'),
+      borderRadius: BorderRadius.circular(12),
+      onTap: () => context.push('/ai-scan/case/${item.id}'),
       child: Container(
         padding: const EdgeInsets.all(14),
         decoration: BoxDecoration(
@@ -138,129 +187,49 @@ class _HistoryCard extends StatelessWidget {
         ),
         child: Row(
           children: [
-            // Thumbnail
             Container(
-              width: 56,
-              height: 56,
+              width: 44,
+              height: 44,
               decoration: BoxDecoration(
-                color: isUncertain
-                    ? const Color(0xFFFFF3E0)
-                    : const Color(0xFF7B1FA2).withOpacity(0.1),
+                color: verified ? AppColors.statusSuccessSurface : AppColors.surfaceSubtle,
                 borderRadius: BorderRadius.circular(10),
               ),
               child: Icon(
-                isUncertain ? Icons.help_outline : Icons.eco,
-                color: isUncertain ? const Color(0xFFE65100) : const Color(0xFF7B1FA2),
-                size: 26,
+                verified ? Icons.eco : Icons.local_florist_outlined,
+                color: verified ? AppColors.statusSuccess : AppColors.textMuted,
               ),
             ),
             const SizedBox(width: 12),
-
-            // Info
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          record.diseaseName,
-                          style: AppTextStyles.labelLarge.copyWith(
-                            fontSize: 13,
-                            color: isUncertain ? const Color(0xFFE65100) : AppColors.textPrimary,
-                          ),
-                        ),
-                      ),
-                      _buildStatusBadge(),
-                    ],
+                  Text(
+                    verified && item.diseaseDisplay != null
+                        ? item.diseaseDisplay!
+                        : item.caseNumber,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.labelLarge,
                   ),
-                  if (!isUncertain) ...[
-                    const SizedBox(height: 2),
-                    Text(record.diseaseNameEn, style: AppTextStyles.caption.copyWith(fontStyle: FontStyle.italic)),
-                  ],
+                  const SizedBox(height: 2),
+                  Text(
+                    verified && item.diseaseDisplay != null
+                        ? '${item.caseNumber} · ${formatDateTime(item.submittedAt)}'
+                        : formatDateTime(item.submittedAt),
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
+                  ),
                   const SizedBox(height: 6),
-                  Row(
-                    children: [
-                      // Confidence
-                      Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-                        decoration: BoxDecoration(
-                          color: _confidenceColor.withOpacity(0.1),
-                          borderRadius: BorderRadius.circular(4),
-                        ),
-                        child: Text(
-                          '$confidencePercent%',
-                          style: TextStyle(color: _confidenceColor, fontSize: 11, fontWeight: FontWeight.bold),
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      // Date
-                      Icon(Icons.access_time, size: 12, color: AppColors.textMuted),
-                      const SizedBox(width: 3),
-                      Text(_formatDate(record.createdAt), style: AppTextStyles.caption),
-                    ],
-                  ),
+                  DiagnosisStatusBadge(item.status),
                 ],
               ),
             ),
-
-            const SizedBox(width: 8),
-            const Icon(Icons.chevron_right, color: AppColors.textMuted, size: 20),
+            const Icon(Icons.chevron_right, color: AppColors.textMuted),
           ],
         ),
       ),
     );
-  }
-
-  Color get _confidenceColor {
-    if (record.confidence >= 0.85) return AppColors.statusSuccess;
-    if (record.confidence >= 0.70) return const Color(0xFFF57F17);
-    return AppColors.statusError;
-  }
-
-  Widget _buildStatusBadge() {
-    Color bg, fg;
-    String text;
-    switch (record.status) {
-      case DiagnoseStatus.reviewed:
-        bg = const Color(0xFFF0FDF4);
-        fg = const Color(0xFF1B5E20);
-        text = 'Đã gợi ý thuốc';
-        break;
-      case DiagnoseStatus.pendingReview:
-        bg = const Color(0xFFFFF3E0);
-        fg = const Color(0xFFE65100);
-        text = 'Chờ duyệt';
-        break;
-      case DiagnoseStatus.diagnosed:
-        bg = const Color(0xFFE8F5E9);
-        fg = AppColors.primary;
-        text = 'Đã chẩn đoán';
-        break;
-      case DiagnoseStatus.uncertain:
-        bg = const Color(0xFFFFF3E0);
-        fg = const Color(0xFFE65100);
-        text = 'Không xác định';
-        break;
-    }
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(4),
-        border: Border.all(color: fg.withOpacity(0.3)),
-      ),
-      child: Text(text, style: TextStyle(color: fg, fontSize: 10, fontWeight: FontWeight.w600)),
-    );
-  }
-
-  String _formatDate(DateTime dt) {
-    final now = DateTime.now();
-    final diff = now.difference(dt);
-    if (diff.inMinutes < 60) return '${diff.inMinutes} phút trước';
-    if (diff.inHours < 24) return '${diff.inHours} giờ trước';
-    if (diff.inDays < 7) return '${diff.inDays} ngày trước';
-    return '${dt.day}/${dt.month}/${dt.year}';
   }
 }

@@ -14,6 +14,7 @@ ApiException _err(ApiErrorKind kind, [int? status]) =>
     ApiException(kind: kind, statusCode: status, message: 'lỗi');
 
 void main() {
+  keystoreFailureTests();
   late FakeAuthRepository repo;
   late MemoryTokenStorage storage;
   late ProviderContainer container;
@@ -279,6 +280,53 @@ void main() {
     test('query string không làm sai đường dẫn', () {
       expect(authRedirect(SessionStatus.unauthenticated, '/login?x=1'), isNull);
       expect(authRedirect(SessionStatus.authenticated, '/login?x=1'), '/home');
+    });
+  });
+}
+
+void keystoreFailureTests() {
+  late FakeAuthRepository repo;
+  late ProviderContainer container;
+
+  ProviderContainer build(MemoryTokenStorage storage) {
+    repo = FakeAuthRepository();
+    container = ProviderContainer(overrides: [
+      authRepositoryProvider.overrideWithValue(repo),
+      tokenStorageProvider.overrideWithValue(storage),
+    ]);
+    addTearDown(container.dispose);
+    return container;
+  }
+
+  group('kho token (keystore) bị lỗi', () {
+    test('không đọc được token lúc khởi động: coi như chưa đăng nhập, không kẹt', () async {
+      final c = build(BrokenTokenStorage(failRead: true));
+      final result = await c.read(authControllerProvider).bootstrap();
+      expect(result, BootstrapResult.unauthenticated);
+      expect(c.read(sessionProvider).status, SessionStatus.unauthenticated);
+      expect(repo.calls, isEmpty, reason: 'không gọi /me khi không có token');
+    });
+
+    test('đăng nhập OK nhưng không lưu được token: báo lỗi tiếng Việt, đóng phiên trên server, không đăng nhập',
+        () async {
+      final c = build(BrokenTokenStorage(failSave: true));
+      repo.onLogin = (_, __) async => fakeAuthResult();
+
+      await expectLater(
+        c.read(authControllerProvider).login('0912345678', 'matkhau123'),
+        throwsA(isA<ApiException>()
+            .having((e) => e.message, 'message', contains('Không lưu được phiên'))),
+      );
+      expect(repo.calls, ['login', 'logout']);
+      expect(repo.lastLogoutToken, 'acc1', reason: 'đóng đúng phiên vừa mở');
+      expect(c.read(sessionProvider).isAuthenticated, isFalse);
+    });
+
+    test('đăng xuất khi không xoá được khỏi keystore: vẫn đăng xuất khỏi app', () async {
+      final c = build(BrokenTokenStorage(failClear: true));
+      c.read(sessionProvider.notifier).setAuthenticated(SessionUser.fromJson(meJson()));
+      await c.read(authControllerProvider).logout();
+      expect(c.read(sessionProvider).status, SessionStatus.unauthenticated);
     });
   });
 }

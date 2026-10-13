@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../router/app_router.dart';
 import '../../core/constants/app_colors.dart';
+import '../../features/debt/providers/debt_providers.dart';
 
-/// Bottom Navigation Shell
-class AppShell extends StatelessWidget {
+/// Bottom Navigation Shell. Tab Công nợ có chấm đỏ khi có khoản nợ quá hạn.
+class AppShell extends ConsumerWidget {
   final Widget child;
   const AppShell({super.key, required this.child});
 
@@ -12,7 +14,7 @@ class AppShell extends StatelessWidget {
     _TabItem(icon: Icons.home_outlined, activeIcon: Icons.home, label: 'Trang chủ', path: AppRoutes.home),
     _TabItem(icon: Icons.inventory_2_outlined, activeIcon: Icons.inventory_2, label: 'Sản phẩm', path: AppRoutes.products),
     _TabItem(icon: Icons.psychology_outlined, activeIcon: Icons.psychology, label: 'Chẩn đoán AI', path: AppRoutes.aiScan),
-    _TabItem(icon: Icons.account_balance_wallet_outlined, activeIcon: Icons.account_balance_wallet, label: 'Công nợ', path: AppRoutes.debt, showBadge: true),
+    _TabItem(icon: Icons.account_balance_wallet_outlined, activeIcon: Icons.account_balance_wallet, label: 'Công nợ', path: AppRoutes.debt),
     _TabItem(icon: Icons.person_outline, activeIcon: Icons.person, label: 'Tài khoản', path: AppRoutes.profile),
   ];
 
@@ -25,8 +27,9 @@ class AppShell extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final currentIndex = _currentIndex(context);
+    final debtOverdue = ref.watch(hasOverdueDebtProvider);
 
     return Scaffold(
       body: child,
@@ -47,7 +50,7 @@ class AppShell extends StatelessWidget {
                   icon: isActive ? tab.activeIcon : tab.icon,
                   label: tab.label,
                   isActive: isActive,
-                  showBadge: tab.showBadge,
+                  showBadge: tab.path == AppRoutes.debt && debtOverdue,
                   onTap: () => context.go(tab.path),
                 );
               }),
@@ -64,13 +67,11 @@ class _TabItem {
   final IconData activeIcon;
   final String label;
   final String path;
-  final bool showBadge;
   const _TabItem({
     required this.icon,
     required this.activeIcon,
     required this.label,
     required this.path,
-    this.showBadge = false,
   });
 }
 

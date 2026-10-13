@@ -8,7 +8,11 @@ import '../../../router/app_router.dart';
 class PaymentResultScreen extends StatelessWidget {
   final bool success;
   final String? orderId;
-  const PaymentResultScreen({super.key, required this.success, this.orderId});
+
+  /// Kết quả của việc trả nợ (không phải thanh toán đơn hàng).
+  final bool isDebt;
+  const PaymentResultScreen(
+      {super.key, required this.success, this.orderId, this.isDebt = false});
 
   @override
   Widget build(BuildContext context) {
@@ -39,14 +43,24 @@ class PaymentResultScreen extends StatelessWidget {
                     style: AppTextStyles.h2, textAlign: TextAlign.center),
                 const SizedBox(height: 12),
                 Text(
-                  success
-                      ? 'Cửa hàng đã nhận được tiền. Đơn hàng sẽ được xác nhận và chuẩn bị giao.'
-                      : 'Bạn có thể thử thanh toán lại trong chi tiết đơn hàng.',
+                  isDebt
+                      ? (success
+                          ? 'Cửa hàng đã nhận được tiền. Công nợ của bạn đã được cập nhật.'
+                          : 'Bạn có thể thử trả nợ lại trong mục Công nợ.')
+                      : success
+                          ? 'Cửa hàng đã nhận được tiền. Đơn hàng sẽ được xác nhận và chuẩn bị giao.'
+                          : 'Bạn có thể thử thanh toán lại trong chi tiết đơn hàng.',
                   style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary),
                   textAlign: TextAlign.center,
                 ),
                 const SizedBox(height: 36),
-                if (orderId != null)
+                if (isDebt)
+                  ElevatedButton(
+                    key: const Key('result_view_debt'),
+                    onPressed: () => context.go(AppRoutes.debt),
+                    child: const Text('Xem công nợ'),
+                  )
+                else if (orderId != null)
                   ElevatedButton(
                     key: const Key('result_view_order'),
                     onPressed: () => context.go('/orders/$orderId'),

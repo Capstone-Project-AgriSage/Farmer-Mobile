@@ -152,6 +152,7 @@ class FakeOrderRepository extends OrderRepository {
   ({String settlement, String fulfillment, String? addressId, String? note})? lastCheckout;
   String? lastCancelReason;
   final List<({int page, String? status})> listCalls = [];
+  final List<int> sizeCalls = [];
 
   @override
   Future<OrderDetail> checkout({
@@ -177,18 +178,21 @@ class FakeOrderRepository extends OrderRepository {
   }
 
   @override
-  Future<PagedResult<OrderSummary>> list({int page = 1, String? status}) async {
+  Future<PagedResult<OrderSummary>> list(
+      {int page = 1, String? status, int size = OrderRepository.pageSize}) async {
     listCalls.add((page: page, status: status));
+    sizeCalls.add(size);
     await listGate;
     if (listError != null) throw listError!;
     final filtered = list0.where((o) => status == null || o.status == status).toList();
-    final items = filtered.skip((page - 1) * pageSize0).take(pageSize0).toList();
+    final per = size == OrderRepository.pageSize ? pageSize0 : size;
+    final items = filtered.skip((page - 1) * per).take(per).toList();
     return PagedResult(
       items: items,
       page: page,
-      pageSize: pageSize0,
+      pageSize: per,
       totalCount: filtered.length,
-      totalPages: (filtered.length + pageSize0 - 1) ~/ pageSize0,
+      totalPages: (filtered.length + per - 1) ~/ per,
     );
   }
 
@@ -263,6 +267,26 @@ class FakePaymentRepository extends PaymentRepository {
       paymentId: id,
       paymentNumber: 'PM-20261012-000$_seq',
       amount: 1560000,
+      checkoutUrl: 'https://pay.payos.vn/web/$id',
+      qrCode: qrCode,
+      expiresAt: expiresAt ?? DateTime.now().add(const Duration(minutes: 30)),
+      status: 'PENDING',
+    );
+  }
+
+  int? lastDebtAmount;
+
+  @override
+  Future<PayOsLink> createForDebt(double amount) async {
+    calls.add('createDebt:${amount.round()}');
+    lastDebtAmount = amount.round();
+    if (createError != null) throw createError!;
+    final id = 'pay${++_seq}';
+    lastPaymentId = id;
+    return PayOsLink(
+      paymentId: id,
+      paymentNumber: 'PM-20261012-000$_seq',
+      amount: amount,
       checkoutUrl: 'https://pay.payos.vn/web/$id',
       qrCode: qrCode,
       expiresAt: expiresAt ?? DateTime.now().add(const Duration(minutes: 30)),

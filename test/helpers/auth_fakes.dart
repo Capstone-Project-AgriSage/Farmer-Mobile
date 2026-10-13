@@ -166,8 +166,33 @@ class FakeAuthRepository extends AuthRepository {
     return onLogout?.call(accessToken: accessToken) ?? Future.value();
   }
 
+  Object? logoutAllError;
+
   @override
-  Future<void> logoutAll() async => calls.add('logoutAll');
+  Future<void> logoutAll() async {
+    calls.add('logoutAll');
+    if (logoutAllError != null) throw logoutAllError!;
+  }
+
+  List<AuthSession> sessions0 = [];
+  Object? sessionsError;
+  Object? revokeError;
+  final List<String> revoked = [];
+
+  @override
+  Future<List<AuthSession>> sessions() async {
+    calls.add('sessions');
+    if (sessionsError != null) throw sessionsError!;
+    return List.of(sessions0);
+  }
+
+  @override
+  Future<void> revokeSession(String id) async {
+    calls.add('revoke:$id');
+    if (revokeError != null) throw revokeError!;
+    revoked.add(id);
+    sessions0 = [for (final s in sessions0) if (s.id != id) s];
+  }
 
   @override
   Future<void> changePassword(String current, String next) {
@@ -216,3 +241,33 @@ class FakeAuthRepository extends AuthRepository {
 
 AuthResult fakeAuthResult({String role = 'FARMER'}) =>
     AuthResult.fromJson(authJson(role: role));
+
+/// Kho token lỗi (keystore hỏng): các thao tác ném PlatformException-giống.
+class BrokenTokenStorage extends MemoryTokenStorage {
+  BrokenTokenStorage({this.failRead = false, this.failSave = false, this.failClear = false});
+
+  final bool failRead;
+  final bool failSave;
+  final bool failClear;
+
+  @override
+  Future<AuthTokens?> read() async {
+    if (failRead) throw StateError('keystore');
+    return super.read();
+  }
+
+  @override
+  Future<void> save(AuthTokens t, {bool? persist}) async {
+    if (failSave) throw StateError('keystore');
+    return super.save(t, persist: persist);
+  }
+
+  @override
+  Future<void> clear() async {
+    if (failClear) {
+      tokens = null; // RAM đã xoá, phần lưu trữ thì lỗi
+      throw StateError('keystore');
+    }
+    return super.clear();
+  }
+}

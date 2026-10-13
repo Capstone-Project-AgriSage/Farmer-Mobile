@@ -337,6 +337,27 @@ void main() {
       expect(e.traceId, 'abc');
     });
 
+    test('detail tiếng Anh (backend chưa dịch) không lộ ra: dùng câu tiếng Việt chung', () {
+      final cases = {
+        409: 'Dữ liệu vừa được thay đổi. Vui lòng tải lại và thử lại.',
+        422: 'Thao tác không hợp lệ.',
+        400: 'Dữ liệu không hợp lệ.',
+      };
+      cases.forEach((status, expected) {
+        final e = ApiException.from(badResponse(status, {
+          'status': status,
+          'detail': 'The returned quantity exceeds the remaining quantity.',
+        }));
+        expect(e.message, expected, reason: '$status');
+        expect(e.detail, contains('exceeds'), reason: 'detail gốc vẫn giữ để debug / để repository map');
+      });
+    });
+
+    test('detail tiếng Việt vẫn được hiển thị', () {
+      final e = ApiException.from(badResponse(409, {'status': 409, 'detail': 'Đơn hàng đã được thanh toán.'}));
+      expect(e.message, 'Đơn hàng đã được thanh toán.');
+    });
+
     test('400 validation: thông báo tiếng Việt, không lộ title tiếng Anh', () {
       final e = ApiException.from(badResponse(400, {
         'title': 'One or more validation errors occurred.',
