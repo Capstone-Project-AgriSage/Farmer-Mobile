@@ -252,7 +252,7 @@ void main() {
 
     testWidgets('nhận tại cửa hàng: không có mục theo dõi giao hàng', (tester) async {
       await open(tester, '/orders/o1', setup: (h) => seedOrder(h, orderOf(id: 'o1', fulfillment: 'PICKUP')));
-      expect(find.text('THEO DÕI GIAO HÀNG'), findsNothing);
+      expect(find.text('Theo dõi giao hàng'), findsNothing);
     });
 
     testWidgets('giao hàng: tài xế, tiến độ, lần giao thất bại có lý do', (tester) async {

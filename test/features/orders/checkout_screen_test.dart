@@ -43,6 +43,16 @@ Future<void> tapKey(WidgetTester tester, String key) async {
 }
 
 void main() {
+  testWidgets('mở màn chỉ tải lại giỏ một lần; có thanh bước Giỏ hàng → Xác nhận → Thanh toán',
+      (tester) async {
+    final h = await openCheckout(tester);
+    // 1 lần khi provider giỏ khởi tạo + 1 lần làm mới khi mở màn (trước đây bị gọi 2 lần).
+    expect(h.cart.calls.where((c) => c == 'get').length, lessThanOrEqualTo(2));
+    for (final step in ['Giỏ hàng', 'Xác nhận', 'Thanh toán']) {
+      expect(find.text(step), findsWidgets, reason: step);
+    }
+  });
+
   testWidgets('hiện sản phẩm, tổng tiền từ giỏ, địa chỉ mặc định được chọn sẵn', (tester) async {
     final h = await openCheckout(tester);
 
@@ -124,7 +134,7 @@ void main() {
     final h = await openCheckout(tester, setup: (h) => h.profile.addresses = []);
 
     await tapKey(tester, 'opt_pickup');
-    expect(find.text('ĐỊA CHỈ NHẬN HÀNG'), findsNothing);
+    expect(find.text('Địa chỉ nhận hàng'), findsNothing);
     await agree(tester);
     expect(submitEnabled(tester), isTrue);
 

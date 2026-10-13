@@ -123,7 +123,7 @@ class _DebtRepayScreenState extends ConsumerState<DebtRepayScreen> {
             children: [
               SectionCard(
                 icon: Icons.account_balance_wallet_outlined,
-                title: 'TỔNG NỢ HIỆN TẠI',
+                title: 'Tổng nợ hiện tại',
                 child: Column(
                   children: [
                     InfoRow('Còn phải trả', formatVnd(balance),
@@ -299,7 +299,7 @@ class _Preview extends ConsumerWidget {
       ),
       data: (p) => SectionCard(
         icon: Icons.list_alt,
-        title: 'TIỀN SẼ ĐƯỢC TRỪ VÀO',
+        title: 'Tiền sẽ được trừ vào',
         child: Column(
           key: const Key('repay_preview'),
           children: [

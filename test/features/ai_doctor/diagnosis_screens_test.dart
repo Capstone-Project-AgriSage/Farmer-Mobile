@@ -338,8 +338,8 @@ void main() {
             result: resultJson(comment: null, symptoms: '  ', prevention: null, products: []));
       });
       expect(find.byKey(const Key('case_comment')), findsNothing);
-      expect(find.text('TRIỆU CHỨNG'), findsNothing);
-      expect(find.text('CÁCH PHÒNG NGỪA'), findsNothing);
+      expect(find.text('Triệu chứng'), findsNothing);
+      expect(find.text('Cách phòng ngừa'), findsNothing);
     });
   });
 

@@ -203,7 +203,7 @@ class _DebtSummaryCard extends StatelessWidget {
     final overdue = account.hasOverdue;
     return SectionCard(
       icon: Icons.account_balance_wallet_outlined,
-      title: 'TỔNG QUAN CÔNG NỢ',
+      title: 'Tổng quan công nợ',
       child: Column(
         children: [
           InfoRow('Tổng nợ hiện tại', formatVnd(account.currentBalance),

@@ -162,7 +162,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen> {
                   const SizedBox(height: 16),
                   SectionCard(
                     icon: Icons.inventory_2_outlined,
-                    title: 'VẬT TƯ CỦA ĐƠN HÀNG',
+                    title: 'Vật tư của đơn hàng',
                     child: Column(
                       children: [
                         for (final l in d.orderLines)
@@ -199,7 +199,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen> {
                   const SizedBox(height: 16),
                   SectionCard(
                     icon: Icons.swap_vert,
-                    title: 'BIẾN ĐỘNG CÔNG NỢ',
+                    title: 'Biến động công nợ',
                     child: Column(
                       children: [for (final t in d.transactions) _TransactionRow(t)],
                     ),
@@ -209,7 +209,7 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen> {
                   const SizedBox(height: 16),
                   SectionCard(
                     icon: Icons.forum_outlined,
-                    title: 'KHIẾU NẠI VÀ XỬ LÝ',
+                    title: 'Khiếu nại và xử lý',
                     child: Column(
                       children: [for (final a in d.actions) _ActionRow(a)],
                     ),

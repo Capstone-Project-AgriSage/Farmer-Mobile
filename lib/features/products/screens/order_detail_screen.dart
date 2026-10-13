@@ -199,7 +199,7 @@ class _ReturnSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return SectionCard(
       icon: Icons.assignment_return_outlined,
-      title: 'TRẢ HÀNG',
+      title: 'Trả hàng',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -305,7 +305,7 @@ class _InfoSection extends StatelessWidget {
       icon: order.isDelivery
           ? Icons.local_shipping_outlined
           : Icons.storefront_outlined,
-      title: 'THÔNG TIN ĐƠN',
+      title: 'Thông tin đơn',
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -349,7 +349,7 @@ class _ItemsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return SectionCard(
       icon: Icons.receipt_long_outlined,
-      title: 'SẢN PHẨM (${order.items.length})',
+      title: 'Sản phẩm (${order.items.length})',
       child: Column(
         children: [
           for (final l in order.items)
@@ -399,7 +399,7 @@ class _PaymentSection extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     return SectionCard(
       icon: Icons.payments_outlined,
-      title: 'THANH TOÁN',
+      title: 'Thanh toán',
       child: payments.when(
         loading: () => const Center(
             child: Padding(
@@ -503,7 +503,7 @@ class _DeliverySection extends ConsumerWidget {
     final deliveries = ref.watch(orderDeliveriesProvider(orderId));
     return SectionCard(
       icon: Icons.route_outlined,
-      title: 'THEO DÕI GIAO HÀNG',
+      title: 'Theo dõi giao hàng',
       child: deliveries.when(
         loading: () => const Center(
             child: Padding(

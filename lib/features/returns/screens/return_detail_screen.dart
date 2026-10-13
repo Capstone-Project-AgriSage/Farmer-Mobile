@@ -87,7 +87,7 @@ class _ReturnDetailScreenState extends ConsumerState<ReturnDetailScreen> {
               const SizedBox(height: 12),
               SectionCard(
                 icon: Icons.timeline,
-                title: 'TIẾN TRÌNH',
+                title: 'Tiến trình',
                 child: ReturnTimeline(detail: r),
               ),
               const SizedBox(height: 12),
@@ -105,7 +105,7 @@ class _ReturnDetailScreenState extends ConsumerState<ReturnDetailScreen> {
                 const SizedBox(height: 12),
                 SectionCard(
                   icon: Icons.notes,
-                  title: 'GHI CHÚ',
+                  title: 'Ghi chú',
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -219,7 +219,7 @@ class _ItemsSection extends ConsumerWidget {
 
     return SectionCard(
       icon: Icons.inventory_2_outlined,
-      title: 'HÀNG TRẢ',
+      title: 'Hàng trả',
       child: Column(
         children: [
           for (var i = 0; i < detail.items.length; i++) ...[
@@ -285,7 +285,7 @@ class _MoneySection extends StatelessWidget {
   Widget build(BuildContext context) {
     return SectionCard(
       icon: Icons.payments_outlined,
-      title: 'TIỀN HOÀN LẠI',
+      title: 'Tiền hoàn lại',
       child: Column(
         children: [
           InfoRow('Giá trị hàng trả', formatVnd(detail.totalReturnAmount),
@@ -319,7 +319,7 @@ class _RefundsSection extends StatelessWidget {
   Widget build(BuildContext context) {
     return SectionCard(
       icon: Icons.account_balance_wallet_outlined,
-      title: 'CÁC LẦN HOÀN TIỀN',
+      title: 'Các lần hoàn tiền',
       child: Column(
         children: [
           for (final r in refunds)

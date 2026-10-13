@@ -154,7 +154,7 @@ class _DiagnoseCaseScreenState extends ConsumerState<DiagnoseCaseScreen>
                 const SizedBox(height: 12),
                 SectionCard(
                   icon: Icons.notes,
-                  title: 'GHI CHÚ CỦA BẠN',
+                  title: 'Ghi chú của bạn',
                   child: Text(d.note!, style: AppTextStyles.bodySmall),
                 ),
               ],
@@ -241,7 +241,7 @@ class _WaitingView extends StatelessWidget {
   Widget build(BuildContext context) {
     return SectionCard(
       icon: Icons.hourglass_top,
-      title: 'ĐANG CHỜ CHUYÊN GIA',
+      title: 'Đang chờ chuyên gia',
       child: Column(
         key: const Key('case_waiting'),
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -300,7 +300,7 @@ class _CancelledView extends StatelessWidget {
   Widget build(BuildContext context) {
     return SectionCard(
       icon: Icons.cancel_outlined,
-      title: 'ĐÃ HUỶ',
+      title: 'Đã huỷ',
       child: Text('Bạn đã huỷ ca này. Cần khám lại thì hãy gửi ảnh mới.',
           key: const Key('case_cancelled'),
           style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
@@ -318,7 +318,7 @@ class _InconclusiveView extends StatelessWidget {
     final retake = info?.hint == 'RETAKE_PHOTO' || info?.hint == null;
     return SectionCard(
       icon: Icons.photo_camera_outlined,
-      title: 'CHUYÊN GIA CHƯA KẾT LUẬN ĐƯỢC',
+      title: 'Chuyên gia chưa kết luận được',
       child: Column(
         key: const Key('case_inconclusive'),
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -402,7 +402,7 @@ class _ResultView extends StatelessWidget {
           const SizedBox(height: 12),
           SectionCard(
             icon: Icons.record_voice_over_outlined,
-            title: 'NHẬN XÉT CỦA CHUYÊN GIA',
+            title: 'Nhận xét của chuyên gia',
             child: Text(result.reviewerComment!,
                 key: const Key('case_comment'), style: AppTextStyles.bodySmall),
           ),
@@ -411,7 +411,7 @@ class _ResultView extends StatelessWidget {
           const SizedBox(height: 12),
           SectionCard(
             icon: Icons.search,
-            title: 'TRIỆU CHỨNG',
+            title: 'Triệu chứng',
             child: Text(d.symptoms!, style: AppTextStyles.bodySmall),
           ),
         ],
@@ -419,7 +419,7 @@ class _ResultView extends StatelessWidget {
           const SizedBox(height: 12),
           SectionCard(
             icon: Icons.shield_outlined,
-            title: 'CÁCH PHÒNG NGỪA',
+            title: 'Cách phòng ngừa',
             child: Text(d.prevention!, style: AppTextStyles.bodySmall),
           ),
         ],
@@ -427,7 +427,7 @@ class _ResultView extends StatelessWidget {
           const SizedBox(height: 12),
           SectionCard(
             icon: Icons.medical_services_outlined,
-            title: 'HƯỚNG DẪN ĐIỀU TRỊ',
+            title: 'Hướng dẫn điều trị',
             child: Column(
               key: const Key('case_treatments'),
               crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -444,7 +444,7 @@ class _ResultView extends StatelessWidget {
           const SizedBox(height: 12),
           SectionCard(
             icon: Icons.shopping_bag_outlined,
-            title: 'SẢN PHẨM GỢI Ý',
+            title: 'Sản phẩm gợi ý',
             child: Column(
               key: const Key('case_products'),
               crossAxisAlignment: CrossAxisAlignment.stretch,
