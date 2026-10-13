@@ -18,6 +18,7 @@ import '../features/auth/screens/reset_password_screen.dart';
 // Shell (Bottom Nav)
 import '../shared/widgets/app_shell.dart';
 import '../shared/widgets/not_found_screen.dart';
+import '../shared/widgets/fallback_pop_scope.dart';
 
 // Home
 import '../features/home/screens/home_screen.dart';
@@ -347,12 +348,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.orderList,
-        builder: (_, __) => const OrderListScreen(),
+        builder: (_, __) => const FallbackPopScope(
+            fallback: AppRoutes.home, child: OrderListScreen()),
       ),
       GoRoute(
         path: '/orders/:id',
-        builder: (_, state) => OrderDetailScreen(
-          orderId: state.pathParameters['id']!,
+        builder: (_, state) => FallbackPopScope(
+          fallback: AppRoutes.orderList,
+          child: OrderDetailScreen(orderId: state.pathParameters['id']!),
         ),
       ),
       GoRoute(
@@ -367,8 +370,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: '/returns/:id',
-        builder: (_, state) => ReturnDetailScreen(
-          returnId: state.pathParameters['id']!,
+        builder: (_, state) => FallbackPopScope(
+          fallback: AppRoutes.returnList,
+          child: ReturnDetailScreen(returnId: state.pathParameters['id']!),
         ),
       ),
 

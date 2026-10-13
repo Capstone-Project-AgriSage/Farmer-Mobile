@@ -94,6 +94,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
               context.canPop() ? context.pop() : context.go(AppRoutes.orderList),
         ),
         title: const Text('Chi tiết đơn hàng'),
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
       ),
       body: detail.when(
         skipLoadingOnRefresh: true,
@@ -129,10 +132,16 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
       bottomNavigationBar: (!canPay && !canCancel)
           ? null
           : Container(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              decoration: const BoxDecoration(
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
+              decoration: BoxDecoration(
                 color: Colors.white,
-                border: Border(top: BorderSide(color: AppColors.borderSubtle)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 20,
+                      offset: const Offset(0, -6)),
+                ],
               ),
               child: SafeArea(
                 top: false,
@@ -147,6 +156,9 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                           style: OutlinedButton.styleFrom(
                             foregroundColor: AppColors.statusError,
                             side: const BorderSide(color: AppColors.statusError),
+                            minimumSize: const Size(0, 52),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16)),
                           ),
                           child: _cancelling
                               ? const SizedBox(
@@ -175,6 +187,11 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
                                   );
                                   if (mounted) _refreshAll();
                                 },
+                          style: ElevatedButton.styleFrom(
+                            minimumSize: const Size(0, 52),
+                            shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(16)),
+                          ),
                           child: FittedBox(
                             fit: BoxFit.scaleDown,
                             child: Text('Thanh toán ${formatVnd(pay.remainingToPay)}'),
@@ -252,43 +269,217 @@ class _Header extends StatelessWidget {
         hint = 'Đơn đang chờ cửa hàng xác nhận.';
       }
     } else if (order.status == OrderStatus.cancelled) {
-      hint = order.cancelReason == null
+      final reason = order.cancelReason?.trim();
+      hint = (reason == null || reason.isEmpty)
           ? 'Đơn đã bị huỷ.'
-          : 'Đơn đã bị huỷ: ${order.cancelReason}';
+          : 'Đơn đã bị huỷ: ${OrderStatus.cancelReasonLabel(reason)}';
       hintColor = AppColors.statusError;
     }
 
+    final (statusFg, statusBg) = OrderStatus.colors(order.status);
+    final cancelled = order.status == OrderStatus.cancelled;
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderSubtle),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.045),
+              blurRadius: 14,
+              offset: const Offset(0, 4)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Expanded(
-                child: Text(order.orderNumber,
-                    key: const Key('order_number'),
-                    style: AppTextStyles.h4),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: statusBg,
+                  borderRadius: BorderRadius.circular(14),
+                ),
+                child: Icon(
+                    order.isDelivery
+                        ? Icons.local_shipping_outlined
+                        : Icons.storefront_outlined,
+                    color: statusFg),
               ),
-              OrderStatusBadge(order.status),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(order.orderNumber,
+                        key: const Key('order_number'),
+                        style: AppTextStyles.h4),
+                    Text('Đặt lúc ${formatDateTime(order.createdAt)}',
+                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted)),
+                    const SizedBox(height: 6),
+                    OrderStatusBadge(order.status),
+                  ],
+                ),
+              ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text('Đặt lúc ${formatDateTime(order.createdAt)}',
-              style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
+          // Đơn đã huỷ không có tiến trình: chỉ hiện khung đỏ (ở lời nhắc bên dưới).
+          if (!cancelled) ...[
+            const SizedBox(height: 18),
+            _StatusTimeline(order: order),
+          ],
           if (hint != null) ...[
-            const SizedBox(height: 10),
-            Text(hint,
-                key: const Key('order_hint'),
-                style: AppTextStyles.bodySmall.copyWith(color: hintColor)),
+            const SizedBox(height: 14),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(12),
+              decoration: BoxDecoration(
+                color: hintColor == AppColors.textSecondary
+                    ? AppColors.surfaceSubtle
+                    : hintColor.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Icon(cancelled ? Icons.cancel_outlined : Icons.info_outline_rounded,
+                      size: 18,
+                      color: hintColor == AppColors.textSecondary
+                          ? AppColors.textMuted
+                          : hintColor),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(hint,
+                        key: const Key('order_hint'),
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: hintColor, fontSize: 13)),
+                  ),
+                ],
+              ),
+            ),
           ],
         ],
       ),
+    );
+  }
+}
+
+/// Tiến trình đơn: Đặt hàng → Xác nhận → Chuẩn bị → Giao/nhận → Hoàn thành.
+class _StatusTimeline extends StatelessWidget {
+  const _StatusTimeline({required this.order});
+
+  final OrderDetail order;
+
+  /// Bước cuối cùng ĐÃ đạt (0..4).
+  static int reached(String status) => switch (status) {
+        OrderStatus.pending => 0,
+        OrderStatus.confirmed => 1,
+        OrderStatus.preparing => 2,
+        OrderStatus.ready || OrderStatus.partiallyFulfilled => 3,
+        _ => 4, // hoàn thành, huỷ phần còn lại
+      };
+
+  @override
+  Widget build(BuildContext context) {
+    final s = order.status;
+    final done = reached(s);
+    final labels = [
+      'Đặt hàng',
+      'Xác nhận',
+      'Chuẩn bị',
+      s == OrderStatus.partiallyFulfilled
+          ? 'Giao một phần'
+          : order.isDelivery
+              ? 'Giao hàng'
+              : 'Sẵn sàng nhận',
+      s == OrderStatus.partiallyCancelled ? 'Huỷ phần còn lại' : 'Hoàn thành',
+    ];
+    // Bước cuối của đơn "huỷ phần còn lại" tô cam để không nhầm với hoàn thành trọn vẹn.
+    final endColor =
+        s == OrderStatus.partiallyCancelled ? AppColors.statusWarning : AppColors.primary;
+
+    return Semantics(
+      label: 'Tiến trình đơn: ${labels[done]}',
+      excludeSemantics: true,
+      child: Row(
+        key: const Key('order_timeline'),
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          for (var i = 0; i < labels.length; i++)
+            Expanded(
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Expanded(
+                        child: Container(
+                          height: 3,
+                          color: i == 0
+                              ? Colors.transparent
+                              : (i <= done ? AppColors.primary : AppColors.borderSubtle),
+                        ),
+                      ),
+                      _dot(i, done, i == labels.length - 1 ? endColor : AppColors.primary),
+                      Expanded(
+                        child: Container(
+                          height: 3,
+                          color: i == labels.length - 1
+                              ? Colors.transparent
+                              : (i < done ? AppColors.primary : AppColors.borderSubtle),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 6),
+                  // Chừa lề 2px mỗi bên để nhãn các bước không dính nhau trên màn hẹp.
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 2),
+                    child: Text(labels[i],
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        style: AppTextStyles.caption.copyWith(
+                            fontSize: 11,
+                            height: 1.3,
+                            color: i <= done ? AppColors.textPrimary : AppColors.textMuted,
+                            fontWeight: i == done ? FontWeight.w700 : FontWeight.w500)),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _dot(int i, int done, Color color) {
+    final passed = i < done;
+    final current = i == done;
+    // Khung cố định 22px để nhãn các bước luôn thẳng hàng dù chấm hiện tại to hơn.
+    return SizedBox(
+      width: 22,
+      height: 22,
+      child: Center(child: _dotCircle(passed, current, color)),
+    );
+  }
+
+  Widget _dotCircle(bool passed, bool current, Color color) {
+    return Container(
+      width: current ? 22 : 18,
+      height: current ? 22 : 18,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: passed || current ? color : AppColors.surface,
+        border: Border.all(
+            color: passed || current ? color : AppColors.borderStrong, width: 2),
+        boxShadow: current
+            ? [BoxShadow(color: color.withValues(alpha: 0.3), blurRadius: 8)]
+            : null,
+      ),
+      child: passed || current
+          ? Icon(Icons.check_rounded, size: current ? 14 : 12, color: Colors.white)
+          : null,
     );
   }
 }
@@ -397,6 +588,7 @@ class _PaymentSection extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final cancelled = order.status == OrderStatus.cancelled;
     return SectionCard(
       icon: Icons.payments_outlined,
       title: 'Thanh toán',
@@ -428,13 +620,35 @@ class _PaymentSection extends ConsumerWidget {
                   style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary),
                 ),
               ),
+            if (!order.isCredit && p.orderTotal > 0 && !cancelled) ...[
+              ClipRRect(
+                borderRadius: BorderRadius.circular(6),
+                child: LinearProgressIndicator(
+                  key: const Key('pay_progress'),
+                  value: (p.paidAmount / p.orderTotal).clamp(0.0, 1.0),
+                  minHeight: 8,
+                  backgroundColor: AppColors.surfaceSecondary,
+                  color: p.isFullyPaid ? AppColors.statusSuccess : AppColors.primary,
+                ),
+              ),
+              const SizedBox(height: 10),
+            ],
             InfoRow('Đã thanh toán', formatVnd(p.paidAmount),
                 valueKey: const Key('pay_paid')),
-            InfoRow('Còn phải trả', formatVnd(p.remainingToPay),
-                valueKey: const Key('pay_remaining'),
-                valueColor: p.isFullyPaid
-                    ? AppColors.statusSuccess
-                    : AppColors.statusWarning),
+            // Đơn đã huỷ không còn nợ gì, dù bảng tính thanh toán của server vẫn ra số còn lại.
+            if (cancelled)
+              Padding(
+                padding: const EdgeInsets.only(top: 4),
+                child: Text('Đơn đã huỷ, bạn không cần thanh toán thêm.',
+                    key: const Key('pay_cancelled_note'),
+                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
+              )
+            else
+              InfoRow('Còn phải trả', formatVnd(p.remainingToPay),
+                  valueKey: const Key('pay_remaining'),
+                  valueColor: p.isFullyPaid
+                      ? AppColors.statusSuccess
+                      : AppColors.statusWarning),
             if (p.payments.isNotEmpty) ...[
               const Divider(height: 20, color: AppColors.borderSubtle),
               for (final item in p.payments)
