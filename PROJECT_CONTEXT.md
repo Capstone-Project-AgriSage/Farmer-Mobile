@@ -9,10 +9,9 @@
 - **Role**: app chỉ dành `FARMER` (đăng nhập role khác bị từ chối). Nhân viên/chủ cửa hàng/tài xế dùng web quản lý (ngoài phạm vi).
 
 ## 2. CURRENT TASK
-- Nối API backend cho app nông dân theo kế hoạch 10 giai đoạn (0–9). **Giai đoạn 0–4 đã xong.** Người dùng vừa xác nhận chờ làm tiếp **Giai đoạn 5: Công nợ & hạn mức** (chưa bắt đầu code).
+- Nối API backend cho app nông dân theo kế hoạch 10 giai đoạn (0–9). **Tất cả giai đoạn 0–9 đã xong** (2026-10-12); chờ người dùng review và tự commit/push.
 - Yêu cầu của người dùng cho mỗi giai đoạn: làm xong rồi "test thật kĩ cả giao diện và code" (unit/widget/live/ảnh chụp font thật).
-- **Giai đoạn 5 (scope)**: `GET /api/me/credit`, `GET /api/me/debt`, `GET /api/me/debt-entries` (lọc `status`, `overdueOnly`), `GET /api/me/debt-entries/{id}`, `POST /api/me/debt-entries/{id}/dispute {reason}`, `GET /api/me/debt/allocation-preview?amount=`, trả nợ qua payOS `POST /api/me/payments/payos {paymentContext:"DEBT_REPAYMENT", amount}` (tái dùng màn QR). Màn có sẵn (mock): `lib/features/debt/screens/{debt_overview,debt_list,debt_detail,debt_confirm,debt_history}_screen.dart`; route trong `app_router.dart` (`/debt`, `/debt/list`, `/debt/:id`, `/debt/:id/confirm`, `/debt/history`).
-- **Ngoài scope**: Giai đoạn 6 (trả hàng), 7 (AI Doctor), 8 (thông báo), 9 (hoàn thiện); bài viết, đánh giá sản phẩm, push FCM, avatar upload, đổi SĐT/email (backend chưa có API).
+- **Ngoài scope**: (không còn giai đoạn nào sau GĐ9); bài viết, đánh giá sản phẩm, push FCM, avatar upload, đổi SĐT/email (backend chưa có API).
 
 ## 3. COMPLETED
 Các giai đoạn đều có: repository + provider + màn hình thật + test.
@@ -21,18 +20,19 @@ Các giai đoạn đều có: repository + provider + màn hình thật + test.
 - **GĐ2 Hồ sơ & địa chỉ**: sửa hồ sơ (tên, ngày sinh, giới tính; SĐT/email chỉ đọc), sổ địa chỉ CRUD + đặt mặc định (tối đa 10, ward/district tuỳ chọn), `Address` model theo backend.
 - **GĐ3 Catalog & giỏ**: danh mục, danh sách sản phẩm (tìm debounce 400ms, lọc danh mục, cuộn vô hạn), chi tiết (chọn quy cách, số lượng, hoạt chất, sản phẩm liên quan), giỏ hàng (+/−, xoá, xoá tất cả, dòng `NOT_SELLABLE`/`NO_PRICE` chặn đặt hàng), badge giỏ, Home chào tên thật. `formatVnd`.
 - **GĐ4 Đơn hàng & thanh toán**: màn xác nhận đặt hàng (giao/nhận tại cửa hàng, chọn địa chỉ, ghi chú, trả ngay/ghi nợ theo hạn mức), danh sách đơn (lọc, phân trang), chi tiết đơn (thanh toán, huỷ khi `PENDING_CONFIRMATION`, theo dõi giao hàng + tài xế + ảnh bằng chứng), màn payOS QR (polling 3s, sync khi chờ lâu/khi bấm, hết hạn, huỷ, resume app), màn kết quả. Dữ liệu mock đơn hàng đã xoá.
+- **GĐ5 Công nợ & hạn mức (2026-10-12)**: `lib/features/debt/{data/debt_models,data/debt_repository,providers/debt_providers,widgets/debt_widgets}.dart`; 5 màn: tổng quan (thẻ hạn mức + tổng nợ + banner quá hạn + khoản sắp đến hạn), danh sách (lọc: Tất cả/Chưa trả/Trả một phần/Quá hạn/Khiếu nại/Đã trả, cuộn vô hạn), chi tiết (sản phẩm, biến động, khiếu nại + hộp thoại), **trả nợ** (`debt_repay_screen.dart`, thay màn "xác nhận 2 chiều" mock vì backend không có), lịch sử trả nợ (lọc `DEBT_REPAYMENT` từ `me/payments`). `PaymentRepository.createForDebt`; `QRPaymentScreen` nhận `orderId` HOẶC `debtAmount`; kết quả `?kind=debt`; chấm đỏ tab Công nợ khi có nợ quá hạn (`hasOverdueDebtProvider`). Đã xoá `lib/data/models/debt.dart`, `mock_debts.dart`, `debt_confirm_screen.dart`. Route `/debt/history` và `/debt/repay` đứng TRƯỚC `/debt/:id`.
+- **GĐ6 Trả hàng (2026-10-12)**: `lib/features/returns/{data/return_models,data/return_repository,providers/return_providers,widgets/return_widgets,screens/{return_request,return_list,return_detail}_screen}.dart`. Lối vào: mục "TRẢ HÀNG" ở chi tiết đơn (chỉ khi `OrderStatus.canReturn`: PARTIALLY_FULFILLED/COMPLETED/PARTIALLY_CANCELLED) + tile "Yêu cầu trả hàng" ở Profile. Routes `/orders/:id/return`, `/returns`, `/returns/:id`. Số lượng backend tính theo ĐƠN VỊ NHỎ NHẤT (base); app cho chọn theo đơn vị bán (bao...) = base/`conversionToBase`, rồi chia qua các nguồn (lô) bằng `ReturnLineRequest.allocate` (mỗi dòng gửi đúng MỘT trong `deliveryItemLotAllocationId` / `originalStockMovementItemId`). Tên sản phẩm ở chi tiết trả hàng lấy từ `orderDetailProvider` (response trả hàng không có tên). Rejected/cancelled ẩn mục "Tiền hoàn lại". Test: `test/features/returns` (58), `test/live/returns_live_test.dart` (10), `test/visual/returns_screenshots_test.dart`.
+- **GĐ7 AI Doctor (2026-10-12)** — THEO LUỒNG BACKEND: nông dân KHÔNG thấy kết quả AI; mọi ca chờ chuyên gia (nhân viên có `can_review_ai`) duyệt, chỉ ca VERIFIED có bệnh/điều trị/sản phẩm. `lib/features/ai_doctor/{data/{diagnosis_models,diagnosis_repository},providers/diagnosis_providers,widgets/diagnosis_widgets}.dart`; màn: `ai_scan_home` (chữ đã sửa, 5 lớp gồm Healthy), `image_capture` (chụp/chọn ảnh + ghi chú + gửi, `PhotoPicker` tách để test), `diagnose_case_screen` (mới: chờ / có kết quả / cần chụp lại / đã huỷ + huỷ ca + tự làm mới 30s khi còn chờ), `diagnose_history` (lọc: Tất cả/Đã có kết quả/Cần chụp lại/Đã huỷ; KHÔNG có lọc "đang chờ" vì backend lọc 1 trạng thái). Sản phẩm gợi ý mở `/products/{storeProductId}`. Routes `/ai-scan/capture`, `/ai-scan/case/:id`, `/ai-scan/history`. Đã xoá màn/model mock: ai_analyzing, diagnose_result, diagnose_uncertain, suggestion_pending, product_suggestion, `models/diagnose.dart`, `mock_diagnoses.dart`. Test: `test/features/ai_doctor` (58), `test/live/diagnosis_live_test.dart` (9, upload multipart thật OK), `test/visual/diagnosis_screenshots_test.dart`. Dev server chưa có model AI nên ca thật thành FAILED (vẫn "chờ"); đường đến VERIFIED chỉ test bằng dữ liệu giả.
+- **GĐ8 Thông báo (2026-10-12)**: `lib/features/notifications/{data/{notification_models,notification_repository},providers/notification_providers,widgets/notification_bell}.dart`; `lib/features/home/screens/notification_screen.dart` viết lại (lọc Tất cả/Chưa đọc, đọc tất cả, xoá bằng nút × hoặc vuốt, cập nhật ngay + hoàn lại khi lỗi, phân trang). Chuông `NotificationBell` thay chấm cam cứng ở `home_screen.dart` (CHỈ phần chuông): số chưa đọc, hỏi lại mỗi 60s + khi quay lại app + khi về từ màn thông báo; lỗi mạng thì không hiện số. Điều hướng theo `data.entityType` của backend (`AppNotification.route`): ORDER/DELIVERY/PAYMENT→đơn, DEBT_ENTRY→`/debt/:id`, CREDIT_PROFILE/PAYMENT trả nợ→`/debt`, SALES_RETURN→`/returns/:id`, REFUND→đơn, DIAGNOSIS_CASE→`/ai-scan/case/:id`. Đã xoá `models/notification.dart`, `mock_notifications.dart`. `notification_settings_screen` (bật/tắt loại thông báo) vẫn là mock: backend chưa có API cài đặt. Test: `test/features/notifications` (35), `test/live/notifications_live_test.dart` (6; đã thấy thông báo ORDER_STATUS_CHANGED thật do worker sinh ra sau khi huỷ đơn), `test/visual/notifications_screenshots_test.dart`. Lưu ý: backend gửi cả thông báo "Đã có kết quả AI chẩn đoán" (AI_DIAGNOSIS_COMPLETED) cho nông dân dù kết quả AI không được hiển thị.
+- **GĐ9 Hoàn thiện (2026-10-12)**: xoá toàn bộ mock + màn/model cũ; `lib/core/network/api_call.dart` (`apiCall`: mọi repository đổi lỗi thành `ApiException` tiếng Việt; `detail` tiếng Anh của backend chỉ hiện nếu có ký tự không-ASCII); Trang chủ dữ liệu thật (`home_providers.dart`: thẻ chẩn đoán/đơn/nợ, kéo làm mới, `invalidateOrders/invalidateDiagnoses` làm mới cả Home); `/profile/sessions` (phiên đăng nhập, thu hồi từng phiên); `ComingSoonScreen` cho tính năng chưa có API; `NotFoundScreen`; `MissingConfigApp` (bản release thiếu `API_BASE_URL`); gỡ 8 dependency thừa, thêm `integration_test`; manifest: nhãn AgriSage, `allowBackup=false`. Sửa từ review: `isLoadingMore` reset ở `_loadFirst`, `AlwaysScrollableScrollPhysics` ở màn nợ, `ReturnLineRequest.allocate` từ chối nguồn không có mã, `cacheKey` ảnh chẩn đoán, màn xác nhận đặt hàng xoá snackbar cũ (che ô tick). Test: `test/visual/text_scale_test.dart` (x1.3/x1.6 ở 360px, 62 case), E2E `integration_test/app_flow_test.dart` (chạy `flutter drive --driver=test_driver/integration_test.dart --target=integration_test/app_flow_test.dart -d emulator-5554`, Gradle cần `ORG_GRADLE_PROJECT_android.aapt2FromMavenOverride=<sdk>/build-tools/36.1.0/aapt2.exe`; ảnh ra `build/e2e_shots`).
 - **Test**: ~326 test thường pass, live tests (backend thật) pass: `test/live/{auth,profile,catalog,orders}_live_test.dart`; ảnh chụp font thật 390px & 320px: `test/visual/auth_screenshots_test.dart`.
 
 ## 4. IN PROGRESS
-- Không có việc dở. Code ở trạng thái xanh (`flutter test` pass, `flutter analyze` không có error). GĐ5 chưa bắt đầu.
+- Không có việc dở. `flutter analyze` sạch; `flutter test` 614 pass, 316 skip (live/ảnh chụp cần cờ môi trường). E2E emulator pass.
 
 ## 5. TODO (ưu tiên)
-1. **GĐ5** Công nợ & hạn mức & trả nợ qua payOS (5.1–5.6, xem mục 2).
-2. **GĐ6** Trả hàng: `GET /me/orders/{id}/returnable`, `POST/GET /me/returns`, `GET /me/returns/{id}`, `POST /me/returns/{id}/cancel`. Màn mới (chưa có).
-3. **GĐ7** AI Doctor: `POST /me/diagnosis-cases` (multipart `image` ≤5MB JPEG/PNG/WebP, `note`), `GET` list/detail, `POST …/cancel`; màn có sẵn `lib/features/ai_doctor/screens/*`.
-4. **GĐ8** Thông báo: `/me/notifications` (list, unread-count, read, read-all, delete); badge chuông ở Home.
-5. **GĐ9** Hoàn thiện: dọn mock còn lại (`lib/data/mock/*`, `lib/data/models/*` cũ), quét màn còn dữ liệu cứng (`home_screen` các thẻ AI/đơn/bài viết, `product_suggestion_screen`, `write_review_screen`), test end-to-end.
-6. UI chưa có: danh sách phiên đăng nhập (`/auth/sessions`, repository đã có), badge công nợ ở `AppShell` (`showBadge` đang cứng).
+5. (Không còn việc theo kế hoạch.) Việc sau này: chờ Backend có API bài viết/đánh giá/cài đặt thông báo/FCM/avatar, cấu hình payOS/SMTP, tài khoản test có hạn mức.
+6. Badge công nợ ở AppShell đã có (hasOverdueDebtProvider); danh sách phiên đăng nhập đã có (`/profile/sessions`).
 
 ## 6. FILES CHANGED (tóm tắt theo nhóm; đều chưa commit)
 **Mới (untracked)**
@@ -56,12 +56,8 @@ Các giai đoạn đều có: repository + provider + màn hình thật + test.
 - `android/app/src/main/AndroidManifest.xml` (INTERNET), `android/app/src/debug/AndroidManifest.xml` (cleartext), `pubspec.yaml/lock` (người dùng có thay đổi từ trước — UNCONFIRMED chi tiết).
 - `test/widget_test.dart` – thay test mẫu hỏng bằng smoke test khởi động app.
 
-## 7. NEXT FILES (GĐ5)
-- `lib/features/debt/screens/debt_overview_screen.dart`, `debt_list_screen.dart`, `debt_detail_screen.dart`, `debt_confirm_screen.dart`, `debt_history_screen.dart` (đang mock; xem trước).
-- `lib/data/models/debt.dart`, `lib/data/mock/mock_debts.dart` (model/mock cũ, đang được các màn debt dùng).
-- Tạo mới: `lib/features/debt/data/{debt_models,debt_repository}.dart`, `providers/debt_providers.dart`.
-- `lib/features/orders/data/order_repository.dart` (đã có `PaymentRepository`, `CreditRepository`, `CreditSummary`) và `lib/features/payment/screens/qr_payment_screen.dart` (hiện chỉ `ORDER_PAYMENT`; cần mở rộng/tái dùng cho `DEBT_REPAYMENT` — `createForOrder` chỉ nhận orderId).
-- `lib/shared/widgets/app_shell.dart` (badge công nợ).
+## 7. NEXT FILES (không còn — GĐ9 đã xong)
+- Không còn file nào cần làm theo kế hoạch.
 
 ## 8. API / DATABASE / DATA CONTRACT
 Tất cả dưới `/api`; nông dân dùng `/me/*` (danh tính từ JWT). Danh sách trả `PagedResult{items,page,pageSize,totalCount,totalPages}` (pageSize tối đa 100). Lỗi RFC7807 `{title,status,detail,errors?,traceId}`.
@@ -105,8 +101,7 @@ Tất cả dưới `/api`; nông dân dùng `/me/*` (danh tính từ JWT). Danh 
 ## 12. ERRORS / KNOWN ISSUES
 - Doc backend (`docs/reference/api-flows/FE_GUIDE_*`) lỗi thời: ví dụ nói thêm quy cách chưa có giá vào giỏ → 422, nhưng code thật vẫn cho thêm dưới dạng dòng `NO_PRICE`. Tin code + live test.
 - Catalog không trả tồn kho; giá catalog (bảng giá walk-in) có thể khác giá trong giỏ (bảng giá theo nhóm khách) → giỏ là giá chính thức.
-- `flutter analyze` còn nhiều cảnh báo cũ (withOpacity deprecated, prefer_const, unused_import) ở file ngoài scope — KHÔNG sửa hàng loạt.
-- Máy dev: không có Visual Studio (không build Windows), không có chromedriver; Chrome web cần `--web-port=5173` để khớp CORS backend. Chưa chạy app thật trên emulator/thiết bị (UNCONFIRMED hoạt động trên Android thật).
+- Máy dev: không có Visual Studio (không build Windows), không có chromedriver; Chrome web cần `--web-port=5173` để khớp CORS backend. Đã chạy E2E trên emulator Pixel_7 (Android); chưa thử trên máy Android thật.
 - Đừng thử lại: heredoc bash chứa dấu `'` lồng (hay lỗi) → dùng công cụ Write/Edit; Python không có trên máy (dùng perl/sed hoặc Edit); GUID toàn số 0 gây 400 (validator) → dùng GUID hợp lệ ngẫu nhiên khi test 404; `pumpAndSettle` treo ở màn có spinner/timer vô hạn (QR payment, shimmer) → dùng `pump`; `router.location` không phản ánh route được `push` → kiểm tra bằng `find.byType`.
 - Dữ liệu test thật đã tạo trong DB dev dùng chung, KHÔNG xoá được (không có API xoá): nhiều tài khoản "TEST Mobile Auth/Profile/Cart/Orders …" và vài đơn hàng (đã huỷ). Không tạo thêm nếu không cần.
 
@@ -121,22 +116,16 @@ Tất cả dưới `/api`; nông dân dùng `/me/*` (danh tính từ JWT). Danh 
 - Giá trong giỏ là giá chính thức khi đặt hàng.
 - Role `FARMER` có đủ permission mặc định cho mọi route `/me/*`.
 - Mua ghi nợ tạo khoản nợ khi cửa hàng giao hàng (theo mô tả backend) — UNCONFIRMED bằng test thực tế.
-- Các màn debt/AI/notification hiện vẫn đang dùng mock và UI mock được coi là bố cục tham khảo.
 
 ## 15. GIT STATUS
-- Branch: `main`. Không commit nào trong phiên này. 52 mục chưa commit: ~31 file sửa (M), 3 file xoá (D: `mock_addresses.dart`, `mock_orders.dart`, `models/order.dart`), phần còn lại là thư mục/file mới (untracked) ở mục 6. Không commit/push/branch/reset khi chưa được yêu cầu.
-- Thư mục clone backend nằm ngoài repo (scratchpad tạm), không ảnh hưởng git.
+- Branch: `main`, HEAD `b92551f` (GĐ0–4 người dùng đã commit). GĐ5–9 CHƯA commit: nhiều file sửa (M), xoá (D: `lib/data/mock/*`, `lib/data/models/*`, các màn mock) và file/thư mục mới (untracked: `integration_test/`, `test_driver/`, `lib/features/{ai_doctor,debt,returns,notifications}/…`, test mới). Không commit/push/branch/reset khi chưa được yêu cầu.
+- **Xung đột cần báo**: nhánh remote `origin/feature/mobile-diagnosis` (đồng đội) cũng làm màn chẩn đoán AI cũ; khi merge sẽ xung đột với GĐ7 (đã xoá các màn `ai_analyzing`, `diagnose_result`...). Cần thống nhất với đồng đội trước khi push.
 
 ## 16. CONTINUE FROM HERE
-**Task**: Giai đoạn 5 — Công nợ & hạn mức.
-1. Đọc (không sửa) `lib/features/debt/screens/*.dart`, `lib/data/models/debt.dart`, `lib/data/mock/mock_debts.dart` để biết UI/model mock.
-2. Đọc code backend (clone lại nếu cần: `git clone --depth 1 https://github.com/Capstone-Project-AgriSage/Backend-Agrisage.git` vào thư mục tạm): `src/AgriSage.Application/Features/Debt/DebtContracts.cs`, `DebtService.cs`, `Credit/CustomerCreditContracts.cs`, `Payments/PayOsPaymentService.cs` (nhánh `NewDebtPaymentAsync`), doc `docs/reference/api-flows/FLOW_3_CREDIT_DEBT.md`.
-3. Tạo `lib/features/debt/data/{debt_models,debt_repository}.dart` + `providers/debt_providers.dart` (tái dùng `CreditSummary`/`CreditRepository` từ `features/orders/data`, `PagedResult`, `ApiException`, `formatVnd`).
-4. Nối 5 màn debt; tái dùng/mở rộng `QRPaymentScreen` cho `DEBT_REPAYMENT` (cần tham số loại thanh toán + số tiền; kết quả quay về công nợ); `allocation-preview` trước khi trả; `dispute`.
-5. Thêm badge công nợ thật ở `AppShell` (nợ quá hạn).
-6. Test: fake repo + widget test; live test (tài khoản mới chưa có hồ sơ tín dụng → xử lý 404/trống); ảnh chụp 390/320px; chạy `flutter test` + `flutter analyze`.
-**Giữ nguyên**: mục 9, 13. **Blocker cần biết trước**: mục 11 (payOS chưa cấu hình, chưa có hạn mức/công nợ để test thật) — báo người dùng rõ phần nào chỉ test bằng fake.
-Sau GĐ5: GĐ6 → GĐ7 → GĐ8 → GĐ9.
+**Task**: GĐ0–9 đã xong; chờ người dùng review rồi tự commit/push.
+Trước khi push cần người dùng quyết định: (1) xung đột với `origin/feature/mobile-diagnosis`; (2) `applicationId` vẫn `com.example.*` và bản release ký bằng debug key; (3) chưa có workflow CI trên main; (4) điều khoản "AI học từ ảnh" trong màn Chính sách chưa được xác nhận bởi Backend/pháp lý; (5) font tải lúc chạy qua `google_fonts` (offline dùng font hệ thống); (6) thông báo "Đã có kết quả AI chẩn đoán" (AI_DIAGNOSIS_COMPLETED) làm lộ khái niệm AI dù nông dân không thấy kết quả AI.
+**Chỉ test bằng fake (chưa thấy trên server thật)**: công nợ có dữ liệu, trả hàng được duyệt, ca chẩn đoán VERIFIED, payOS thật, mua ghi nợ thành công.
+**Giữ nguyên**: mục 9, 13. **Blocker**: mục 11.
 
 ## 17. QUICK RECOVERY SUMMARY
-Flutter app nông dân AgriSage đang được nối API backend ASP.NET (chạy local :5206). Đã xong và test kỹ GĐ0–4: nền tảng mạng/token, auth, hồ sơ/địa chỉ, catalog/giỏ, đặt hàng/thanh toán payOS/theo dõi giao hàng (≈326 test pass, live test pass, ảnh chụp font thật đã duyệt). Còn: GĐ5 công nợ (task kế tiếp), GĐ6 trả hàng, GĐ7 AI Doctor, GĐ8 thông báo, GĐ9 hoàn thiện. Blocker: server dev chưa cấu hình payOS/SMTP/SMS và tài khoản test chưa có hạn mức/công nợ nên một số luồng chỉ test bằng fake. Bước tiếp theo: đọc màn `lib/features/debt/screens/*` + backend `Debt*` rồi tạo `features/debt/{data,providers}`. Mọi thay đổi chưa commit trên nhánh `main`; không commit khi chưa được yêu cầu.
+Flutter app nông dân AgriSage đã nối API backend ASP.NET (local :5206) cho mọi tính năng có API: auth, hồ sơ/địa chỉ, catalog/giỏ, đơn hàng + payOS, công nợ, trả hàng, chẩn đoán (chờ chuyên gia), thông báo, danh sách phiên đăng nhập. Không còn mock; tính năng chưa có API (bài viết, đánh giá, cài đặt thông báo, FCM, avatar) hiện "Sắp ra mắt" hoặc bị bỏ. GĐ9 (2026-10-12): xoá mock/màn cứng, Trang chủ dùng dữ liệu thật, helper `apiCall`, sửa lỗi từ review (isLoadingMore, invalidate Home, cuộn kéo-làm-mới), quét chữ cỡ lớn x1.3/x1.6 tại 360px (3 lỗi tràn đã sửa), E2E trên emulator Pixel_7 (`flutter drive`, 25 ảnh) pass. `flutter analyze` sạch, `flutter test` 614 pass (316 skip = live/ảnh chụp). Chưa commit GĐ5–9; không commit khi chưa được yêu cầu.
