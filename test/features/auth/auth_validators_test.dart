@@ -101,5 +101,26 @@ void main() {
       expect(AuthValidators.isOtp('1234567'), isFalse);
       expect(AuthValidators.isOtp('12345a'), isFalse);
     });
+
+    test('resetCode: mã 6 số (SMS) hoặc token dài (email)', () {
+      final token = '${'a1' * 16}.${'A' * 43}';
+      expect(AuthValidators.resetCode('123456'), isNull);
+      expect(AuthValidators.resetCode(' 123456 '), isNull);
+      expect(AuthValidators.resetCode(token), isNull);
+      expect(AuthValidators.resetCode(''), isNotNull);
+      expect(AuthValidators.resetCode(null), isNotNull);
+      expect(AuthValidators.resetCode('12345'), isNotNull);
+      expect(AuthValidators.resetCode('1234567'), isNotNull);
+      expect(AuthValidators.resetCode('abc'), isNotNull);
+    });
+
+    test('phoneForSmsCode: cần số điện thoại di động, không nhận email', () {
+      expect(AuthValidators.phoneForSmsCode('0912345678'), isNull);
+      expect(AuthValidators.phoneForSmsCode('+84 912 345 678'), isNull);
+      expect(AuthValidators.phoneForSmsCode(''), isNotNull);
+      expect(AuthValidators.phoneForSmsCode(null), isNotNull);
+      expect(AuthValidators.phoneForSmsCode('a@b.vn'), isNotNull);
+      expect(AuthValidators.phoneForSmsCode('0112345678'), isNotNull);
+    });
   });
 }

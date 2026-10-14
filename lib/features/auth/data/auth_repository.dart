@@ -6,6 +6,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/network/api_call.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/token_storage.dart';
+import 'auth_validators.dart';
 
 /// Kết quả đăng nhập/đăng ký: token + người dùng cơ bản.
 class AuthResult {
@@ -154,6 +155,25 @@ class AuthRepository {
         () => _dio.post<void>(
           '/api/auth/reset-password',
           data: {'token': token.trim(), 'newPassword': newPassword},
+        ),
+        messages: {
+          422: 'Mã xác nhận không đúng hoặc đã hết hạn.',
+        },
+      );
+
+  /// Đặt lại bằng mã 6 số nhận qua SMS: backend kiểm mã cùng số điện thoại
+  /// (mã sai, số lạ và hết hạn cùng trả 422, không lộ tài khoản có tồn tại).
+  Future<void> resetPasswordWithCode(
+          String identifier, String code, String newPassword) =>
+      apiCall(
+        () => _dio.post<void>(
+          '/api/auth/reset-password',
+          data: {
+            'identifier':
+                AuthValidators.normalizePhone(identifier) ?? identifier.trim(),
+            'code': code.trim(),
+            'newPassword': newPassword,
+          },
         ),
         messages: {
           422: 'Mã xác nhận không đúng hoặc đã hết hạn.',

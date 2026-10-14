@@ -11,7 +11,11 @@ import '../data/auth_validators.dart';
 import '../widgets/auth_widgets.dart';
 
 class ResetPasswordScreen extends ConsumerStatefulWidget {
-  const ResetPasswordScreen({super.key});
+  /// [initialIdentifier]: email/số điện thoại vừa nhập ở màn "Quên mật khẩu",
+  /// để mã 6 số trong SMS đi kèm đúng số điện thoại.
+  const ResetPasswordScreen({super.key, this.initialIdentifier});
+
+  final String? initialIdentifier;
 
   @override
   ConsumerState<ResetPasswordScreen> createState() =>
@@ -20,6 +24,8 @@ class ResetPasswordScreen extends ConsumerStatefulWidget {
 
 class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
+  late final _identifierCtrl =
+      TextEditingController(text: widget.initialIdentifier ?? '');
   final _tokenCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
@@ -28,6 +34,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
 
   @override
   void dispose() {
+    _identifierCtrl.dispose();
     _tokenCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
@@ -42,9 +49,15 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     });
     final messenger = ScaffoldMessenger.of(context);
     try {
-      await ref
-          .read(authRepositoryProvider)
-          .resetPassword(_tokenCtrl.text, _passwordCtrl.text);
+      final repo = ref.read(authRepositoryProvider);
+      final code = _tokenCtrl.text.trim();
+      if (AuthValidators.isOtp(code)) {
+        // Mã 6 số của SMS chỉ có giá trị cùng số điện thoại.
+        await repo.resetPasswordWithCode(
+            _identifierCtrl.text, code, _passwordCtrl.text);
+      } else {
+        await repo.resetPassword(code, _passwordCtrl.text);
+      }
       messenger.showSnackBar(const SnackBar(
         content: Text('Đặt lại mật khẩu thành công. Vui lòng đăng nhập.'),
       ));
@@ -74,23 +87,43 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
               Text('Mật khẩu mới', style: AppTextStyles.h2),
               const SizedBox(height: 8),
               Text(
-                'Dán mã xác nhận đã nhận qua email hoặc SMS, rồi đặt mật khẩu mới.',
+                'Nhập mã xác nhận: 6 chữ số trong tin nhắn SMS (kèm số điện '
+                'thoại nhận mã), hoặc dán mã dài trong email. Rồi đặt mật '
+                'khẩu mới.',
                 style: AppTextStyles.bodySmall,
               ),
               const SizedBox(height: 28),
+              TextFormField(
+                key: const Key('reset_identifier'),
+                controller: _identifierCtrl,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.next,
+                autocorrect: false,
+                enableSuggestions: false,
+                decoration: const InputDecoration(
+                  labelText: 'Số điện thoại hoặc email',
+                  hintText: 'Nơi bạn nhận mã',
+                ),
+                // Chỉ bắt buộc khi mã là 6 số của SMS; mã email là token dài.
+                validator: (v) => AuthValidators.isOtp(_tokenCtrl.text.trim())
+                    ? AuthValidators.phoneForSmsCode(v)
+                    : null,
+              ),
+              const SizedBox(height: 14),
               TextFormField(
                 key: const Key('reset_token'),
                 controller: _tokenCtrl,
                 textInputAction: TextInputAction.next,
                 autocorrect: false,
                 enableSuggestions: false,
+                autofillHints: const [AutofillHints.oneTimeCode],
                 maxLines: 2,
                 minLines: 1,
                 decoration: const InputDecoration(
                   labelText: 'Mã xác nhận',
-                  hintText: 'Dán mã từ email/SMS',
+                  hintText: '6 chữ số từ SMS, hoặc dán mã từ email',
                 ),
-                validator: AuthValidators.resetToken,
+                validator: AuthValidators.resetCode,
               ),
               const SizedBox(height: 14),
               PasswordField(

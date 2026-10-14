@@ -151,6 +151,97 @@ void main() {
       expect(find.text('Mã xác nhận không đúng hoặc đã hết hạn.'), findsOneWidget);
       expect(h.location, '/reset-password');
     });
+
+    testWidgets(
+        'SMS: từ màn quên mật khẩu mang theo số điện thoại; mã 6 số gửi kèm số',
+        (tester) async {
+      final h = AppHarness();
+      await h.pump(tester, initial: '/forgot-password');
+
+      await enter(tester, 'forgot_identifier', '0912345678');
+      await tester.tap(find.widgetWithText(ElevatedButton, 'Gửi mã xác nhận'));
+      await tester.pumpAndSettle();
+      await tester.tap(field('forgot_enter_code'));
+      await tester.pumpAndSettle();
+
+      expect(h.location, '/reset-password');
+      expect(
+        tester.widget<TextFormField>(field('reset_identifier')).controller!.text,
+        '0912345678',
+      );
+
+      await enter(tester, 'reset_token', ' 123456 ');
+      await enter(tester, 'reset_password', 'matkhaumoi1');
+      await enter(tester, 'reset_confirm', 'matkhaumoi1');
+      await submit(tester);
+      await tester.pumpAndSettle();
+
+      expect(h.repo.calls, contains('resetPasswordWithCode'));
+      expect(h.repo.calls, isNot(contains('resetPassword')));
+      expect(h.repo.lastResetCodeIdentifier, '0912345678');
+      expect(h.repo.lastResetCode, '123456');
+      expect(h.location, '/login');
+    });
+
+    testWidgets('mã 6 số mà chưa có số điện thoại: báo lỗi, không gọi API',
+        (tester) async {
+      final h = AppHarness();
+      await h.pump(tester, initial: '/reset-password');
+
+      await enter(tester, 'reset_token', '123456');
+      await enter(tester, 'reset_password', 'matkhaumoi1');
+      await enter(tester, 'reset_confirm', 'matkhaumoi1');
+      await submit(tester);
+
+      expect(find.text('Vui lòng nhập số điện thoại đã nhận mã'), findsOneWidget);
+      expect(h.repo.calls, isEmpty);
+    });
+
+    testWidgets('mã 6 số đi với email: nhắc nhập số điện thoại', (tester) async {
+      final h = AppHarness();
+      await h.pump(tester, initial: '/reset-password');
+
+      await enter(tester, 'reset_identifier', 'user@example.com');
+      await enter(tester, 'reset_token', '123456');
+      await enter(tester, 'reset_password', 'matkhaumoi1');
+      await enter(tester, 'reset_confirm', 'matkhaumoi1');
+      await submit(tester);
+
+      expect(find.text('Mã 6 số được gửi qua SMS, hãy nhập số điện thoại'),
+          findsOneWidget);
+      expect(h.repo.calls, isEmpty);
+    });
+
+    testWidgets('mã 6 số sai/hết hạn (422): hiện lỗi, ở lại', (tester) async {
+      final h = AppHarness();
+      h.repo.onReset = () async => throw const ApiException(
+          kind: ApiErrorKind.businessRule,
+          statusCode: 422,
+          message: 'Mã xác nhận không đúng hoặc đã hết hạn.');
+      await h.pump(tester, initial: '/reset-password');
+
+      await enter(tester, 'reset_identifier', '0912345678');
+      await enter(tester, 'reset_token', '000000');
+      await enter(tester, 'reset_password', 'matkhaumoi1');
+      await enter(tester, 'reset_confirm', 'matkhaumoi1');
+      await submit(tester);
+      await tester.pumpAndSettle();
+
+      expect(find.text('Mã xác nhận không đúng hoặc đã hết hạn.'), findsOneWidget);
+      expect(h.location, '/reset-password');
+    });
+
+    testWidgets('mã email (token dài) vẫn không cần số điện thoại', (tester) async {
+      final h = AppHarness();
+      await h.pump(tester, initial: '/reset-password');
+
+      await fill(tester);
+      await submit(tester);
+      await tester.pumpAndSettle();
+
+      expect(h.repo.calls, contains('resetPassword'));
+      expect(h.repo.calls, isNot(contains('resetPasswordWithCode')));
+    });
   });
 
   group('Đổi mật khẩu (đã đăng nhập)', () {

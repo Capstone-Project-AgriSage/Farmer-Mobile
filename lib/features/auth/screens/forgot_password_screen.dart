@@ -49,6 +49,14 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
     }
   }
 
+  /// Mang email/số điện thoại đã nhập sang màn đặt lại, để mã 6 số trong SMS
+  /// đi kèm đúng số điện thoại.
+  void _goToReset() {
+    final identifier = _identifierCtrl.text.trim();
+    context.go(AppRoutes.resetPassword,
+        extra: identifier.isEmpty ? null : identifier);
+  }
+
   @override
   Widget build(BuildContext context) {
     final isEmail = _identifierCtrl.text.contains('@');
@@ -74,7 +82,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     // Backend luôn trả 202, không tiết lộ tài khoản có tồn tại.
                     'Nếu tài khoản tồn tại, mã xác nhận đã được gửi tới '
                     '${_identifierCtrl.text.trim()} '
-                    '(${isEmail ? 'email' : 'tin nhắn SMS'}). '
+                    '(${isEmail ? 'email' : 'tin nhắn SMS gồm 6 chữ số'}). '
                     'Mã có hiệu lực trong 10 phút.',
                     style: AppTextStyles.bodyMedium
                         .copyWith(color: AppColors.textSecondary),
@@ -83,7 +91,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   const SizedBox(height: 32),
                   ElevatedButton(
                     key: const Key('forgot_enter_code'),
-                    onPressed: () => context.go(AppRoutes.resetPassword),
+                    onPressed: _goToReset,
                     child: const Text('Nhập mã xác nhận'),
                   ),
                   TextButton(
@@ -128,7 +136,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                     const SizedBox(height: 12),
                     Center(
                       child: TextButton(
-                        onPressed: () => context.go(AppRoutes.resetPassword),
+                        onPressed: _goToReset,
                         child: const Text('Tôi đã có mã xác nhận'),
                       ),
                     ),

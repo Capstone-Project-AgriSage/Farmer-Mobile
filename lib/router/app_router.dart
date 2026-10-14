@@ -209,7 +209,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.resetPassword,
-        builder: (_, __) => const ResetPasswordScreen(),
+        // `extra` = email/số điện thoại đã nhập ở màn "Quên mật khẩu".
+        builder: (_, state) => ResetPasswordScreen(
+          initialIdentifier: state.extra is String ? state.extra as String : null,
+        ),
       ),
 
       // ── Main shell with Bottom Navigation ────────────────────

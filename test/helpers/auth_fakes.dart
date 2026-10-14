@@ -130,6 +130,8 @@ class FakeAuthRepository extends AuthRepository {
   String? lastRegisterPhone;
   String? lastRegisterEmail;
   String? lastResetToken;
+  String? lastResetCodeIdentifier;
+  String? lastResetCode;
   String? lastLogoutToken;
 
   @override
@@ -211,6 +213,15 @@ class FakeAuthRepository extends AuthRepository {
   Future<void> resetPassword(String token, String newPassword) {
     calls.add('resetPassword');
     lastResetToken = token;
+    return onReset?.call() ?? Future.value();
+  }
+
+  @override
+  Future<void> resetPasswordWithCode(
+      String identifier, String code, String newPassword) {
+    calls.add('resetPasswordWithCode');
+    lastResetCodeIdentifier = identifier;
+    lastResetCode = code;
     return onReset?.call() ?? Future.value();
   }
 

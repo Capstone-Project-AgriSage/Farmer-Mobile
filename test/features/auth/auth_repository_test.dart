@@ -184,6 +184,26 @@ void main() {
       expect(adapter.requests.single.data,
           {'token': 'tok', 'newPassword': 'matkhaumoi1'});
     });
+
+    test('reset bằng mã 6 số gửi identifier (chuẩn hoá 0xxxxxxxxx) + code', () async {
+      useAdapter((o) => emptyBody(204));
+      await repo.resetPasswordWithCode(' +84 912 345 678 ', ' 123456 ', 'matkhaumoi1');
+      expect(adapter.requests.single.path, '/api/auth/reset-password');
+      expect(adapter.requests.single.data, {
+        'identifier': '0912345678',
+        'code': '123456',
+        'newPassword': 'matkhaumoi1',
+      });
+    });
+
+    test('reset bằng mã 6 số: 422 = mã sai/hết hạn/số lạ', () async {
+      useAdapter((o) => jsonBody(422, problem(422, 'The verification token is invalid or expired.')));
+      await expectLater(
+        repo.resetPasswordWithCode('0912345678', '123456', 'matkhaumoi1'),
+        throwsA(isA<ApiException>()
+            .having((e) => e.message, 'message', contains('không đúng hoặc đã hết hạn'))),
+      );
+    });
   });
 
   group('xác minh', () {
