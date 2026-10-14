@@ -1,4 +1,4 @@
-# PROJECT_CONTEXT.md — Checkpoint (2026-10-14)
+# PROJECT_CONTEXT.md — Checkpoint (2026-10-14, cập nhật sau màn Công nợ)
 
 ## 1. PROJECT OVERVIEW
 - **Tên**: AgriSage — app mobile cho NÔNG DÂN (repo `Farmer-Mobile`, package `farmer_mobile`, `applicationId = vn.agrisage.farmer`, `namespace` vẫn `com.example.farmer_mobile`).
@@ -12,8 +12,8 @@
 - **Task**: NÂNG CẤP GIAO DIỆN toàn app theo **phong cách hiện đại** (người dùng chọn ngày 2026-10-13), làm lần lượt từng màn. Mỗi màn: làm → test → ảnh chụp font thật → xem trên emulator → người dùng duyệt → commit.
 - **Mục tiêu**: UI bớt đơn giản, đẹp và đồng bộ; tối ưu hiển thị (skeleton thay vòng quay, ảnh decode đúng kích thước); dễ dùng cho nông dân (chữ to không vỡ, vùng bấm lớn).
 - **Yêu cầu**: giữ nguyên dữ liệu, chức năng, business rule, API; giữ màu thương hiệu xanh `#2E7D32` (Farmer-Web); không tràn layout ở 390px, 320px, cỡ chữ hệ thống x1.3/x1.6.
-- **Đã duyệt + commit**: Trang chủ, Danh sách & Chi tiết sản phẩm, Giỏ hàng & Xác nhận đặt hàng (+ `SectionCard` dùng chung).
-- **Đang chờ duyệt (chưa commit)**: Danh sách & Chi tiết đơn hàng + 3 lỗi phát hiện khi đặt thử đơn thật.
+- **Đã duyệt + commit**: Trang chủ, Sản phẩm, Giỏ hàng & Xác nhận đặt hàng (+ `SectionCard`), Đơn hàng (`c99b932`, kèm 3 lỗi sửa).
+- **Đang chờ duyệt (chưa commit)**: màn Công nợ (tổng quan, danh sách, chi tiết, trả nợ, lịch sử) + `DebtProgressBar`.
 - **Ngoài scope**: thay đổi API/DB/business rule; tính năng chưa có API (bài viết, đánh giá, cài đặt thông báo, FCM, avatar, đổi SĐT/email); dark mode, đóng gói font, hiệu ứng chuyển trang (mới là đề xuất, CHƯA được yêu cầu).
 
 ## 3. COMPLETED
@@ -32,7 +32,9 @@
 - **Giỏ & xác nhận** (`11a3b8d`): giỏ (tiêu đề + số sản phẩm, thẻ dòng hàng ảnh lớn, nút xoá tròn, thành tiền cạnh stepper; chiều rộng nội dung < 230px thì thành tiền xuống dòng riêng); xác nhận (thanh bước Giỏ hàng → Xác nhận → Thanh toán, màn hẹp chỉ ghi chữ bước hiện tại; ô chọn có icon + tích; địa chỉ & sản phẩm có ảnh nhỏ; ô đồng ý thành thẻ). `SectionCard` (dùng ở 7 màn: chi tiết đơn, công nợ tổng quan/chi tiết/trả nợ, trả hàng, chẩn đoán, xác nhận đặt hàng) bo 18 + bóng mềm + icon trong ô xanh; 30 tiêu đề chuyển từ IN HOA sang chữ thường. Sửa lỗi: màn xác nhận tải lại giỏ 2 lần.
 
 ## 4. IN PROGRESS
-- **Màn Đơn hàng: code + test XONG, CHƯA COMMIT, chờ người dùng duyệt.**
+- **Màn Công nợ: code + test + ảnh chụp XONG, CHƯA COMMIT, chờ duyệt.** `debt_widgets.dart` (`DebtEntryCard` thẻ bóng mềm + icon + nhãn + thanh `debt_entry_progress`, `DebtProgressBar` mới), `debt_overview_screen.dart` (thẻ hạn mức gradient xanh + thanh `credit_usage` = dư nợ/hạn mức, skeleton), `debt_detail_screen.dart` (nhãn 'Còn phải trả'/'Giá trị khoản nợ' chuyển sang chữ thường, thanh `debt_progress`, biến động có mũi tên, thanh đáy bo góc), `debt_list_screen.dart` (chip bo tròn), `debt_history_screen.dart`, `debt_repay_screen.dart`; test cập nhật. Kiểm tra: analyze sạch, 690 test pass, ảnh 390/320 và quét cỡ chữ pass. CHƯA xem trên emulator (tài khoản test không có hạn mức → chỉ thấy trạng thái trống).
+- (Đã commit `c99b932`) Màn Đơn hàng — mô tả bên dưới giữ để tham khảo.
+- **Màn Đơn hàng (đã commit `c99b932`, chưa push)**:
   - `lib/features/products/screens/order_list_screen.dart`: bộ lọc chip bo tròn (`Material` + key `order_filter_*`), thẻ đơn (icon giao/nhận tô màu trạng thái, mã đơn đủ, "Đặt lúc …", hàng nhãn gồm trạng thái + hình thức + thanh toán + số sản phẩm, tổng tiền), widget `_Pill`.
   - `lib/features/products/screens/order_detail_screen.dart`: khối đầu (icon, mã, ngày, badge dưới ngày), `_StatusTimeline` 5 bước (Đặt hàng → Xác nhận → Chuẩn bị → Giao hàng / Sẵn sàng nhận / Giao một phần → Hoàn thành / Huỷ phần còn lại). `reached()`: pending 0, confirmed 1, preparing 2, ready|partiallyFulfilled 3, còn lại 4. Đơn CANCELLED không có timeline. Lời nhắc trong khung màu, thanh tiến độ `pay_progress` (chỉ đơn trả ngay, không huỷ), thanh đáy bo góc.
   - 3 lỗi phát hiện khi đặt thử đơn thật `OD-20261014-0001` (đã huỷ ngay; đơn vẫn còn trên DB):

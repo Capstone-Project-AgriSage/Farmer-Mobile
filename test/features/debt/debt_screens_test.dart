@@ -65,6 +65,9 @@ void main() {
       expect(textOf(tester, 'credit_available'), '7.000.000đ');
       expect(find.text('Kỳ hạn 30 ngày'), findsOneWidget);
       expect(textOf(tester, 'debt_balance'), '3.000.000đ');
+      final usage = tester.widget<LinearProgressIndicator>(
+          find.descendant(of: find.byKey(const Key('credit_usage')), matching: find.byType(LinearProgressIndicator)));
+      expect(usage.value, closeTo(0.3, 0.001), reason: 'đã dùng = dư nợ / hạn mức');
       expect(find.byKey(const Key('debt_overdue_banner')), findsNothing);
       expect(find.byKey(const Key('debt_repay')), findsOneWidget);
       expect(find.text('CN-a'), findsOneWidget);
@@ -178,6 +181,8 @@ void main() {
       expect(find.text('2.000.000đ'), findsOneWidget);
       expect(find.text('600.000đ'), findsOneWidget, reason: 'còn phải trả của khoản trả một phần');
       expect(find.text('Đã trả 400.000đ'), findsOneWidget);
+      expect(find.byKey(const Key('debt_entry_progress')), findsOneWidget,
+          reason: 'chỉ khoản trả một phần có thanh tiến độ');
     });
 
     testWidgets('lọc Quá hạn gọi API đúng; khoản quá hạn hiện nhãn số ngày', (tester) async {
@@ -266,6 +271,13 @@ void main() {
       expect(find.byKey(const Key('debt_pay')), findsOneWidget);
     });
 
+    testWidgets('chưa trả đồng nào: không có thanh tiến độ đã trả', (tester) async {
+      await open(tester, '/debt/a', setup: (h) {
+        h.debt.details['a'] = detailOf('a', original: 2000000, paid: 0);
+      });
+      expect(find.byKey(const Key('debt_progress')), findsNothing);
+    });
+
     testWidgets('quá hạn: banner nêu số ngày', (tester) async {
       await open(tester, '/debt/a', setup: (h) {
         h.debt.details['a'] = detailOf('a', overdue: true, overdueDays: 7);
@@ -279,7 +291,7 @@ void main() {
       });
       expect(find.byKey(const Key('debt_pay')), findsNothing);
       expect(find.byKey(const Key('debt_dispute')), findsNothing);
-      expect(find.text('GIÁ TRỊ KHOẢN NỢ'), findsOneWidget);
+      expect(find.text('Giá trị khoản nợ'), findsOneWidget);
     });
 
     testWidgets('đang khiếu nại: ẩn nút Khiếu nại, vẫn trả nợ được, có ghi chú', (tester) async {

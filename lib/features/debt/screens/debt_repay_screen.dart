@@ -11,6 +11,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/utils/money.dart';
 import '../../../shared/widgets/empty_data_widget.dart';
 import '../../../shared/widgets/error_retry_widget.dart';
+import '../../../shared/widgets/shimmer_loading_widget.dart';
 import '../../orders/widgets/order_widgets.dart';
 import '../data/debt_models.dart';
 import '../providers/debt_providers.dart';
@@ -90,9 +91,22 @@ class _DebtRepayScreenState extends ConsumerState<DebtRepayScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
-      appBar: AppBar(title: const Text('Trả nợ')),
+      appBar: AppBar(
+        title: const Text('Trả nợ'),
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+      ),
       body: account.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => ListView(
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          children: const [
+            ShimmerLoadingWidget(height: 110, borderRadius: 18),
+            SizedBox(height: 16),
+            ShimmerLoadingWidget(height: 200, borderRadius: 18),
+          ],
+        ),
         error: (e, _) => ErrorRetryWidget(
             error: e, onRetry: () => ref.invalidate(debtAccountProvider)),
         data: (a) {
@@ -139,15 +153,37 @@ class _DebtRepayScreenState extends ConsumerState<DebtRepayScreen> {
                 padding: const EdgeInsets.all(16),
                 decoration: BoxDecoration(
                   color: Colors.white,
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: AppColors.borderSubtle),
+                  borderRadius: BorderRadius.circular(18),
+                  boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.045),
+              blurRadius: 14,
+              offset: const Offset(0, 4)),
+        ],
                 ),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Số tiền muốn trả',
-                        style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w600)),
-                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Container(
+                          width: 32,
+                          height: 32,
+                          decoration: BoxDecoration(
+                            color: AppColors.primaryLight,
+                            borderRadius: BorderRadius.circular(10),
+                          ),
+                          child: const Icon(Icons.payments_outlined,
+                              size: 18, color: AppColors.primary),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text('Số tiền muốn trả',
+                              style: AppTextStyles.h4.copyWith(fontSize: 15)),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 14),
                     TextField(
                       key: const Key('repay_amount'),
                       controller: _controller,
@@ -157,6 +193,7 @@ class _DebtRepayScreenState extends ConsumerState<DebtRepayScreen> {
                         LengthLimitingTextInputFormatter(12),
                       ],
                       onChanged: _onChanged,
+                      style: AppTextStyles.h3,
                       decoration: InputDecoration(
                         hintText: '0',
                         suffixText: 'đ',
@@ -179,12 +216,22 @@ class _DebtRepayScreenState extends ConsumerState<DebtRepayScreen> {
                       children: [
                         ActionChip(
                           key: const Key('repay_full'),
+                          shape: const StadiumBorder(),
+                          backgroundColor: AppColors.primaryLight,
+                          side: BorderSide.none,
+                          avatar: const Icon(Icons.done_all_rounded,
+                              size: 18, color: AppColors.primary),
                           label: const Text('Trả hết nợ'),
                           onPressed: () => _setAmount(fullAmount),
                         ),
                         if (account.hasOverdue && account.overdueAmount.floor() > 0)
                           ActionChip(
                             key: const Key('repay_overdue'),
+                            shape: const StadiumBorder(),
+                            backgroundColor: AppColors.statusErrorSurface,
+                            side: BorderSide.none,
+                            avatar: const Icon(Icons.warning_amber_rounded,
+                                size: 18, color: AppColors.debtOverdue),
                             label: const Text('Trả khoản quá hạn'),
                             onPressed: () => _setAmount(account.overdueAmount.floor()),
                           ),
@@ -207,14 +254,24 @@ class _DebtRepayScreenState extends ConsumerState<DebtRepayScreen> {
                 )
               else if (_controller.text.isEmpty)
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: AppColors.primaryLight,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                  child: Text(
-                    'Nhập số tiền để xem khoản nợ nào sẽ được trừ. Tiền luôn trừ vào khoản đến hạn sớm nhất trước.',
-                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryDark),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Icon(Icons.info_outline_rounded,
+                          size: 20, color: AppColors.primaryDark),
+                      const SizedBox(width: 10),
+                      Expanded(
+                        child: Text(
+                          'Nhập số tiền để xem khoản nợ nào sẽ được trừ. Tiền luôn trừ vào khoản đến hạn sớm nhất trước.',
+                          style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryDark),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
             ],
@@ -224,11 +281,12 @@ class _DebtRepayScreenState extends ConsumerState<DebtRepayScreen> {
           padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
           decoration: BoxDecoration(
             color: Colors.white,
+            borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
             boxShadow: [
               BoxShadow(
-                  color: Colors.black.withValues(alpha: 0.05),
-                  blurRadius: 10,
-                  offset: const Offset(0, -4))
+                  color: Colors.black.withValues(alpha: 0.08),
+                  blurRadius: 20,
+                  offset: const Offset(0, -6))
             ],
           ),
           child: SafeArea(
@@ -281,8 +339,13 @@ class _Preview extends ConsumerWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.borderSubtle),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.045),
+              blurRadius: 14,
+              offset: const Offset(0, 4)),
+        ],
         ),
         child: Column(
           children: [

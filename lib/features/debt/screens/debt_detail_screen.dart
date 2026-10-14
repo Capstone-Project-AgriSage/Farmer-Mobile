@@ -7,10 +7,12 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/utils/money.dart';
 import '../../../shared/widgets/error_retry_widget.dart';
+import '../../../shared/widgets/shimmer_loading_widget.dart';
 import '../../orders/widgets/order_widgets.dart';
 import '../data/debt_models.dart';
 import '../data/debt_repository.dart';
 import '../providers/debt_providers.dart';
+import '../widgets/debt_widgets.dart';
 
 class DebtDetailScreen extends ConsumerStatefulWidget {
   const DebtDetailScreen({super.key, required this.debtId});
@@ -52,9 +54,14 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
-      appBar: AppBar(title: const Text('Chi tiết công nợ')),
+      appBar: AppBar(
+        title: const Text('Chi tiết công nợ'),
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+      ),
       body: entry.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const _DetailSkeleton(),
         error: (e, _) => ErrorRetryWidget(
             error: e, onRetry: () => ref.invalidate(debtEntryProvider(widget.debtId))),
         data: (d) => _content(d),
@@ -82,22 +89,29 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen> {
               children: [
                 Container(
                   key: const Key('debt_status_banner'),
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(14),
                   decoration: BoxDecoration(
                     color: statusBg,
-                    borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: statusFg.withValues(alpha: 0.3)),
+                    borderRadius: BorderRadius.circular(18),
                   ),
                   child: Row(
                     children: [
-                      Icon(
-                        d.isClosed
-                            ? Icons.check_circle
-                            : (overdue || d.status == DebtStatus.disputed || d.status == DebtStatus.open)
-                                ? Icons.warning_amber_rounded
-                                : Icons.timelapse,
-                        color: statusFg,
-                        size: 24,
+                      Container(
+                        width: 44,
+                        height: 44,
+                        decoration: const BoxDecoration(
+                            color: Colors.white, shape: BoxShape.circle),
+                        child: Icon(
+                          d.isClosed
+                              ? Icons.check_circle_rounded
+                              : (overdue ||
+                                      d.status == DebtStatus.disputed ||
+                                      d.status == DebtStatus.open)
+                                  ? Icons.warning_amber_rounded
+                                  : Icons.timelapse_rounded,
+                          color: statusFg,
+                          size: 24,
+                        ),
                       ),
                       const SizedBox(width: 12),
                       Expanded(
@@ -121,27 +135,41 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen> {
                 ),
                 const SizedBox(height: 16),
                 Container(
+                  width: double.infinity,
                   padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
-                    border: Border.all(color: AppColors.borderSubtle),
+                    borderRadius: BorderRadius.circular(20),
+                    boxShadow: [
+                      BoxShadow(
+                          color: Colors.black.withValues(alpha: 0.045),
+                          blurRadius: 14,
+                          offset: const Offset(0, 4)),
+                    ],
                   ),
                   child: Column(
                     children: [
-                      Text(d.isClosed ? 'GIÁ TRỊ KHOẢN NỢ' : 'CÒN PHẢI TRẢ',
-                          style: AppTextStyles.caption.copyWith(
-                              color: AppColors.textMuted, fontWeight: FontWeight.bold)),
-                      const SizedBox(height: 8),
+                      Text(d.isClosed ? 'Giá trị khoản nợ' : 'Còn phải trả',
+                          style: AppTextStyles.bodySmall.copyWith(
+                              color: AppColors.textMuted, fontWeight: FontWeight.w600)),
+                      const SizedBox(height: 6),
                       FittedBox(
                         fit: BoxFit.scaleDown,
                         child: Text(
                           formatVnd(d.isClosed ? d.originalAmount : d.outstandingAmount),
                           key: const Key('debt_amount'),
-                          style: AppTextStyles.h2.copyWith(
+                          style: AppTextStyles.h1.copyWith(
                               color: d.isClosed ? AppColors.textPrimary : AppColors.statusError),
                         ),
                       ),
+                      if (!d.isClosed && d.totalPaid > 0 && d.originalAmount > 0) ...[
+                        const SizedBox(height: 14),
+                        DebtProgressBar(
+                          key: const Key('debt_progress'),
+                          value: d.totalPaid / d.originalAmount,
+                          color: AppColors.statusSuccess,
+                        ),
+                      ],
                       const SizedBox(height: 16),
                       const Divider(height: 1, color: AppColors.borderSubtle),
                       const SizedBox(height: 12),
@@ -219,14 +247,25 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen> {
                   const SizedBox(height: 12),
                   Container(
                     key: const Key('debt_disputed_note'),
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: AppColors.statusWarningSurface,
-                      borderRadius: BorderRadius.circular(10),
+                      borderRadius: BorderRadius.circular(14),
                     ),
-                    child: Text(
-                      'Khoản nợ đang chờ cửa hàng xem xét. Trong lúc chờ, khoản nợ vẫn còn hiệu lực và vẫn có thể thanh toán.',
-                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.statusWarning),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Icon(Icons.info_outline_rounded,
+                            size: 20, color: AppColors.statusWarning),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Text(
+                            'Khoản nợ đang chờ cửa hàng xem xét. Trong lúc chờ, khoản nợ vẫn còn hiệu lực và vẫn có thể thanh toán.',
+                            style: AppTextStyles.bodySmall
+                                .copyWith(color: AppColors.statusWarning),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                 ],
@@ -240,11 +279,12 @@ class _DebtDetailScreenState extends ConsumerState<DebtDetailScreen> {
             padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
             decoration: BoxDecoration(
               color: Colors.white,
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               boxShadow: [
                 BoxShadow(
-                    color: Colors.black.withValues(alpha: 0.05),
-                    blurRadius: 10,
-                    offset: const Offset(0, -4))
+                    color: Colors.black.withValues(alpha: 0.08),
+                    blurRadius: 20,
+                    offset: const Offset(0, -6))
               ],
             ),
             child: SafeArea(
@@ -301,6 +341,17 @@ class _TransactionRow extends StatelessWidget {
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          Container(
+            width: 34,
+            height: 34,
+            decoration: BoxDecoration(
+              color: up ? AppColors.statusErrorSurface : AppColors.statusSuccessSurface,
+              shape: BoxShape.circle,
+            ),
+            child: Icon(up ? Icons.arrow_upward_rounded : Icons.arrow_downward_rounded,
+                size: 18, color: up ? AppColors.statusError : AppColors.statusSuccess),
+          ),
+          const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -425,4 +476,22 @@ class _DisputeDialogState extends State<_DisputeDialog> {
       ],
     );
   }
+}
+
+/// Khung chờ của màn chi tiết: biểu ngữ trạng thái, thẻ số tiền, một thẻ nội dung.
+class _DetailSkeleton extends StatelessWidget {
+  const _DetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) => ListView(
+        physics: const NeverScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        children: const [
+          ShimmerLoadingWidget(height: 72, borderRadius: 18),
+          SizedBox(height: 16),
+          ShimmerLoadingWidget(height: 300, borderRadius: 20),
+          SizedBox(height: 16),
+          ShimmerLoadingWidget(height: 140, borderRadius: 18),
+        ],
+      );
 }

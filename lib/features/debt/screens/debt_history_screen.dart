@@ -47,7 +47,12 @@ class _DebtHistoryScreenState extends ConsumerState<DebtHistoryScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
-      appBar: AppBar(title: const Text('Lịch sử thanh toán')),
+      appBar: AppBar(
+        title: const Text('Lịch sử thanh toán'),
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+      ),
       body: _body(state, notifier),
     );
   }
@@ -143,20 +148,25 @@ class _PaymentCard extends StatelessWidget {
             : (Icons.close, AppColors.statusError, AppColors.statusErrorSurface);
     return Container(
       key: Key('repayment_${payment.id}'),
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderSubtle),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.045),
+              blurRadius: 14,
+              offset: const Offset(0, 4)),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
-            child: Icon(icon, color: fg, size: 20),
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(14)),
+            child: Icon(icon, color: fg, size: 22),
           ),
           const SizedBox(width: 12),
           Expanded(

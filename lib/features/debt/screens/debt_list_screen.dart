@@ -46,14 +46,29 @@ class _DebtListScreenState extends ConsumerState<DebtListScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
-      appBar: AppBar(title: const Text('Danh sách công nợ')),
+      appBar: AppBar(
+        title: const Text('Danh sách công nợ'),
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+      ),
       body: Column(
         children: [
           Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6)),
+              ],
+            ),
+            padding: const EdgeInsets.only(top: 4, bottom: 14),
             child: SizedBox(
-              height: 36,
+              // Cao theo cỡ chữ hệ thống để chữ to không bị cắt.
+              height: MediaQuery.textScalerOf(context).scale(20) + 20,
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 scrollDirection: Axis.horizontal,
@@ -62,17 +77,29 @@ class _DebtListScreenState extends ConsumerState<DebtListScreen> {
                 itemBuilder: (_, i) {
                   final s = DebtStatus.filters[i];
                   final active = s == state.status;
-                  return ChoiceChip(
+                  return Material(
                     key: Key('debt_filter_${s ?? 'all'}'),
-                    label: Text(DebtStatus.label(s)),
-                    selected: active,
-                    showCheckmark: false,
-                    selectedColor: AppColors.primaryDark,
-                    labelStyle: AppTextStyles.bodySmall.copyWith(
-                      color: active ? Colors.white : AppColors.textSecondary,
-                      fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                    color: active ? AppColors.primary : AppColors.surface,
+                    shape: StadiumBorder(
+                      side: BorderSide(
+                          color: active ? AppColors.primary : AppColors.borderSubtle),
                     ),
-                    onSelected: (_) => notifier.setStatus(s),
+                    child: InkWell(
+                      customBorder: const StadiumBorder(),
+                      onTap: () => notifier.setStatus(s),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Center(
+                          widthFactor: 1,
+                          child: Text(DebtStatus.label(s),
+                              style: AppTextStyles.bodySmall.copyWith(
+                                fontSize: 13,
+                                color: active ? Colors.white : AppColors.textSecondary,
+                                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                              )),
+                        ),
+                      ),
+                    ),
                   );
                 },
               ),
