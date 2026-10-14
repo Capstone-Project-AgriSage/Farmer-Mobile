@@ -8,6 +8,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/utils/money.dart';
 import '../../../shared/widgets/empty_data_widget.dart';
 import '../../../shared/widgets/error_retry_widget.dart';
+import '../../../shared/widgets/shimmer_loading_widget.dart';
 import '../../orders/providers/order_providers.dart';
 import '../data/return_models.dart';
 import '../data/return_repository.dart';
@@ -101,7 +102,17 @@ class _ReturnRequestScreenState extends ConsumerState<ReturnRequestScreen> {
       backgroundColor: AppColors.surfaceSubtle,
       appBar: AppBar(title: const Text('Yêu cầu trả hàng')),
       body: returnable.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => ListView(
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          children: const [
+            ShimmerLoadingWidget(height: 110, borderRadius: 18),
+            SizedBox(height: 12),
+            ShimmerLoadingWidget(height: 200, borderRadius: 18),
+            SizedBox(height: 12),
+            ShimmerLoadingWidget(height: 120, borderRadius: 18),
+          ],
+        ),
         error: (e, _) => ErrorRetryWidget(
             error: e, onRetry: () => ref.invalidate(returnableProvider(widget.orderId))),
         data: (r) => _content(r),
@@ -136,10 +147,10 @@ class _ReturnRequestScreenState extends ConsumerState<ReturnRequestScreen> {
             padding: const EdgeInsets.all(16),
             children: [
               Container(
-                padding: const EdgeInsets.all(12),
+                padding: const EdgeInsets.all(14),
                 decoration: BoxDecoration(
                   color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(10),
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Text(
                   'Đơn ${r.orderNumber}. Chọn hàng muốn trả. Yêu cầu cần cửa hàng duyệt; sau khi duyệt, bạn mang hàng về cửa hàng để được kiểm tra và hoàn lại.',
@@ -180,7 +191,7 @@ class _ReturnRequestScreenState extends ConsumerState<ReturnRequestScreen> {
                   padding: const EdgeInsets.all(12),
                   decoration: BoxDecoration(
                     color: AppColors.statusErrorSurface,
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(14),
                   ),
                   child: Text(_error!,
                       style: AppTextStyles.bodySmall.copyWith(color: AppColors.statusError)),
@@ -264,9 +275,14 @@ class _ItemCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: units > 0 ? AppColors.primary : AppColors.borderSubtle),
+        borderRadius: BorderRadius.circular(18),
+        border: units > 0 ? Border.all(color: AppColors.primary, width: 1.5) : null,
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.045),
+              blurRadius: 14,
+              offset: const Offset(0, 4)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

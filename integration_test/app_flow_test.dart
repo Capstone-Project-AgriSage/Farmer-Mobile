@@ -60,6 +60,13 @@ void main() {
   }
 
   Future<void> tap(WidgetTester t, Finder f, {bool scroll = true}) async {
+    // Danh sách dựng lười: mục ở dưới màn hình chưa có trong cây widget → cuộn tới khi thấy.
+    if (scroll && f.evaluate().isEmpty) {
+      try {
+        await t.scrollUntilVisible(f, 300,
+            scrollable: find.byType(Scrollable).first, maxScrolls: 20);
+      } catch (_) {}
+    }
     if (scroll && f.evaluate().isNotEmpty) {
       try {
         await t.ensureVisible(f.first);
@@ -71,6 +78,9 @@ void main() {
 
   Future<void> type(WidgetTester t, Key k, String text) async {
     await t.ensureVisible(find.byKey(k));
+    // Ô đã có chữ cũ chỉ nhận chữ mới khi đã được chạm (lấy focus) trước.
+    await t.tap(find.byKey(k));
+    await t.pump(const Duration(milliseconds: 150));
     await t.enterText(find.byKey(k), text);
     await settle(t, 200);
   }
@@ -274,5 +284,145 @@ void main() {
         timeout: const Duration(seconds: 30),
         what: 'Trang chủ sau khi khởi động lại (khôi phục phiên)');
     await shot(tester, '25_session_restored');
+  });
+
+  testWidgets(
+      'hồ sơ, địa chỉ, tìm kiếm, đổi mật khẩu: sửa tên → thêm/sửa/đặt mặc định/xoá địa chỉ → tìm sản phẩm → đổi mật khẩu → đăng nhập mật khẩu mới',
+      (tester) async {
+    final rnd = Random.secure();
+    final phone = '09${List.generate(8, (_) => rnd.nextInt(10)).join()}';
+    final suffix = DateTime.now().millisecondsSinceEpoch.toRadixString(36);
+    final name = 'TEST Mobile E2E2 $suffix';
+    const password = 'Test@12345678';
+    const newPassword = 'Test@87654321';
+
+    await const FlutterSecureStorage().deleteAll();
+    await binding.convertFlutterSurfaceToImage();
+    await launch(tester, key: 'second');
+
+    // ── Đăng ký nhanh ─────────────────────────────────────────────
+    await pumpUntil(tester, find.text('Bỏ qua'), what: 'onboarding');
+    await tap(tester, find.text('Bỏ qua'));
+    await pumpUntil(tester, find.text('Tạo tài khoản mới'));
+    await tap(tester, find.text('Tạo tài khoản mới'));
+    await pumpUntil(tester, find.byKey(const Key('register_name')));
+    await type(tester, const Key('register_name'), name);
+    await type(tester, const Key('register_phone'), phone);
+    await type(tester, const Key('register_password'), password);
+    await type(tester, const Key('register_confirm'), password);
+    await tap(tester, find.byType(AuthSubmitButton));
+    await pumpUntil(tester, find.byKey(const Key('home_greeting')),
+        what: 'Trang chủ sau đăng ký');
+
+    // ── Tìm kiếm sản phẩm ─────────────────────────────────────────
+    await tap(tester, find.text('Sản phẩm'));
+    await pumpUntil(tester, find.byKey(const Key('product_count')), what: 'danh sách sản phẩm');
+    final all = tester.widget<Text>(find.byKey(const Key('product_count'))).data;
+    await tester.enterText(find.byKey(const Key('product_search')), 'zzzkhongco999');
+    await tester.testTextInput.receiveAction(TextInputAction.search);
+    await pumpUntil(tester, find.textContaining('Không tìm thấy sản phẩm'),
+        what: 'kết quả tìm kiếm rỗng');
+    await shot(tester, '30_search_empty');
+    await tap(tester, find.text('Xoá tìm kiếm'));
+    await pumpUntil(tester, find.byKey(const Key('product_count')),
+        what: 'danh sách sau khi xoá tìm kiếm');
+    await settle(tester, 1500);
+    expect(tester.widget<Text>(find.byKey(const Key('product_count'))).data, all,
+        reason: 'xoá từ khoá phải trả lại đủ danh sách');
+
+    // ── Sửa hồ sơ ─────────────────────────────────────────────────
+    await tap(tester, find.text('Tài khoản').last);
+    await pumpUntil(tester, find.text('Thông tin cá nhân'));
+    await tap(tester, find.text('Thông tin cá nhân'));
+    await pumpUntil(tester, find.byKey(const Key('profile_name')));
+    final renamed = '$name sửa';
+    await tap(tester, find.byKey(const Key('profile_name')));
+    await tester.enterText(find.byKey(const Key('profile_name')), renamed);
+    await settle(tester, 300);
+    expect(
+        tester.widget<TextFormField>(find.byKey(const Key('profile_name'))).controller?.text,
+        renamed,
+        reason: 'ô tên phải nhận chữ vừa nhập');
+    await shot(tester, '31_profile_edit');
+    await tap(tester, find.text('Lưu thay đổi'));
+    await pumpUntil(tester, find.textContaining('Đã cập nhật thông tin cá nhân'),
+        what: 'báo lưu hồ sơ');
+    await backToTabs(tester);
+    await tap(tester, find.text('Tài khoản').last);
+    await pumpUntil(tester, find.text(renamed), what: 'tên mới ở trang Tài khoản');
+
+    // ── Sổ địa chỉ: thêm → sửa → thêm thứ hai đặt mặc định → xoá ──
+    Future<void> fillAddress(String recipient, String line) async {
+      await type(tester, const Key('addr_name'), recipient);
+      await type(tester, const Key('addr_phone'), phone);
+      await type(tester, const Key('addr_province'), 'Cần Thơ');
+      await type(tester, const Key('addr_line'), line);
+    }
+
+    bool keyStarts(Widget w, String prefix) {
+      final k = w.key;
+      return k is ValueKey<String> && k.value.startsWith(prefix);
+    }
+
+    await tap(tester, find.text('Quản lý địa chỉ'));
+    // Chưa có địa chỉ: chỉ có nút "Thêm địa chỉ" ở giữa (nút dưới chỉ hiện khi đã có địa chỉ).
+    await pumpUntil(tester, find.text('Thêm địa chỉ'), what: 'sổ địa chỉ trống');
+    await shot(tester, '32_addresses_empty');
+    await tap(tester, find.text('Thêm địa chỉ'));
+    await pumpUntil(tester, find.byKey(const Key('addr_name')));
+    await fillAddress('Người nhận A', 'Số 1 đường A');
+    await tap(tester, find.text('Lưu địa chỉ'));
+    await pumpUntil(tester, find.byKey(const Key('address_add')), what: 'quay về danh sách sau khi thêm A');
+    expect(find.text('Người nhận A'), findsOneWidget);
+    await shot(tester, '33_address_added');
+
+    await tap(tester, find.byWidgetPredicate((w) => keyStarts(w, 'address_edit_')));
+    await pumpUntil(tester, find.byKey(const Key('addr_line')));
+    await type(tester, const Key('addr_line'), 'Số 2 đường A (đã sửa)');
+    await tap(tester, find.text('Lưu địa chỉ'));
+    await pumpUntil(tester, find.byKey(const Key('address_add')), what: 'quay về danh sách sau khi sửa A');
+    expect(find.textContaining('đã sửa'), findsOneWidget);
+
+    await tap(tester, find.byKey(const Key('address_add')));
+    await pumpUntil(tester, find.byKey(const Key('addr_name')));
+    await fillAddress('Người nhận B', 'Số 3 đường B');
+    await tap(tester, find.byKey(const Key('addr_default')));
+    await tap(tester, find.text('Lưu địa chỉ'));
+    await pumpUntil(tester, find.byKey(const Key('address_add')), what: 'quay về danh sách sau khi thêm B');
+    expect(find.text('Người nhận B'), findsOneWidget);
+    await shot(tester, '34_address_two');
+
+    // Xoá một địa chỉ (nút Xoá cuối cùng thuộc địa chỉ không mặc định).
+    final deletes = find.byWidgetPredicate((w) => keyStarts(w, 'address_delete_'));
+    expect(deletes, findsWidgets);
+    await tap(tester, deletes.last);
+    await pumpUntil(tester, find.byKey(const Key('address_delete_confirm')));
+    await tap(tester, find.byKey(const Key('address_delete_confirm')));
+    await settle(tester, 1500);
+    await shot(tester, '35_address_deleted');
+    await backToTabs(tester);
+
+    // ── Đổi mật khẩu → bị đăng xuất → đăng nhập bằng mật khẩu mới ──
+    await tap(tester, find.text('Tài khoản').last);
+    await pumpUntil(tester, find.text('Đổi mật khẩu'));
+    await tap(tester, find.text('Đổi mật khẩu'));
+    await pumpUntil(tester, find.byKey(const Key('cp_current')));
+    await type(tester, const Key('cp_current'), password);
+    await type(tester, const Key('cp_new'), newPassword);
+    await type(tester, const Key('cp_confirm'), newPassword);
+    await tap(tester, find.text('Cập nhật mật khẩu'));
+    await pumpUntil(tester, find.text('Đăng nhập'), what: 'về màn Chào mừng sau đổi mật khẩu');
+    await shot(tester, '36_after_password_change');
+    await tap(tester, find.text('Đăng nhập').first);
+    await pumpUntil(tester, find.byKey(const Key('login_identifier')));
+    await type(tester, const Key('login_identifier'), phone);
+    await type(tester, const Key('login_password'), password);
+    await tap(tester, find.byType(AuthSubmitButton));
+    await pumpUntil(tester, find.textContaining('không đúng'), what: 'từ chối mật khẩu cũ');
+    await type(tester, const Key('login_password'), newPassword);
+    await tap(tester, find.byType(AuthSubmitButton));
+    await pumpUntil(tester, find.byKey(const Key('home_greeting')),
+        what: 'đăng nhập bằng mật khẩu mới');
+    await shot(tester, '37_login_new_password');
   });
 }

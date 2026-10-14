@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../shared/widgets/shimmer_loading_widget.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../shared/widgets/empty_data_widget.dart';
 import '../../../shared/widgets/error_retry_widget.dart';
@@ -102,7 +103,17 @@ class _SessionsScreenState extends ConsumerState<SessionsScreen> {
       appBar: AppBar(title: const Text('Thiết bị đăng nhập')),
       body: sessions.when(
         skipLoadingOnRefresh: true,
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => ListView(
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          children: const [
+            ShimmerLoadingWidget(height: 110, borderRadius: 18),
+            SizedBox(height: 12),
+            ShimmerLoadingWidget(height: 200, borderRadius: 18),
+            SizedBox(height: 12),
+            ShimmerLoadingWidget(height: 120, borderRadius: 18),
+          ],
+        ),
         error: (e, _) => ErrorRetryWidget(
             error: e, onRetry: () => ref.invalidate(authSessionsProvider)),
         data: (list) {
@@ -193,9 +204,14 @@ class _SessionCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: s.isCurrent ? AppColors.primary : AppColors.borderSubtle),
+        borderRadius: BorderRadius.circular(18),
+        border: s.isCurrent ? Border.all(color: AppColors.primary, width: 1.5) : null,
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.045),
+              blurRadius: 14,
+              offset: const Offset(0, 4)),
+        ],
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -205,7 +221,7 @@ class _SessionCard extends StatelessWidget {
             height: 44,
             decoration: BoxDecoration(
               color: s.isCurrent ? AppColors.primaryLight : AppColors.surfaceSubtle,
-              borderRadius: BorderRadius.circular(10),
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Icon(
               s.isCurrent ? Icons.smartphone : Icons.devices_other_outlined,

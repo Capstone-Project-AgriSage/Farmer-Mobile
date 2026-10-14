@@ -222,8 +222,7 @@ class _SimulatedBox extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: AppColors.statusWarningSurface,
-        borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.statusWarning.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         children: [

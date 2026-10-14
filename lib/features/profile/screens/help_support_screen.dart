@@ -51,12 +51,24 @@ class HelpSupportScreen extends StatelessWidget {
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
                 color: Colors.white,
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: AppColors.borderSubtle),
+                borderRadius: BorderRadius.circular(20),
+                boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.045),
+              blurRadius: 14,
+              offset: const Offset(0, 4)),
+        ],
               ),
               child: Column(
                 children: [
-                  const Icon(Icons.storefront_outlined, size: 48, color: AppColors.primary),
+                  Container(
+                    width: 64,
+                    height: 64,
+                    decoration: const BoxDecoration(
+                        color: AppColors.primaryLight, shape: BoxShape.circle),
+                    child: const Icon(Icons.storefront_outlined,
+                        size: 32, color: AppColors.primary),
+                  ),
                   const SizedBox(height: 16),
                   Text('Cần hỗ trợ trực tiếp?', style: AppTextStyles.h3, textAlign: TextAlign.center),
                   const SizedBox(height: 8),
@@ -72,9 +84,7 @@ class HelpSupportScreen extends StatelessWidget {
             const SizedBox(height: 32),
             Padding(
               padding: const EdgeInsets.only(left: 8, bottom: 12),
-              child: Text('CÂU HỎI THƯỜNG GẶP',
-                  style: AppTextStyles.caption
-                      .copyWith(fontWeight: FontWeight.bold, color: AppColors.textMuted)),
+              child: Text('Câu hỏi thường gặp', style: AppTextStyles.h4.copyWith(fontSize: 15)),
             ),
             for (final (q, a) in faq) _buildFaqItem(q, a),
             const SizedBox(height: 24),
@@ -89,8 +99,13 @@ class HelpSupportScreen extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderSubtle),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.045),
+              blurRadius: 14,
+              offset: const Offset(0, 4)),
+        ],
       ),
       child: ExpansionTile(
         title: Text(question, style: AppTextStyles.labelLarge),

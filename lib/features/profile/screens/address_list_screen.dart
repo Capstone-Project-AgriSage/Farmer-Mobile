@@ -178,9 +178,14 @@ class _AddressCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-            color: a.isDefault ? AppColors.primary : AppColors.borderSubtle),
+        borderRadius: BorderRadius.circular(18),
+        border: a.isDefault ? Border.all(color: AppColors.primary, width: 1.5) : null,
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.045),
+              blurRadius: 14,
+              offset: const Offset(0, 4)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

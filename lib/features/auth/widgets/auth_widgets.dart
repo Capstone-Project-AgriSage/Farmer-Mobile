@@ -19,7 +19,7 @@ class AuthBanner extends StatelessWidget {
         color: isError
             ? AppColors.statusErrorSurface
             : AppColors.statusSuccessSurface,
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(14),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

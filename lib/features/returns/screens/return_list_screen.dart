@@ -136,24 +136,41 @@ class _ReturnCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      key: Key('return_${item.id}'),
-      borderRadius: BorderRadius.circular(12),
-      onTap: () => context.push('/returns/${item.id}'),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.borderSubtle),
-        ),
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.045),
+              blurRadius: 14,
+              offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          key: Key('return_${item.id}'),
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => context.push('/returns/${item.id}'),
+          child: Padding(
+        padding: const EdgeInsets.all(14),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
-                const Icon(Icons.assignment_return_outlined, size: 20, color: AppColors.primary),
-                const SizedBox(width: 8),
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: AppColors.primaryLight,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: const Icon(Icons.assignment_return_outlined,
+                      size: 20, color: AppColors.primary),
+                ),
+                const SizedBox(width: 10),
                 Expanded(
                   child: Text(item.returnNumber,
                       maxLines: 1,
@@ -182,6 +199,8 @@ class _ReturnCard extends StatelessWidget {
               ],
             ),
           ],
+        ),
+          ),
         ),
       ),
     );

@@ -8,6 +8,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/utils/money.dart';
 import '../../../router/app_router.dart';
 import '../../../shared/widgets/error_retry_widget.dart';
+import '../../../shared/widgets/shimmer_loading_widget.dart';
 import '../../orders/data/order_models.dart';
 import '../../orders/providers/order_providers.dart';
 import '../../orders/widgets/order_widgets.dart';
@@ -74,7 +75,17 @@ class _ReturnDetailScreenState extends ConsumerState<ReturnDetailScreen> {
       ),
       body: detail.when(
         skipLoadingOnRefresh: true,
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => ListView(
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          children: const [
+            ShimmerLoadingWidget(height: 110, borderRadius: 18),
+            SizedBox(height: 12),
+            ShimmerLoadingWidget(height: 200, borderRadius: 18),
+            SizedBox(height: 12),
+            ShimmerLoadingWidget(height: 120, borderRadius: 18),
+          ],
+        ),
         error: (e, _) => ErrorRetryWidget(
             error: e, onRetry: () => ref.invalidate(returnDetailProvider(widget.returnId))),
         data: (r) => RefreshIndicator(
@@ -125,9 +136,15 @@ class _ReturnDetailScreenState extends ConsumerState<ReturnDetailScreen> {
       bottomNavigationBar: d != null && d.canCancel
           ? Container(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              decoration: const BoxDecoration(
+decoration: BoxDecoration(
                 color: Colors.white,
-                border: Border(top: BorderSide(color: AppColors.borderSubtle)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 20,
+                      offset: const Offset(0, -6)),
+                ],
               ),
               child: SafeArea(
                 top: false,
@@ -139,6 +156,7 @@ class _ReturnDetailScreenState extends ConsumerState<ReturnDetailScreen> {
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.statusError,
                       side: const BorderSide(color: AppColors.statusError),
+                      minimumSize: const Size.fromHeight(52),
                     ),
                     child: _cancelling
                         ? const SizedBox(
@@ -168,11 +186,10 @@ class _Header extends StatelessWidget {
     final (fg, bg) = ReturnStatus.colors(detail.status);
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
         color: bg,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: fg.withValues(alpha: 0.3)),
+        borderRadius: BorderRadius.circular(20),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

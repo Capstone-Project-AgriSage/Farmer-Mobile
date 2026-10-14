@@ -24,17 +24,27 @@ class WelcomeScreen extends StatelessWidget {
                 width: 140,
                 height: 140,
                 decoration: BoxDecoration(
-                  color: AppColors.primaryLight,
-                  borderRadius: BorderRadius.circular(32),
+                  gradient: const LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [AppColors.primaryDark, AppColors.primary],
+                  ),
+                  borderRadius: BorderRadius.circular(40),
+                  boxShadow: [
+                    BoxShadow(
+                        color: AppColors.primary.withValues(alpha: 0.3),
+                        blurRadius: 24,
+                        offset: const Offset(0, 10)),
+                  ],
                 ),
-                child: const Icon(Icons.eco, size: 80, color: AppColors.primary),
+                child: const Icon(Icons.eco_rounded, size: 76, color: Colors.white),
               ),
               const SizedBox(height: 32),
 
               Text('Chào mừng đến\nAgriSage', textAlign: TextAlign.center, style: AppTextStyles.h1),
               const SizedBox(height: 12),
               Text(
-                'Hệ sinh thái nông nghiệp số — mua vật tư,\nchẩn đoán bệnh cây, quản lý công nợ.',
+                'Hệ sinh thái nông nghiệp số — mua vật tư, chẩn đoán bệnh cây, quản lý công nợ.',
                 textAlign: TextAlign.center,
                 style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textSecondary, height: 1.7),
               ),

@@ -75,10 +75,10 @@ class ReturnTimeline extends StatelessWidget {
 
   Widget _row(String label, DateTime? at, _State state, {bool last = false}) {
     final (icon, color) = switch (state) {
-      _State.done => (Icons.check_circle, AppColors.statusSuccess),
-      _State.current => (Icons.radio_button_checked, AppColors.primary),
-      _State.failed => (Icons.cancel, AppColors.statusError),
-      _State.todo => (Icons.radio_button_unchecked, AppColors.borderStrong),
+      _State.done => (Icons.check_circle_rounded, AppColors.statusSuccess),
+      _State.current => (Icons.radio_button_checked_rounded, AppColors.primary),
+      _State.failed => (Icons.cancel_rounded, AppColors.statusError),
+      _State.todo => (Icons.radio_button_unchecked_rounded, AppColors.borderStrong),
     };
     return IntrinsicHeight(
       child: Row(

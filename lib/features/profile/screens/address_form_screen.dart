@@ -198,6 +198,7 @@ class _AddressFormState extends ConsumerState<_AddressForm> {
                           label: Text(AddressType.label(t)),
                           selected: _type == t,
                           selectedColor: AppColors.primaryLight,
+                          shape: const StadiumBorder(),
                           onSelected: (_) => setState(() => _type = t),
                         ),
                     ],
@@ -207,8 +208,13 @@ class _AddressFormState extends ConsumerState<_AddressForm> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.borderSubtle),
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.045),
+              blurRadius: 14,
+              offset: const Offset(0, 4)),
+        ],
                     ),
                     child: Row(
                       children: [

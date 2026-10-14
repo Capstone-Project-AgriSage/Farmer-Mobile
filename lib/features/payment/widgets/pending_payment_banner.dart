@@ -24,8 +24,7 @@ class PendingPaymentBanner extends ConsumerWidget {
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: AppColors.statusWarningSurface,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.statusWarning.withValues(alpha: 0.4)),
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
