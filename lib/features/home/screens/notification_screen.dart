@@ -72,6 +72,9 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
       backgroundColor: AppColors.surfaceSubtle,
       appBar: AppBar(
         title: const Text('Thông báo'),
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
         actions: [
           IconButton(
             key: const Key('notif_read_all'),
@@ -85,10 +88,20 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
       body: Column(
         children: [
           Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6)),
+              ],
+            ),
+            padding: const EdgeInsets.only(top: 4, bottom: 14),
             child: SizedBox(
-              height: 36,
+              // Cao theo cỡ chữ hệ thống để chữ to không bị cắt.
+              height: MediaQuery.textScalerOf(context).scale(20) + 20,
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 scrollDirection: Axis.horizontal,
@@ -97,17 +110,29 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
                 itemBuilder: (_, i) {
                   final s = NotificationStatus.filters[i];
                   final active = s == state.status;
-                  return ChoiceChip(
+                  return Material(
                     key: Key('notif_filter_${s ?? 'all'}'),
-                    label: Text(NotificationStatus.label(s)),
-                    selected: active,
-                    showCheckmark: false,
-                    selectedColor: AppColors.primaryDark,
-                    labelStyle: AppTextStyles.bodySmall.copyWith(
-                      color: active ? Colors.white : AppColors.textSecondary,
-                      fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                    color: active ? AppColors.primary : AppColors.surface,
+                    shape: StadiumBorder(
+                      side: BorderSide(
+                          color: active ? AppColors.primary : AppColors.borderSubtle),
                     ),
-                    onSelected: (_) => notifier.setStatus(s),
+                    child: InkWell(
+                      customBorder: const StadiumBorder(),
+                      onTap: () => notifier.setStatus(s),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Center(
+                          widthFactor: 1,
+                          child: Text(NotificationStatus.label(s),
+                              style: AppTextStyles.bodySmall.copyWith(
+                                fontSize: 13,
+                                color: active ? Colors.white : AppColors.textSecondary,
+                                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                              )),
+                        ),
+                      ),
+                    ),
                   );
                 },
               ),
@@ -153,26 +178,29 @@ class _NotificationScreenState extends ConsumerState<NotificationScreen> {
       child: ListView.separated(
         controller: _scroll,
         physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
         itemCount: state.items.length + 1,
-        separatorBuilder: (_, __) =>
-            const Divider(height: 1, color: AppColors.borderSubtle),
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (_, i) {
           if (i == state.items.length) return _footer(state, notifier);
           final n = state.items[i];
-          return Dismissible(
-            key: ValueKey(n.id),
-            direction: DismissDirection.endToStart,
-            background: Container(
-              color: AppColors.statusError,
-              alignment: Alignment.centerRight,
-              padding: const EdgeInsets.only(right: 20),
-              child: const Icon(Icons.delete_outline, color: Colors.white),
-            ),
-            onDismissed: (_) => _archive(n),
-            child: _NotificationItem(
-              notification: n,
-              onTap: () => _open(n),
-              onDelete: () => _archive(n),
+          return ClipRRect(
+            borderRadius: BorderRadius.circular(18),
+            child: Dismissible(
+              key: ValueKey(n.id),
+              direction: DismissDirection.endToStart,
+              background: Container(
+                color: AppColors.statusError,
+                alignment: Alignment.centerRight,
+                padding: const EdgeInsets.only(right: 20),
+                child: const Icon(Icons.delete_outline, color: Colors.white),
+              ),
+              onDismissed: (_) => _archive(n),
+              child: _NotificationItem(
+                notification: n,
+                onTap: () => _open(n),
+                onDelete: () => _archive(n),
+              ),
             ),
           );
         },
@@ -224,12 +252,13 @@ class _NotificationItem extends StatelessWidget {
   Widget build(BuildContext context) {
     final n = notification;
     final color = n.kind.color;
-    return InkWell(
+    return Material(
+      color: n.isRead ? Colors.white : const Color(0xFFEFF9EF),
+      child: InkWell(
       key: Key('notif_${n.id}'),
       onTap: onTap,
-      child: Container(
-        color: n.isRead ? Colors.white : const Color(0xFFF0FDF4),
-        padding: const EdgeInsets.fromLTRB(16, 16, 4, 16),
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(14, 14, 4, 14),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -237,8 +266,8 @@ class _NotificationItem extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.1),
-                shape: BoxShape.circle,
+                color: color.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(n.kind.icon, color: color, size: 22),
             ),
@@ -299,6 +328,7 @@ class _NotificationItem extends StatelessWidget {
             ),
           ],
         ),
+      ),
       ),
     );
   }

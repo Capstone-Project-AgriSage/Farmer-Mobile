@@ -21,7 +21,12 @@ class EditProfileScreen extends ConsumerWidget {
     final profile = ref.watch(profileProvider);
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
-      appBar: AppBar(title: const Text('Thông tin cá nhân')),
+      appBar: AppBar(
+        title: const Text('Thông tin cá nhân'),
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+      ),
       body: profile.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ErrorRetryWidget(
