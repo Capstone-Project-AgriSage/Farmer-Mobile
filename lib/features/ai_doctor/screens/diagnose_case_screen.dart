@@ -10,6 +10,7 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../router/app_router.dart';
 import '../../../shared/widgets/error_retry_widget.dart';
+import '../../../shared/widgets/shimmer_loading_widget.dart';
 import '../../orders/widgets/order_widgets.dart';
 import '../data/diagnosis_models.dart';
 import '../data/diagnosis_repository.dart';
@@ -125,10 +126,23 @@ class _DiagnoseCaseScreenState extends ConsumerState<DiagnoseCaseScreen>
               context.canPop() ? context.pop() : context.go(AppRoutes.diagnoseHistory),
         ),
         title: const Text('Chi tiết chẩn đoán'),
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
       ),
       body: detail.when(
         skipLoadingOnRefresh: true,
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => ListView(
+          physics: const NeverScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(16),
+          children: const [
+            ShimmerLoadingWidget(height: 220, borderRadius: 20),
+            SizedBox(height: 12),
+            ShimmerLoadingWidget(height: 72, borderRadius: 18),
+            SizedBox(height: 12),
+            ShimmerLoadingWidget(height: 160, borderRadius: 18),
+          ],
+        ),
         error: (e, _) => ErrorRetryWidget(
             error: e,
             onRetry: () => ref.invalidate(diagnosisDetailProvider(widget.caseId))),
@@ -166,9 +180,15 @@ class _DiagnoseCaseScreenState extends ConsumerState<DiagnoseCaseScreen>
       bottomNavigationBar: c != null && c.canCancel
           ? Container(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: Colors.white,
-                border: Border(top: BorderSide(color: AppColors.borderSubtle)),
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                boxShadow: [
+                  BoxShadow(
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 20,
+                      offset: const Offset(0, -6)),
+                ],
               ),
               child: SafeArea(
                 top: false,
@@ -180,6 +200,7 @@ class _DiagnoseCaseScreenState extends ConsumerState<DiagnoseCaseScreen>
                     style: OutlinedButton.styleFrom(
                       foregroundColor: AppColors.statusError,
                       side: const BorderSide(color: AppColors.statusError),
+                      minimumSize: const Size.fromHeight(52),
                     ),
                     child: _cancelling
                         ? const SizedBox(
@@ -205,14 +226,29 @@ class _Header extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderSubtle),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.045),
+              blurRadius: 14,
+              offset: const Offset(0, 4)),
+        ],
       ),
       child: Row(
         children: [
+          Container(
+            width: 44,
+            height: 44,
+            decoration: BoxDecoration(
+              color: AppColors.primaryLight,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const Icon(Icons.local_florist_outlined, color: AppColors.primary),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -271,10 +307,10 @@ class _Step extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (icon, color) = done
-        ? (Icons.check_circle, AppColors.statusSuccess)
+        ? (Icons.check_circle_rounded, AppColors.statusSuccess)
         : current
-            ? (Icons.radio_button_checked, AppColors.primary)
-            : (Icons.radio_button_unchecked, AppColors.borderStrong);
+            ? (Icons.radio_button_checked_rounded, AppColors.primary)
+            : (Icons.radio_button_unchecked_rounded, AppColors.borderStrong);
     return Padding(
       padding: EdgeInsets.only(bottom: last ? 0 : 10),
       child: Row(
@@ -373,17 +409,24 @@ class _ResultView extends StatelessWidget {
       children: [
         Container(
           key: const Key('case_result'),
-          padding: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(18),
           decoration: BoxDecoration(
             color: bg,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: color.withValues(alpha: 0.3)),
+            borderRadius: BorderRadius.circular(20),
           ),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Chuyên gia kết luận',
-                  style: AppTextStyles.caption.copyWith(color: color)),
+              Row(
+                children: [
+                  Icon(d.isHealthy ? Icons.verified_rounded : Icons.coronavirus_outlined,
+                      size: 18, color: color),
+                  const SizedBox(width: 6),
+                  Text('Chuyên gia kết luận',
+                      style: AppTextStyles.caption
+                          .copyWith(color: color, fontWeight: FontWeight.w700)),
+                ],
+              ),
               const SizedBox(height: 4),
               Text(d.displayName,
                   key: const Key('case_disease'),
@@ -457,10 +500,10 @@ class _ResultView extends StatelessWidget {
         if (result.treatments.isNotEmpty || result.products.isNotEmpty) ...[
           const SizedBox(height: 12),
           Container(
-          padding: const EdgeInsets.all(12),
+          padding: const EdgeInsets.all(14),
           decoration: BoxDecoration(
             color: const Color(0xFFFFF8E1),
-            borderRadius: BorderRadius.circular(10),
+            borderRadius: BorderRadius.circular(14),
           ),
           child: Text(
             'Hãy đọc kỹ hướng dẫn và liên hệ cửa hàng khi cần thêm tư vấn trước khi dùng thuốc.',
@@ -536,7 +579,7 @@ class _ProductTile extends StatelessWidget {
         child: Row(
           children: [
             ClipRRect(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(12),
               child: SizedBox(
                 width: 56,
                 height: 56,

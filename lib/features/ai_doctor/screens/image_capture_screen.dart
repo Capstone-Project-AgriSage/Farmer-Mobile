@@ -95,7 +95,12 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
     final photo = _photo;
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
-      appBar: AppBar(title: const Text('Chụp ảnh lá lúa')),
+      appBar: AppBar(
+        title: const Text('Chụp ảnh lá lúa'),
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+      ),
       body: Column(
         children: [
           Expanded(
@@ -111,15 +116,20 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
                       height: 280,
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(
-                          color: photo != null ? AppColors.primary : AppColors.borderSubtle,
-                          width: photo != null ? 2 : 1,
-                        ),
+                        borderRadius: BorderRadius.circular(24),
+                        border: photo != null
+                            ? Border.all(color: AppColors.primary, width: 2)
+                            : null,
+                        boxShadow: [
+                          BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.045),
+                              blurRadius: 14,
+                              offset: const Offset(0, 4)),
+                        ],
                       ),
                       child: photo != null
                           ? ClipRRect(
-                              borderRadius: BorderRadius.circular(14),
+                              borderRadius: BorderRadius.circular(22),
                               child: Stack(
                                 fit: StackFit.expand,
                                 children: [
@@ -212,7 +222,7 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
                           key: const Key('cap_camera'),
                           icon: Icons.camera_alt,
                           label: 'Chụp ảnh mới',
-                          color: const Color(0xFF6A1B9A),
+                          color: AppColors.primary,
                           onTap: () => _pick(PhotoSource.camera),
                         ),
                       ),
@@ -235,7 +245,7 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
                       padding: const EdgeInsets.all(12),
                       decoration: BoxDecoration(
                         color: AppColors.statusErrorSurface,
-                        borderRadius: BorderRadius.circular(10),
+                        borderRadius: BorderRadius.circular(14),
                       ),
                       child: Text(_error!,
                           style: AppTextStyles.bodySmall
@@ -259,8 +269,13 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
                     padding: const EdgeInsets.all(16),
                     decoration: BoxDecoration(
                       color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: AppColors.borderSubtle),
+                      borderRadius: BorderRadius.circular(18),
+                      boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.045),
+              blurRadius: 14,
+              offset: const Offset(0, 4)),
+        ],
                     ),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -296,11 +311,10 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
                   ),
                   const SizedBox(height: 16),
                   Container(
-                    padding: const EdgeInsets.all(12),
+                    padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
                       color: const Color(0xFFFFF8E1),
-                      borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: const Color(0xFFFFE082)),
+                      borderRadius: BorderRadius.circular(14),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,11 +342,12 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
               decoration: BoxDecoration(
                 color: Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                 boxShadow: [
                   BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, -4))
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 20,
+                      offset: const Offset(0, -6))
                 ],
               ),
               child: SafeArea(
@@ -350,10 +365,7 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
                                 strokeWidth: 2, color: Colors.white))
                         : const Icon(Icons.send, size: 20),
                     label: Text(_sending ? 'Đang gửi ảnh...' : 'Gửi ảnh cho chuyên gia'),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6A1B9A),
-                      foregroundColor: Colors.white,
-                    ),
+                    style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
                   ),
                 ),
               ),
@@ -378,18 +390,24 @@ class _ActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Material(
-      color: Colors.white,
-      borderRadius: BorderRadius.circular(12),
-      child: InkWell(
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.045),
+              blurRadius: 14,
+              offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(18),
         child: Container(
           padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: AppColors.borderSubtle),
-          ),
           child: Column(
             children: [
               Container(
@@ -397,14 +415,17 @@ class _ActionButton extends StatelessWidget {
                 height: 44,
                 decoration: BoxDecoration(
                   color: color.withValues(alpha: 0.1),
-                  shape: BoxShape.circle,
+                  borderRadius: BorderRadius.circular(14),
                 ),
                 child: Icon(icon, color: color, size: 22),
               ),
               const SizedBox(height: 8),
-              Text(label, style: AppTextStyles.labelLarge.copyWith(fontSize: 12)),
+              Text(label,
+                  textAlign: TextAlign.center,
+                  style: AppTextStyles.labelLarge.copyWith(fontSize: 12)),
             ],
           ),
+        ),
         ),
       ),
     );

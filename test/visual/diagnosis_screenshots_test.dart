@@ -88,6 +88,11 @@ void main() {
         await shoot(tester, '${tag}_diag_capture_badtype');
       });
 
+      testWidgets('màn chính', (tester) async {
+        await open(tester, '/ai-scan');
+        await shoot(tester, '${tag}_diag_home');
+      });
+
       testWidgets('lịch sử', (tester) async {
         await open(tester, '/ai-scan/history');
         await shoot(tester, '${tag}_diag_history');

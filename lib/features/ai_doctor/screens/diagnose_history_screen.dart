@@ -48,14 +48,29 @@ class _DiagnoseHistoryScreenState extends ConsumerState<DiagnoseHistoryScreen> {
 
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
-      appBar: AppBar(title: const Text('Lịch sử khám cây')),
+      appBar: AppBar(
+        title: const Text('Lịch sử khám cây'),
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+      ),
       body: Column(
         children: [
           Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6)),
+              ],
+            ),
+            padding: const EdgeInsets.only(top: 4, bottom: 14),
             child: SizedBox(
-              height: 36,
+              // Cao theo cỡ chữ hệ thống để chữ to không bị cắt.
+              height: MediaQuery.textScalerOf(context).scale(20) + 20,
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 scrollDirection: Axis.horizontal,
@@ -64,17 +79,29 @@ class _DiagnoseHistoryScreenState extends ConsumerState<DiagnoseHistoryScreen> {
                 itemBuilder: (_, i) {
                   final s = DiagnosisStatus.filters[i];
                   final active = s == state.status;
-                  return ChoiceChip(
+                  return Material(
                     key: Key('diag_filter_${s ?? 'all'}'),
-                    label: Text(DiagnosisStatus.label(s)),
-                    selected: active,
-                    showCheckmark: false,
-                    selectedColor: AppColors.primaryDark,
-                    labelStyle: AppTextStyles.bodySmall.copyWith(
-                      color: active ? Colors.white : AppColors.textSecondary,
-                      fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                    color: active ? AppColors.primary : AppColors.surface,
+                    shape: StadiumBorder(
+                      side: BorderSide(
+                          color: active ? AppColors.primary : AppColors.borderSubtle),
                     ),
-                    onSelected: (_) => notifier.setStatus(s),
+                    child: InkWell(
+                      customBorder: const StadiumBorder(),
+                      onTap: () => notifier.setStatus(s),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Center(
+                          widthFactor: 1,
+                          child: Text(DiagnosisStatus.label(s),
+                              style: AppTextStyles.bodySmall.copyWith(
+                                fontSize: 13,
+                                color: active ? Colors.white : AppColors.textSecondary,
+                                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                              )),
+                        ),
+                      ),
+                    ),
                   );
                 },
               ),
@@ -125,7 +152,7 @@ class _DiagnoseHistoryScreenState extends ConsumerState<DiagnoseHistoryScreen> {
         physics: const AlwaysScrollableScrollPhysics(),
         padding: const EdgeInsets.all(16),
         itemCount: state.items.length + 1,
-        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
         itemBuilder: (_, i) {
           if (i == state.items.length) return _footer(state, notifier);
           return _HistoryCard(item: state.items[i]);
@@ -174,17 +201,25 @@ class _HistoryCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final verified = item.status == DiagnosisStatus.verified;
-    return InkWell(
-      key: Key('diag_${item.id}'),
-      borderRadius: BorderRadius.circular(12),
-      onTap: () => context.push('/ai-scan/case/${item.id}'),
-      child: Container(
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.045),
+              blurRadius: 14,
+              offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          key: Key('diag_${item.id}'),
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => context.push('/ai-scan/case/${item.id}'),
+          child: Padding(
         padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.borderSubtle),
-        ),
         child: Row(
           children: [
             Container(
@@ -192,7 +227,7 @@ class _HistoryCard extends StatelessWidget {
               height: 44,
               decoration: BoxDecoration(
                 color: verified ? AppColors.statusSuccessSurface : AppColors.surfaceSubtle,
-                borderRadius: BorderRadius.circular(10),
+                borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(
                 verified ? Icons.eco : Icons.local_florist_outlined,
@@ -226,8 +261,10 @@ class _HistoryCard extends StatelessWidget {
                 ],
               ),
             ),
-            const Icon(Icons.chevron_right, color: AppColors.textMuted),
+            const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
           ],
+        ),
+          ),
         ),
       ),
     );
