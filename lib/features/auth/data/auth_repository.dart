@@ -180,6 +180,23 @@ class AuthRepository {
         },
       );
 
+  /// Kiểm tra mã 6 số của SMS mà KHÔNG dùng nó (204 đúng, 422 sai/hết hạn).
+  /// Mã sai vẫn tốn một trong 5 lượt thử; lần đặt lại sau đó gửi lại mã và là
+  /// lần quyết định.
+  Future<void> verifyResetCode(String identifier, String code) => apiCall(
+        () => _dio.post<void>(
+          '/api/auth/reset-password/verify-code',
+          data: {
+            'identifier':
+                AuthValidators.normalizePhone(identifier) ?? identifier.trim(),
+            'code': code.trim(),
+          },
+        ),
+        messages: {
+          422: 'Mã xác nhận không đúng hoặc đã hết hạn.',
+        },
+      );
+
   Future<void> requestPhoneVerification() => apiCall(
         () => _dio.post<void>('/api/auth/phone-verification/request'),
         messages: {

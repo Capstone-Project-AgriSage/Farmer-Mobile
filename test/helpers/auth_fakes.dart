@@ -120,6 +120,7 @@ class FakeAuthRepository extends AuthRepository {
   Future<void> Function()? onChangePassword;
   Future<void> Function()? onForgot;
   Future<void> Function()? onReset;
+  Future<void> Function()? onVerifyCode;
   Future<void> Function()? onRequestPhone;
   Future<void> Function()? onConfirmPhone;
   Future<void> Function()? onRequestEmail;
@@ -132,6 +133,8 @@ class FakeAuthRepository extends AuthRepository {
   String? lastResetToken;
   String? lastResetCodeIdentifier;
   String? lastResetCode;
+  String? lastVerifyIdentifier;
+  String? lastVerifyCode;
   String? lastLogoutToken;
 
   @override
@@ -223,6 +226,14 @@ class FakeAuthRepository extends AuthRepository {
     lastResetCodeIdentifier = identifier;
     lastResetCode = code;
     return onReset?.call() ?? Future.value();
+  }
+
+  @override
+  Future<void> verifyResetCode(String identifier, String code) {
+    calls.add('verifyResetCode');
+    lastVerifyIdentifier = identifier;
+    lastVerifyCode = code;
+    return onVerifyCode?.call() ?? Future.value();
   }
 
   @override

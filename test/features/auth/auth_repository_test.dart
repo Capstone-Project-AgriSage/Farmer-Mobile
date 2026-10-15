@@ -206,6 +206,28 @@ void main() {
     });
   });
 
+  group('kiểm tra mã đặt lại (chưa đặt mật khẩu)', () {
+    test('gửi identifier (chuẩn hoá 0xxxxxxxxx) + code tới verify-code', () async {
+      useAdapter((o) => emptyBody(204));
+      await repo.verifyResetCode(' +84 912 345 678 ', ' 123456 ');
+      expect(adapter.requests.single.path, '/api/auth/reset-password/verify-code');
+      expect(adapter.requests.single.data, {
+        'identifier': '0912345678',
+        'code': '123456',
+      });
+    });
+
+    test('422 = mã sai/hết hạn/số lạ', () async {
+      useAdapter((o) => jsonBody(422, problem(422, 'The verification token is invalid or expired.')));
+      await expectLater(
+        repo.verifyResetCode('0912345678', '123456'),
+        throwsA(isA<ApiException>()
+            .having((e) => e.statusCode, 'statusCode', 422)
+            .having((e) => e.message, 'message', contains('không đúng hoặc đã hết hạn'))),
+      );
+    });
+  });
+
   group('xác minh', () {
     test('phone confirm gửi {code}', () async {
       useAdapter((o) => emptyBody(204));
