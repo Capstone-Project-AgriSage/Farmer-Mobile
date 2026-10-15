@@ -32,7 +32,9 @@ class OrderConfirmScreen extends ConsumerStatefulWidget {
 }
 
 class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
-  String _fulfillment = FulfillmentType.delivery;
+  /// Đặt online luôn là giao tận nơi (như web): nhận tại cửa hàng là bán tại quầy do cửa hàng tạo,
+  /// không phải lựa chọn của nông dân khi đặt online.
+  static const _fulfillment = FulfillmentType.delivery;
   String _settlement = SettlementType.full;
 
   /// null = dùng địa chỉ mặc định.
@@ -197,14 +199,13 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
     final credit = ref.watch(myCreditProvider);
     final cart = cartAsync.valueOrNull;
 
-    final isDelivery = _fulfillment == FulfillmentType.delivery;
     final address = _selectedAddress(addresses.valueOrNull ?? const []);
     final total = cart?.subtotal ?? 0;
     final creditBlocker = _creditBlocker(credit, total);
     final settlement = _resolveSettlement(credit, total);
     final canSubmit = cart != null &&
         cart.canCheckout &&
-        (!isDelivery || address != null) &&
+        address != null &&
         _agreed &&
         !_submitting;
 
@@ -246,92 +247,75 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
                     SectionCard(
                       icon: Icons.local_shipping_outlined,
                       title: 'Hình thức nhận hàng',
-                      child: Column(
-                        children: [
-                          _OptionTile(
-                            key: const Key('opt_delivery'),
-                            icon: Icons.local_shipping_outlined,
-                            selected: isDelivery,
-                            title: FulfillmentType.label(FulfillmentType.delivery),
-                            subtitle: 'Cửa hàng giao đến địa chỉ của bạn.',
-                            onTap: () => setState(
-                                () => _fulfillment = FulfillmentType.delivery),
-                          ),
-                          const SizedBox(height: 8),
-                          _OptionTile(
-                            key: const Key('opt_pickup'),
-                            icon: Icons.storefront_outlined,
-                            selected: !isDelivery,
-                            title: FulfillmentType.label(FulfillmentType.pickup),
-                            subtitle: 'Bạn tự đến cửa hàng lấy hàng.',
-                            onTap: () => setState(
-                                () => _fulfillment = FulfillmentType.pickup),
-                          ),
-                        ],
+                      child: _OptionTile(
+                        key: const Key('opt_delivery'),
+                        icon: Icons.local_shipping_outlined,
+                        selected: true,
+                        title: FulfillmentType.label(FulfillmentType.delivery),
+                        subtitle: 'Cửa hàng giao đến địa chỉ của bạn.',
+                        onTap: () {},
                       ),
                     ),
-                    if (isDelivery) ...[
-                      const SizedBox(height: 12),
-                      SectionCard(
-                        icon: Icons.location_on_outlined,
-                        title: 'Địa chỉ nhận hàng',
-                        trailing: (addresses.valueOrNull?.isNotEmpty ?? false)
-                            ? TextButton(
-                                style: TextButton.styleFrom(
-                                    minimumSize: Size.zero,
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                                key: const Key('address_change'),
-                                onPressed: () =>
-                                    _pickAddress(addresses.valueOrNull!),
-                                child: Text(address == null ? 'Chọn' : 'Thay đổi'),
-                              )
-                            : null,
-                        child: addresses.when(
-                          loading: () => const Padding(
-                            padding: EdgeInsets.all(8),
-                            child: Center(
-                                child: SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2))),
-                          ),
-                          error: (e, _) => Row(
-                            children: [
-                              Expanded(
-                                  child: Text(ApiException.from(e).message,
-                                      style: AppTextStyles.bodySmall)),
-                              TextButton(
-                                onPressed: () => ref.invalidate(addressesProvider),
-                                child: const Text('Thử lại'),
-                              ),
-                            ],
-                          ),
-                          data: (list) => list.isEmpty
-                              ? Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Bạn chưa có địa chỉ nhận hàng.',
-                                        style: AppTextStyles.bodySmall),
-                                    const SizedBox(height: 8),
-                                    OutlinedButton.icon(
-                                      key: const Key('address_add_first'),
-                                      onPressed: () => context
-                                          .push('${AppRoutes.profile}/addresses/add'),
-                                      icon: const Icon(Icons.add),
-                                      label: const Text('Thêm địa chỉ'),
-                                    ),
-                                  ],
-                                )
-                              : address == null
-                                  ? Text('Chưa chọn địa chỉ. Bấm "Chọn" để chọn địa chỉ nhận hàng.',
-                                      key: const Key('address_none'),
-                                      style: AppTextStyles.bodySmall
-                                          .copyWith(color: AppColors.statusWarning))
-                                  : _AddressView(address),
+                    const SizedBox(height: 12),
+                    SectionCard(
+                      icon: Icons.location_on_outlined,
+                      title: 'Địa chỉ nhận hàng',
+                      trailing: (addresses.valueOrNull?.isNotEmpty ?? false)
+                          ? TextButton(
+                              style: TextButton.styleFrom(
+                                  minimumSize: Size.zero,
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                              key: const Key('address_change'),
+                              onPressed: () =>
+                                  _pickAddress(addresses.valueOrNull!),
+                              child: Text(address == null ? 'Chọn' : 'Thay đổi'),
+                            )
+                          : null,
+                      child: addresses.when(
+                        loading: () => const Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Center(
+                              child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2))),
                         ),
+                        error: (e, _) => Row(
+                          children: [
+                            Expanded(
+                                child: Text(ApiException.from(e).message,
+                                    style: AppTextStyles.bodySmall)),
+                            TextButton(
+                              onPressed: () => ref.invalidate(addressesProvider),
+                              child: const Text('Thử lại'),
+                            ),
+                          ],
+                        ),
+                        data: (list) => list.isEmpty
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Bạn chưa có địa chỉ nhận hàng.',
+                                      style: AppTextStyles.bodySmall),
+                                  const SizedBox(height: 8),
+                                  OutlinedButton.icon(
+                                    key: const Key('address_add_first'),
+                                    onPressed: () => context
+                                        .push('${AppRoutes.profile}/addresses/add'),
+                                    icon: const Icon(Icons.add),
+                                    label: const Text('Thêm địa chỉ'),
+                                  ),
+                                ],
+                              )
+                            : address == null
+                                ? Text('Chưa chọn địa chỉ. Bấm "Chọn" để chọn địa chỉ nhận hàng.',
+                                    key: const Key('address_none'),
+                                    style: AppTextStyles.bodySmall
+                                        .copyWith(color: AppColors.statusWarning))
+                                : _AddressView(address),
                       ),
-                    ],
+                    ),
                     const SizedBox(height: 12),
                     SectionCard(
                       icon: Icons.receipt_long_outlined,
@@ -369,9 +353,8 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
                             icon: Icons.qr_code_2_rounded,
                             selected: settlement == SettlementType.full,
                             title: 'Trả ngay',
-                            subtitle: isDelivery
-                                ? 'Thanh toán online qua payOS (VietQR) ngay sau khi đặt. Cửa hàng xác nhận đơn khi đã nhận đủ tiền.'
-                                : 'Thanh toán online qua payOS, hoặc trả tiền mặt khi nhận hàng tại cửa hàng.',
+                            subtitle:
+                                'Thanh toán online qua payOS (VietQR) ngay sau khi đặt. Cửa hàng xác nhận đơn khi đã nhận đủ tiền.',
                             onTap: () => setState(
                                 () => _settlement = SettlementType.full),
                           ),

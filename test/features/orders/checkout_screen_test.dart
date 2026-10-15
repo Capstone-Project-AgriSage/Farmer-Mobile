@@ -130,21 +130,28 @@ void main() {
     expect(submitEnabled(tester), isTrue);
   });
 
-  testWidgets('nhận tại cửa hàng: ẩn địa chỉ, không cần địa chỉ, không gửi addressId', (tester) async {
-    final h = await openCheckout(tester, setup: (h) => h.profile.addresses = []);
+  testWidgets('đặt online luôn là giao tận nơi: không có lựa chọn nhận tại cửa hàng, gửi DELIVERY + địa chỉ',
+      (tester) async {
+    final h = await openCheckout(tester);
 
-    await tapKey(tester, 'opt_pickup');
-    expect(find.text('Địa chỉ nhận hàng'), findsNothing);
+    expect(find.byKey(const Key('opt_delivery')), findsOneWidget);
+    expect(find.byKey(const Key('opt_pickup')), findsNothing);
+    expect(find.text('Nhận tại cửa hàng'), findsNothing);
+    expect(find.text('Địa chỉ nhận hàng'), findsOneWidget);
+
     await agree(tester);
-    expect(submitEnabled(tester), isTrue);
-
     await tester.tap(_submit);
     await tester.pumpAndSettle();
 
-    expect(h.orders.lastCheckout?.fulfillment, 'PICKUP');
-    expect(h.orders.lastCheckout?.addressId, isNull);
-    // Nhận tại cửa hàng: không tự mở thanh toán (có thể trả tiền mặt).
-    expect(h.location, '/orders/new');
+    expect(h.orders.lastCheckout?.fulfillment, 'DELIVERY');
+    expect(h.orders.lastCheckout?.addressId, 'home');
+  });
+
+  testWidgets('chưa có địa chỉ thì không đặt được (giao tận nơi bắt buộc có địa chỉ)', (tester) async {
+    await openCheckout(tester, setup: (h) => h.profile.addresses = []);
+
+    await agree(tester);
+    expect(submitEnabled(tester), isFalse);
   });
 
   group('mua ghi nợ', () {
@@ -217,7 +224,6 @@ void main() {
   testWidgets('đang đặt: nút khoá, bấm đúp chỉ tạo một đơn', (tester) async {
     final gate = Completer<void>();
     final h = await openCheckout(tester, setup: (h) => h.orders.checkoutGate = gate.future);
-    await tapKey(tester, 'opt_pickup');
     await agree(tester);
 
     await tester.tap(_submit);

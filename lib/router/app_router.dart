@@ -322,19 +322,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: 'addresses',
                 builder: (_, __) => const AddressListScreen(),
               ),
-              GoRoute(
-                path: 'addresses/add',
-                builder: (_, __) => const AddressFormScreen(),
-              ),
-              GoRoute(
-                path: 'addresses/edit/:id',
-                builder: (_, state) => AddressFormScreen(
-                  addressId: state.pathParameters['id'],
-                ),
-              ),
             ],
           ),
         ],
+      ),
+
+      // ── Address form (outside shell) ──────────────────────────
+      // Reached from the profile (inside the shell) AND from the checkout (outside it). A route that lives inside the
+      // ShellRoute and is pushed from a page above the shell puts the shell in the stack twice and trips the navigator's
+      // duplicate-key assertion (the red screen on "Thêm địa chỉ"). Same path as before, so every caller is unchanged.
+      GoRoute(
+        path: '${AppRoutes.profile}/addresses/add',
+        builder: (_, __) => const AddressFormScreen(),
+      ),
+      GoRoute(
+        path: '${AppRoutes.profile}/addresses/edit/:id',
+        builder: (_, state) => AddressFormScreen(
+          addressId: state.pathParameters['id'],
+        ),
       ),
 
       // ── Cart & Orders (outside shell) ─────────────────────────
