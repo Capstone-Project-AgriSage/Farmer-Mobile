@@ -40,6 +40,8 @@ dependencies:
   lottie: ^3.6.1
   webview_flutter: ^4.10.0  # trang thanh toán payOS
   shared_preferences: ^2.3.3  # thanh toán payOS đang dở
+  geolocator: ^14.0.2
+  geocoding: ^5.0.0
 
 dev_dependencies:
   flutter_test:

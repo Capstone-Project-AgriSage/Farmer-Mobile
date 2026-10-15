@@ -65,6 +65,8 @@ import 'return_fakes.dart';
 import 'notification_fakes.dart';
 import 'order_fakes.dart';
 import 'profile_fakes.dart';
+import 'location_fakes.dart';
+import 'package:farmer_mobile/features/profile/data/location_service.dart';
 
 class _Refresh extends ChangeNotifier {
   _Refresh(ProviderContainer c) {
@@ -93,6 +95,7 @@ class AppHarness {
       notificationRepositoryProvider.overrideWithValue(notifications),
       diagnosisRepositoryProvider.overrideWithValue(diagnosis),
       photoPickerProvider.overrideWithValue(photos),
+      locationServiceProvider.overrideWithValue(geo),
       ...paymentTestOverrides(paymentStore),
       tokenStorageProvider.overrideWithValue(this.storage),
     ]);
@@ -110,6 +113,7 @@ class AppHarness {
   final FakeNotificationRepository notifications = FakeNotificationRepository();
   final FakeDiagnosisRepository diagnosis = FakeDiagnosisRepository();
   final FakePhotoPicker photos = FakePhotoPicker();
+  final FakeLocationService geo = FakeLocationService();
 
   /// Dùng HomeScreen thật thay cho màn giả "HOME" (các test cũ dựa vào chữ HOME).
   bool realHome = false;
