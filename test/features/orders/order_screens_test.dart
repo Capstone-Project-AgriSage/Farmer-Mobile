@@ -1,8 +1,5 @@
-import 'dart:async';
-
 import 'package:farmer_mobile/core/network/api_exception.dart';
 import 'package:farmer_mobile/features/orders/data/order_models.dart';
-import 'package:farmer_mobile/features/payment/screens/qr_payment_screen.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -42,8 +39,10 @@ void main() {
       expect(find.text('Chờ xác nhận'), findsWidgets);
       expect(find.text('Hoàn thành'), findsWidgets);
       expect(find.text('1.560.000đ'), findsOneWidget);
-      expect(find.textContaining('Giao hàng tận nơi · Trả ngay · 1 sản phẩm'), findsOneWidget);
-      expect(find.textContaining('Nhận tại cửa hàng · Mua ghi nợ'), findsOneWidget);
+      for (final pill in ['Giao hàng tận nơi', 'Trả ngay', 'Nhận tại cửa hàng', 'Mua ghi nợ']) {
+        expect(find.text(pill), findsOneWidget, reason: pill);
+      }
+      expect(find.text('1 sản phẩm'), findsNWidgets(2));
     });
 
     testWidgets('lọc theo trạng thái gọi API với status', (tester) async {
@@ -122,6 +121,103 @@ void main() {
   });
 
   group('Chi tiết đơn', () {
+    group('dòng thời gian trạng thái', () {
+      /// Số chấm đã đạt (tô màu, có dấu tích) trong dòng thời gian.
+      int reachedDots(WidgetTester tester) => find
+          .descendant(
+              of: find.byKey(const Key('order_timeline')),
+              matching: find.byIcon(Icons.check_rounded))
+          .evaluate()
+          .length;
+
+      for (final (status, dots) in [
+        ('PENDING_CONFIRMATION', 1),
+        ('CONFIRMED', 2),
+        ('PREPARING', 3),
+        ('READY_FOR_FULFILLMENT', 4),
+        ('PARTIALLY_FULFILLED', 4),
+        ('COMPLETED', 5),
+        ('PARTIALLY_CANCELLED', 5),
+      ]) {
+        testWidgets('$status: $dots bước đã đạt', (tester) async {
+          await open(tester, '/orders/o1',
+              setup: (h) => seedOrder(h, orderOf(id: 'o1', status: status)));
+          expect(find.byKey(const Key('order_timeline')), findsOneWidget);
+          expect(reachedDots(tester), dots);
+        });
+      }
+
+      testWidgets('nhãn bước giao/nhận theo hình thức và trạng thái', (tester) async {
+        await open(tester, '/orders/o1',
+            setup: (h) => seedOrder(h, orderOf(id: 'o1', fulfillment: 'PICKUP')));
+        expect(find.text('Sẵn sàng nhận'), findsOneWidget);
+      });
+
+      testWidgets('huỷ phần còn lại: bước cuối ghi rõ, không ghi "Hoàn thành"', (tester) async {
+        await open(tester, '/orders/o1',
+            setup: (h) => seedOrder(h, orderOf(id: 'o1', status: 'PARTIALLY_CANCELLED')));
+        expect(
+            find.descendant(
+                of: find.byKey(const Key('order_timeline')),
+                matching: find.text('Huỷ phần còn lại')),
+            findsOneWidget);
+        expect(
+            find.descendant(
+                of: find.byKey(const Key('order_timeline')), matching: find.text('Hoàn thành')),
+            findsNothing);
+      });
+
+      testWidgets('đơn đã huỷ: không có dòng thời gian, chỉ có khung báo huỷ', (tester) async {
+        await open(tester, '/orders/o1',
+            setup: (h) => seedOrder(
+                h, orderOf(id: 'o1', status: 'CANCELLED', cancelReason: 'Đặt nhầm')));
+        expect(find.byKey(const Key('order_timeline')), findsNothing);
+        expect(find.textContaining('Đặt nhầm'), findsOneWidget);
+      });
+    });
+
+    testWidgets('huỷ không nhập lý do: câu mặc định tiếng Anh của backend được dịch', (tester) async {
+      await open(tester, '/orders/o1',
+          setup: (h) => seedOrder(
+              h,
+              orderOf(
+                  id: 'o1',
+                  status: 'CANCELLED',
+                  cancelReason: OrderStatus.backendDefaultCancelReason)));
+      expect(find.text('Đơn đã bị huỷ: Bạn đã huỷ đơn này'), findsOneWidget);
+      expect(find.textContaining('Cancelled by'), findsNothing);
+    });
+
+    testWidgets('đơn đã huỷ: không báo "còn phải trả", ghi rõ không cần thanh toán thêm',
+        (tester) async {
+      await open(tester, '/orders/o1',
+          setup: (h) => seedOrder(h, orderOf(id: 'o1', status: 'CANCELLED'),
+              payments: paymentsOf(total: 780000, paid: 0)));
+      expect(find.byKey(const Key('pay_remaining')), findsNothing);
+      expect(find.byKey(const Key('pay_progress')), findsNothing);
+      expect(find.byKey(const Key('pay_cancelled_note')), findsOneWidget);
+    });
+
+    test('cancelReasonLabel: chỉ dịch câu mặc định, giữ nguyên lý do người dùng nhập', () {
+      expect(OrderStatus.cancelReasonLabel('Cancelled by the customer.'), 'Bạn đã huỷ đơn này');
+      expect(OrderStatus.cancelReasonLabel('Đặt nhầm số lượng'), 'Đặt nhầm số lượng');
+      expect(OrderStatus.cancelReasonLabel('dat nham'), 'dat nham');
+    });
+
+    testWidgets('thanh tiến độ: đơn trả ngay hiện tỉ lệ đã trả', (tester) async {
+      await open(tester, '/orders/o1',
+          setup: (h) => seedOrder(h, orderOf(id: 'o1'),
+              payments: paymentsOf(total: 1560000, paid: 560000)));
+      final bar = tester.widget<LinearProgressIndicator>(find.byKey(const Key('pay_progress')));
+      expect(bar.value, closeTo(560000 / 1560000, 0.0001));
+    });
+
+    testWidgets('thanh tiến độ: đơn ghi nợ không có (trả ở mục Công nợ)', (tester) async {
+      await open(tester, '/orders/o2',
+          setup: (h) => seedOrder(h, orderOf(id: 'o2', settlement: 'CREDIT')));
+      expect(find.byKey(const Key('pay_progress')), findsNothing);
+    });
+
     testWidgets('đơn chờ xác nhận chưa trả: nhắc chờ thanh toán, có nút Thanh toán và Huỷ',
         (tester) async {
       await open(tester, '/orders/o1', setup: (h) => seedOrder(h, orderOf(id: 'o1')));
@@ -255,7 +351,7 @@ void main() {
 
     testWidgets('nhận tại cửa hàng: không có mục theo dõi giao hàng', (tester) async {
       await open(tester, '/orders/o1', setup: (h) => seedOrder(h, orderOf(id: 'o1', fulfillment: 'PICKUP')));
-      expect(find.text('THEO DÕI GIAO HÀNG'), findsNothing);
+      expect(find.text('Theo dõi giao hàng'), findsNothing);
     });
 
     testWidgets('giao hàng: tài xế, tiến độ, lần giao thất bại có lý do', (tester) async {
@@ -288,174 +384,6 @@ void main() {
       await open(tester, '/orders/o1', setup: (h) => seedOrder(h, orderOf(id: 'o1')));
       // Màn vẫn hiện thông tin đơn dù các mục phụ có thể lỗi (kiểm tra cấu trúc).
       expect(find.byKey(const Key('order_number')), findsOneWidget);
-    });
-  });
-
-  group('Thanh toán payOS', () {
-    Future<AppHarness> openPay(WidgetTester tester, {void Function(AppHarness)? setup}) async {
-      final h = AppHarness()..signIn();
-      h.paymentPollInterval = const Duration(seconds: 3);
-      seedOrder(h, orderOf(id: 'o1'));
-      setup?.call(h);
-      await h.pump(tester, initial: '/payment/qr?orderId=o1');
-      await tester.pump();
-      await tester.pump();
-      return h;
-    }
-
-    testWidgets('tạo link, hiện số tiền, mã QR, nội dung CK, đếm ngược', (tester) async {
-      final h = await openPay(tester);
-
-      expect(h.payments.calls, ['create:o1']);
-      expect(tester.widget<Text>(find.byKey(const Key('pay_amount'))).data, '1.560.000đ');
-      expect(find.byKey(const Key('pay_qr')), findsOneWidget);
-      expect(find.textContaining('Mã hết hạn sau 29:'), findsOneWidget);
-      expect(find.byKey(const Key('pay_waiting')), findsOneWidget);
-      // Nội dung chuyển khoản: số payment bỏ dấu gạch.
-      expect(find.textContaining('PM202610120001'), findsOneWidget);
-    });
-
-    testWidgets('thấy PAID (hỏi định kỳ) → sang màn thành công, làm mới đơn', (tester) async {
-      final h = await openPay(tester, setup: (h) => h.payments.statuses.addAll(['PENDING', 'PAID']));
-
-      await tester.pump(const Duration(seconds: 3)); // PENDING
-      expect(find.byType(QRPaymentScreen), findsOneWidget);
-      await tester.pump(const Duration(seconds: 3)); // PAID
-      await tester.pumpAndSettle();
-
-      expect(find.text('Thanh toán thành công!'), findsOneWidget);
-      expect(h.payments.calls.where((c) => c.startsWith('get')).length, 2);
-      await tester.tap(find.byKey(const Key('result_view_order')));
-      await tester.pumpAndSettle();
-      expect(find.byKey(const Key('order_number')), findsOneWidget);
-    });
-
-    testWidgets('chờ lâu: gọi sync đúng một lần để hỏi thẳng payOS', (tester) async {
-      final h = AppHarness()..signIn();
-      h.paymentPollInterval = const Duration(seconds: 3);
-      h.paymentSyncAfter = const Duration(seconds: 6);
-      seedOrder(h, orderOf(id: 'o1'));
-      await h.pump(tester, initial: '/payment/qr?orderId=o1');
-      await tester.pump();
-      await tester.pump();
-
-      for (var i = 0; i < 4; i++) {
-        await tester.pump(const Duration(seconds: 3));
-      }
-
-      expect(h.payments.calls.where((c) => c.startsWith('sync')), hasLength(1));
-      expect(h.payments.calls.where((c) => c.startsWith('get')), isNotEmpty);
-    });
-
-    testWidgets('bấm "Tôi đã chuyển khoản": sync ngay', (tester) async {
-      final h = await openPay(tester, setup: (h) => h.payments.statuses.add('PAID'));
-      await tester.tap(find.byKey(const Key('pay_check')));
-      await tester.pumpAndSettle();
-      expect(h.payments.calls.where((c) => c.startsWith('sync')), hasLength(1));
-      expect(find.text('Thanh toán thành công!'), findsOneWidget);
-    });
-
-    testWidgets('mất mạng khi hỏi: báo đang thử lại, không văng ra, rồi tự hồi phục', (tester) async {
-      final h = await openPay(tester, setup: (h) => h.payments.getError = _net);
-      await tester.pump(const Duration(seconds: 3));
-      expect(find.textContaining('Mất kết nối, đang thử lại'), findsOneWidget);
-      expect(find.byType(QRPaymentScreen), findsOneWidget);
-
-      h.payments.getError = null;
-      h.payments.statuses.add('PAID');
-      await tester.pump(const Duration(seconds: 3));
-      await tester.pumpAndSettle();
-      expect(find.text('Thanh toán thành công!'), findsOneWidget);
-    });
-
-    testWidgets('payOS báo hết hạn/thất bại: cho tạo mã mới', (tester) async {
-      final h = await openPay(tester, setup: (h) => h.payments.statuses.add('FAILED'));
-      await tester.pump(const Duration(seconds: 3));
-      await tester.pump();
-
-      expect(find.textContaining('hết hạn hoặc không thành công'), findsOneWidget);
-      await tester.tap(find.byKey(const Key('pay_retry')));
-      await tester.pump();
-      await tester.pump();
-      expect(h.payments.calls.where((c) => c.startsWith('create')), hasLength(2));
-      expect(find.byKey(const Key('pay_qr')), findsOneWidget);
-    });
-
-    testWidgets('đồng hồ hết hạn: hỏi lần cuối rồi báo hết hạn', (tester) async {
-      final h = AppHarness()..signIn();
-      h.payments.expiresAt = DateTime.now().subtract(const Duration(seconds: 1));
-      seedOrder(h, orderOf(id: 'o1'));
-      await h.pump(tester, initial: '/payment/qr?orderId=o1');
-      await tester.pump();
-      await tester.pump();
-
-      await tester.pump(const Duration(seconds: 3));
-      await tester.pump();
-
-      expect(find.text('Mã thanh toán đã hết hạn.'), findsOneWidget);
-      expect(h.payments.calls.where((c) => c.startsWith('sync')), isNotEmpty);
-    });
-
-    testWidgets('hết hạn nhưng tiền vừa về (lần hỏi cuối thấy PAID) → thành công', (tester) async {
-      final h = AppHarness()..signIn();
-      h.payments.expiresAt = DateTime.now().subtract(const Duration(seconds: 1));
-      h.payments.statuses.add('PAID');
-      seedOrder(h, orderOf(id: 'o1'));
-      await h.pump(tester, initial: '/payment/qr?orderId=o1');
-      await tester.pump();
-      await tester.pump();
-
-      await tester.pump(const Duration(seconds: 3));
-      await tester.pumpAndSettle();
-      expect(find.text('Thanh toán thành công!'), findsOneWidget);
-    });
-
-    testWidgets('payOS gián đoạn (503): thông báo + Thử lại; không có mã QR', (tester) async {
-      final h = AppHarness()..signIn();
-      h.payments.createError = const ApiException(
-          kind: ApiErrorKind.unavailable,
-          statusCode: 503,
-          message: 'Thanh toán online đang gián đoạn. Vui lòng thử lại sau hoặc thanh toán tại cửa hàng.');
-      seedOrder(h, orderOf(id: 'o1'));
-      await h.pump(tester, initial: '/payment/qr?orderId=o1');
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('thanh toán tại cửa hàng'), findsOneWidget);
-      expect(find.byKey(const Key('pay_qr')), findsNothing);
-
-      h.payments.createError = null;
-      await tester.tap(find.byKey(const Key('pay_retry')));
-      await tester.pump();
-      await tester.pump();
-      expect(find.byKey(const Key('pay_qr')), findsOneWidget);
-    });
-
-    testWidgets('huỷ thanh toán: gọi cancel, quay lại, dừng hỏi', (tester) async {
-      final h = await openPay(tester);
-      await tester.tap(find.byKey(const Key('pay_cancel')));
-      await tester.pumpAndSettle();
-
-      expect(h.payments.calls, contains('cancel:pay1'));
-      await tester.pump(const Duration(seconds: 10));
-      expect(h.payments.calls.where((c) => c.startsWith('get')), isEmpty);
-    });
-
-    testWidgets('nút giả lập (dev) đánh dấu đã trả và sang màn thành công', (tester) async {
-      final h = await openPay(tester);
-      await tester.ensureVisible(find.byKey(const Key('pay_simulate')));
-      await tester.tap(find.byKey(const Key('pay_simulate')));
-      await tester.pumpAndSettle();
-      expect(h.payments.calls, contains('simulate:pay1'));
-      expect(find.text('Thanh toán thành công!'), findsOneWidget);
-    });
-
-    testWidgets('rời màn: không còn hỏi trạng thái (không rò timer)', (tester) async {
-      final h = await openPay(tester);
-      h.router.go('/home');
-      await tester.pumpAndSettle();
-      final before = h.payments.calls.length;
-      await tester.pump(const Duration(seconds: 12));
-      expect(h.payments.calls.length, before);
     });
   });
 

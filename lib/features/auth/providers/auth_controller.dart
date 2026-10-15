@@ -66,7 +66,18 @@ class AuthController {
         message: 'Ứng dụng này chỉ dành cho tài khoản nông dân.',
       );
     }
-    await _tokens.save(result.tokens, persist: rememberMe);
+    try {
+      await _tokens.save(result.tokens, persist: rememberMe);
+    } catch (_) {
+      // Keystore/Keychain lỗi: đóng phiên vừa mở trên server rồi báo người dùng.
+      try {
+        await _repo.logout(accessToken: result.tokens.accessToken);
+      } catch (_) {}
+      throw const ApiException(
+        kind: ApiErrorKind.unknown,
+        message: 'Không lưu được phiên đăng nhập trên thiết bị này. Vui lòng thử lại.',
+      );
+    }
     SessionUser user = result.user;
     try {
       // Lấy cờ đã xác minh SĐT/email (phản hồi đăng nhập không có).
@@ -79,7 +90,15 @@ class AuthController {
 
   /// Gọi ở splash: khôi phục phiên từ token đã lưu.
   Future<BootstrapResult> bootstrap() async {
-    final tokens = await _tokens.read();
+    AuthTokens? tokens;
+    try {
+      tokens = await _tokens.read();
+    } catch (_) {
+      // Không đọc được kho token (keystore hỏng/khôi phục từ bản sao lưu): coi như
+      // chưa đăng nhập thay vì kẹt ở màn splash.
+      await _clearLocal();
+      return BootstrapResult.unauthenticated;
+    }
     if (tokens == null) {
       _session.markUnauthenticated();
       return BootstrapResult.unauthenticated;
@@ -87,8 +106,7 @@ class AuthController {
     try {
       final user = await _repo.me();
       if (user.role != farmerRole) {
-        await _tokens.clear();
-        _session.markUnauthenticated();
+        await _clearLocal();
         return BootstrapResult.unauthenticated;
       }
       _session.setAuthenticated(user);
@@ -96,8 +114,7 @@ class AuthController {
     } on ApiException catch (e) {
       if (e.isConnectivity) return BootstrapResult.offline;
       // 401 (refresh cũng thất bại), 403 tài khoản bị khoá...
-      await _tokens.clear();
-      _session.markUnauthenticated();
+      await _clearLocal();
       return BootstrapResult.unauthenticated;
     }
   }
@@ -130,7 +147,11 @@ class AuthController {
   }
 
   Future<void> _clearLocal() async {
-    await _tokens.clear();
+    try {
+      await _tokens.clear();
+    } catch (_) {
+      // Không xoá được khỏi keystore vẫn phải đăng xuất khỏi app (RAM đã được xoá).
+    }
     _session.markUnauthenticated();
   }
 }

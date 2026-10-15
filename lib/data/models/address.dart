@@ -70,6 +70,8 @@ class AddressInput {
     required this.addressType,
     this.ward,
     this.district,
+    this.latitude,
+    this.longitude,
     this.isDefault = false,
   });
 
@@ -80,6 +82,10 @@ class AddressInput {
   final String addressType;
   final String? ward;
   final String? district;
+
+  /// Toạ độ (tuỳ chọn, tối đa 7 chữ số thập phân): lấy từ nút "Dùng vị trí hiện tại", giúp tài xế định vị.
+  final double? latitude;
+  final double? longitude;
   final bool isDefault;
 
   static String? _blankToNull(String? v) {
@@ -95,6 +101,10 @@ class AddressInput {
         'addressType': addressType,
         'ward': _blankToNull(ward),
         'district': _blankToNull(district),
+        if (latitude != null && longitude != null) ...{
+          'latitude': latitude,
+          'longitude': longitude,
+        },
         'isDefault': isDefault,
       };
 }

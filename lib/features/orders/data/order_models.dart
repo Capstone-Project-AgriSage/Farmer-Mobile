@@ -52,9 +52,21 @@ abstract class OrderStatus {
   /// Chỉ huỷ online được khi cửa hàng chưa xác nhận.
   static bool canCancel(String s) => s == pending;
 
+  /// Đơn đã có hàng giao/nhận nên có thể yêu cầu trả hàng.
+  static bool canReturn(String s) =>
+      s == partiallyFulfilled || s == completed || s == partiallyCancelled;
+
   /// Đơn còn nhận thanh toán (theo backend).
   static bool canPay(String s) =>
       s != cancelled && s != partiallyCancelled && s != completed;
+
+  /// Câu backend tự ghi khi nông dân huỷ mà không nhập lý do (`MeOrderService.DefaultCancelReason`).
+  static const backendDefaultCancelReason = 'Cancelled by the customer.';
+
+  /// Lý do huỷ để hiển thị: câu mặc định tiếng Anh của backend thì dịch, lý do người dùng
+  /// tự nhập thì giữ nguyên.
+  static String cancelReasonLabel(String reason) =>
+      reason.trim() == backendDefaultCancelReason ? 'Bạn đã huỷ đơn này' : reason;
 }
 
 abstract class SettlementType {

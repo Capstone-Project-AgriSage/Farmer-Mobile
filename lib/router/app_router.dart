@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -16,6 +17,8 @@ import '../features/auth/screens/reset_password_screen.dart';
 
 // Shell (Bottom Nav)
 import '../shared/widgets/app_shell.dart';
+import '../shared/widgets/not_found_screen.dart';
+import '../shared/widgets/fallback_pop_scope.dart';
 
 // Home
 import '../features/home/screens/home_screen.dart';
@@ -28,27 +31,27 @@ import '../features/products/screens/cart_screen.dart';
 import '../features/products/screens/order_confirm_screen.dart';
 import '../features/products/screens/order_list_screen.dart';
 import '../features/products/screens/order_detail_screen.dart';
+import '../features/returns/screens/return_detail_screen.dart';
+import '../features/returns/screens/return_list_screen.dart';
+import '../features/returns/screens/return_request_screen.dart';
 
 // Payment
-import '../features/payment/screens/qr_payment_screen.dart';
-import '../features/payment/screens/payment_pending_screen.dart';
+import '../features/payment/data/pending_payment.dart';
+import '../features/payment/providers/payment_providers.dart';
+import '../features/payment/screens/payos_checkout_screen.dart';
 import '../features/payment/screens/payment_result_screen.dart';
 
 // Debt
 import '../features/debt/screens/debt_overview_screen.dart';
 import '../features/debt/screens/debt_list_screen.dart';
 import '../features/debt/screens/debt_detail_screen.dart';
-import '../features/debt/screens/debt_confirm_screen.dart';
+import '../features/debt/screens/debt_repay_screen.dart';
 import '../features/debt/screens/debt_history_screen.dart';
 
 // AI Doctor
 import '../features/ai_doctor/screens/ai_scan_home_screen.dart';
 import '../features/ai_doctor/screens/image_capture_screen.dart';
-import '../features/ai_doctor/screens/ai_analyzing_screen.dart';
-import '../features/ai_doctor/screens/diagnose_result_screen.dart';
-import '../features/ai_doctor/screens/diagnose_uncertain_screen.dart';
-import '../features/ai_doctor/screens/suggestion_pending_screen.dart';
-import '../features/ai_doctor/screens/product_suggestion_screen.dart';
+import '../features/ai_doctor/screens/diagnose_case_screen.dart';
 import '../features/ai_doctor/screens/diagnose_history_screen.dart';
 
 // Profile
@@ -62,12 +65,9 @@ import '../features/profile/screens/help_support_screen.dart';
 import '../features/profile/screens/address_list_screen.dart';
 import '../features/profile/screens/address_form_screen.dart';
 
-// Articles
-import '../features/home/screens/article_list_screen.dart';
-import '../features/home/screens/article_detail_screen.dart';
+// Sessions
+import '../features/profile/screens/sessions_screen.dart';
 
-// Reviews
-import '../features/products/screens/write_review_screen.dart';
 abstract class AppRoutes {
   // Auth
   static const splash = '/';
@@ -95,30 +95,27 @@ abstract class AppRoutes {
   static const orderConfirm = '/order-confirm';
   static const orderList = '/orders';
   static const orderDetail = '/orders/:id';
+  static const returnList = '/returns';
 
   // Payment
-  static const qrPayment = '/payment/qr';
-  static const paymentPending = '/payment/pending';
+  static const payosCheckout = '/payment/payos';
   static const paymentResult = '/payment/result';
 
   // Debt
   static const debtList = '/debt/list';
   static const debtDetail = '/debt/:id';
-  static const debtConfirm = '/debt/:id/confirm';
+  static const debtRepay = '/debt/repay';
   static const debtHistory = '/debt/history';
 
   // AI Doctor
   static const imageCapture = '/ai-scan/capture';
-  static const aiAnalyzing = '/ai-scan/analyzing';
-  static const diagnoseResult = '/ai-scan/result';
-  static const diagnoseUncertain = '/ai-scan/uncertain';
-  static const suggestionPending = '/ai-scan/suggestion-pending';
-  static const productSuggestion = '/ai-scan/suggestion';
+  static const diagnoseCase = '/ai-scan/case/:id';
   static const diagnoseHistory = '/ai-scan/history';
 
   // Profile sub-pages
   static const editProfile = '/profile/edit';
   static const changePassword = '/profile/password';
+  static const sessions = '/profile/sessions';
   static const notificationSettings = '/profile/notifications';
   static const terms = '/profile/terms';
   static const privacy = '/profile/privacy';
@@ -169,7 +166,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
 
   return GoRouter(
     initialLocation: AppRoutes.splash,
-    debugLogDiagnostics: true,
+    debugLogDiagnostics: kDebugMode,
     refreshListenable: refresh,
     redirect: (context, state) => authRedirect(
       ref.read(sessionProvider).status,
@@ -227,16 +224,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: 'notifications',
                 builder: (_, __) => const NotificationScreen(),
               ),
-              GoRoute(
-                path: 'articles',
-                builder: (_, __) => const ArticleListScreen(),
-              ),
-              GoRoute(
-                path: 'articles/:id',
-                builder: (_, state) => ArticleDetailScreen(
-                  articleId: state.pathParameters['id']!,
-                ),
-              ),
             ],
           ),
           GoRoute(
@@ -247,12 +234,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: ':id',
                 builder: (_, state) => ProductDetailScreen(
                   productId: state.pathParameters['id']!,
-                ),
-              ),
-              GoRoute(
-                path: ':id/review',
-                builder: (_, state) => WriteReviewScreen(
-                  slug: state.pathParameters['id']!,
                 ),
               ),
             ],
@@ -266,24 +247,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 builder: (_, __) => const ImageCaptureScreen(),
               ),
               GoRoute(
-                path: 'analyzing',
-                builder: (_, __) => const AiAnalyzingScreen(),
-              ),
-              GoRoute(
-                path: 'result',
-                builder: (_, __) => const DiagnoseResultScreen(),
-              ),
-              GoRoute(
-                path: 'uncertain',
-                builder: (_, __) => const DiagnoseUncertainScreen(),
-              ),
-              GoRoute(
-                path: 'suggestion-pending',
-                builder: (_, __) => const SuggestionPendingScreen(),
-              ),
-              GoRoute(
-                path: 'suggestion',
-                builder: (_, __) => const ProductSuggestionScreen(),
+                path: 'case/:id',
+                builder: (_, state) => DiagnoseCaseScreen(
+                  caseId: state.pathParameters['id']!,
+                ),
               ),
               GoRoute(
                 path: 'history',
@@ -299,21 +266,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: 'list',
                 builder: (_, __) => const DebtListScreen(),
               ),
+              // 'history' và 'repay' phải đứng trước ':id' kẻo bị coi là mã khoản nợ.
+              GoRoute(
+                path: 'history',
+                builder: (_, __) => const DebtHistoryScreen(),
+              ),
+              GoRoute(
+                path: 'repay',
+                builder: (_, state) => DebtRepayScreen(
+                  initialAmount:
+                      int.tryParse(state.uri.queryParameters['amount'] ?? ''),
+                ),
+              ),
               GoRoute(
                 path: ':id',
                 builder: (_, state) => DebtDetailScreen(
                   debtId: state.pathParameters['id']!,
                 ),
-              ),
-              GoRoute(
-                path: ':id/confirm',
-                builder: (_, state) => DebtConfirmScreen(
-                  debtId: state.pathParameters['id']!,
-                ),
-              ),
-              GoRoute(
-                path: 'history',
-                builder: (_, __) => const DebtHistoryScreen(),
               ),
             ],
           ),
@@ -328,6 +297,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
               GoRoute(
                 path: 'password',
                 builder: (_, __) => const ChangePasswordScreen(),
+              ),
+              GoRoute(
+                path: 'sessions',
+                builder: (_, __) => const SessionsScreen(),
               ),
               GoRoute(
                 path: 'notifications',
@@ -349,19 +322,24 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: 'addresses',
                 builder: (_, __) => const AddressListScreen(),
               ),
-              GoRoute(
-                path: 'addresses/add',
-                builder: (_, __) => const AddressFormScreen(),
-              ),
-              GoRoute(
-                path: 'addresses/edit/:id',
-                builder: (_, state) => AddressFormScreen(
-                  addressId: state.pathParameters['id'],
-                ),
-              ),
             ],
           ),
         ],
+      ),
+
+      // ── Address form (outside shell) ──────────────────────────
+      // Reached from the profile (inside the shell) AND from the checkout (outside it). A route that lives inside the
+      // ShellRoute and is pushed from a page above the shell puts the shell in the stack twice and trips the navigator's
+      // duplicate-key assertion (the red screen on "Thêm địa chỉ"). Same path as before, so every caller is unchanged.
+      GoRoute(
+        path: '${AppRoutes.profile}/addresses/add',
+        builder: (_, __) => const AddressFormScreen(),
+      ),
+      GoRoute(
+        path: '${AppRoutes.profile}/addresses/edit/:id',
+        builder: (_, state) => AddressFormScreen(
+          addressId: state.pathParameters['id'],
+        ),
       ),
 
       // ── Cart & Orders (outside shell) ─────────────────────────
@@ -375,38 +353,50 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
       GoRoute(
         path: AppRoutes.orderList,
-        builder: (_, __) => const OrderListScreen(),
+        builder: (_, __) => const FallbackPopScope(
+            fallback: AppRoutes.home, child: OrderListScreen()),
       ),
       GoRoute(
         path: '/orders/:id',
-        builder: (_, state) => OrderDetailScreen(
+        builder: (_, state) => FallbackPopScope(
+          fallback: AppRoutes.orderList,
+          child: OrderDetailScreen(orderId: state.pathParameters['id']!),
+        ),
+      ),
+      GoRoute(
+        path: '/orders/:id/return',
+        builder: (_, state) => ReturnRequestScreen(
           orderId: state.pathParameters['id']!,
+        ),
+      ),
+      GoRoute(
+        path: AppRoutes.returnList,
+        builder: (_, __) => const ReturnListScreen(),
+      ),
+      GoRoute(
+        path: '/returns/:id',
+        builder: (_, state) => FallbackPopScope(
+          fallback: AppRoutes.returnList,
+          child: ReturnDetailScreen(returnId: state.pathParameters['id']!),
         ),
       ),
 
       // ── Payment ───────────────────────────────────────────────
+      // Hai màn này nhận dữ liệu qua `extra` (khoản thanh toán dở): mất `extra` (mở lại từ
+      // đường dẫn, khôi phục điều hướng) thì không có gì để thanh toán → về Trang chủ.
       GoRoute(
-        path: AppRoutes.qrPayment,
-        builder: (_, state) => QRPaymentScreen(
-          orderId: state.uri.queryParameters['orderId'] ?? '',
-        ),
-      ),
-      GoRoute(
-        path: AppRoutes.paymentPending,
-        builder: (_, __) => const PaymentPendingScreen(),
+        path: AppRoutes.payosCheckout,
+        redirect: (_, state) => state.extra is PendingPayment ? null : AppRoutes.home,
+        builder: (_, state) =>
+            PayosCheckoutScreen(payment: state.extra as PendingPayment),
       ),
       GoRoute(
         path: AppRoutes.paymentResult,
-        builder: (_, state) => PaymentResultScreen(
-          success: state.uri.queryParameters['success'] == 'true',
-          orderId: state.uri.queryParameters['orderId'],
-        ),
+        redirect: (_, state) => state.extra is PaymentResultArgs ? null : AppRoutes.home,
+        builder: (_, state) =>
+            PaymentResultScreen(args: state.extra as PaymentResultArgs),
       ),
     ],
-    errorBuilder: (_, state) => Scaffold(
-      body: Center(
-        child: Text('Không tìm thấy trang: ${state.error}'),
-      ),
-    ),
+    errorBuilder: (_, __) => const NotFoundScreen(),
   );
 });

@@ -1,213 +1,194 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
-import '../../../data/models/debt.dart';
-import '../../../data/mock/mock_debts.dart';
+import '../../../shared/widgets/empty_data_widget.dart';
+import '../../../shared/widgets/error_retry_widget.dart';
+import '../../../shared/widgets/shimmer_loading_widget.dart';
+import '../data/debt_models.dart';
+import '../providers/debt_providers.dart';
+import '../widgets/debt_widgets.dart';
 
-class DebtListScreen extends StatefulWidget {
+class DebtListScreen extends ConsumerStatefulWidget {
   const DebtListScreen({super.key});
 
   @override
-  State<DebtListScreen> createState() => _DebtListScreenState();
+  ConsumerState<DebtListScreen> createState() => _DebtListScreenState();
 }
 
-class _DebtListScreenState extends State<DebtListScreen> {
-  int _selectedFilter = 0;
-  final _filters = ['Tất cả', 'Chưa trả', 'Đã trả', 'Quá hạn'];
+class _DebtListScreenState extends ConsumerState<DebtListScreen> {
+  final _scroll = ScrollController();
 
-  List<Debt> get _filteredDebts {
-    if (_selectedFilter == 0) return mockDebts;
-    if (_selectedFilter == 1) return mockDebts.where((d) => d.status != DebtStatus.paid).toList();
-    if (_selectedFilter == 2) return mockDebts.where((d) => d.status == DebtStatus.paid).toList();
-    if (_selectedFilter == 3) return mockDebts.where((d) => d.status == DebtStatus.overdue).toList();
-    return mockDebts;
+  @override
+  void initState() {
+    super.initState();
+    _scroll.addListener(() {
+      final s = ref.read(myDebtEntriesProvider);
+      if (s.loadMoreError != null) return;
+      if (_scroll.position.pixels > _scroll.position.maxScrollExtent - 300) {
+        ref.read(myDebtEntriesProvider.notifier).loadMore();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _scroll.dispose();
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final debts = _filteredDebts;
+    final state = ref.watch(myDebtEntriesProvider);
+    final notifier = ref.read(myDebtEntriesProvider.notifier);
 
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
       appBar: AppBar(
         title: const Text('Danh sách công nợ'),
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
       ),
       body: Column(
         children: [
-          // Filter Tabs
           Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: Row(
-                children: List.generate(_filters.length, (i) {
-                  final selected = _selectedFilter == i;
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: GestureDetector(
-                      onTap: () => setState(() => _selectedFilter = i),
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: selected ? AppColors.primaryDark : AppColors.surfaceSubtle,
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(color: selected ? AppColors.primaryDark : AppColors.borderSubtle),
-                        ),
-                        child: Text(
-                          _filters[i],
-                          style: AppTextStyles.bodySmall.copyWith(
-                            color: selected ? Colors.white : AppColors.textSecondary,
-                            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                          ),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6)),
+              ],
+            ),
+            padding: const EdgeInsets.only(top: 4, bottom: 14),
+            child: SizedBox(
+              // Cao theo cỡ chữ hệ thống để chữ to không bị cắt.
+              height: MediaQuery.textScalerOf(context).scale(20) + 20,
+              child: ListView.separated(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                scrollDirection: Axis.horizontal,
+                itemCount: DebtStatus.filters.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
+                itemBuilder: (_, i) {
+                  final s = DebtStatus.filters[i];
+                  final active = s == state.status;
+                  return Material(
+                    key: Key('debt_filter_${s ?? 'all'}'),
+                    color: active ? AppColors.primary : AppColors.surface,
+                    shape: StadiumBorder(
+                      side: BorderSide(
+                          color: active ? AppColors.primary : AppColors.borderSubtle),
+                    ),
+                    child: InkWell(
+                      customBorder: const StadiumBorder(),
+                      onTap: () => notifier.setStatus(s),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Center(
+                          widthFactor: 1,
+                          child: Text(DebtStatus.label(s),
+                              style: AppTextStyles.bodySmall.copyWith(
+                                fontSize: 13,
+                                color: active ? Colors.white : AppColors.textSecondary,
+                                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                              )),
                         ),
                       ),
                     ),
                   );
-                }),
+                },
               ),
             ),
           ),
-
-          // Count
-          Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-            child: Row(
-              children: [
-                const Icon(Icons.list_alt, size: 16, color: AppColors.textMuted),
-                const SizedBox(width: 6),
-                Text('Có ${debts.length} khoản nợ', style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
-              ],
-            ),
-          ),
-
-          // List
-          Expanded(
-            child: debts.isEmpty
-                ? Center(
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        const Icon(Icons.inbox_outlined, size: 64, color: AppColors.surfaceDim),
-                        const SizedBox(height: 16),
-                        Text('Không có dữ liệu', style: AppTextStyles.bodyMedium.copyWith(color: AppColors.textMuted)),
-                      ],
-                    ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-                    itemCount: debts.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 12),
-                    itemBuilder: (_, i) => _DebtCard(debt: debts[i]),
-                  ),
-          ),
+          Expanded(child: _body(state, notifier)),
         ],
       ),
     );
   }
-}
 
-class _DebtCard extends StatelessWidget {
-  final Debt debt;
-  const _DebtCard({required this.debt});
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: () => context.push('/debt/${debt.id}'),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.borderSubtle),
-          boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 4, offset: const Offset(0, 2))],
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+  Widget _body(DebtListState state, MyDebtEntriesController notifier) {
+    if (state.isLoading && state.items.isEmpty) {
+      return const Padding(
+        padding: EdgeInsets.all(16),
+        child: ShimmerListWidget(itemCount: 4, itemHeight: 130),
+      );
+    }
+    if (state.error != null) {
+      return ErrorRetryWidget(error: state.error!, onRetry: notifier.refresh);
+    }
+    if (state.items.isEmpty) {
+      return RefreshIndicator(
+        onRefresh: notifier.refresh,
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
           children: [
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(debt.id, style: AppTextStyles.caption.copyWith(color: AppColors.textMuted, fontWeight: FontWeight.bold)),
-                Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                  decoration: BoxDecoration(
-                    color: debt.status.backgroundColor,
-                    borderRadius: BorderRadius.circular(6),
-                    border: Border.all(color: debt.status.color.withOpacity(0.3)),
-                  ),
-                  child: Text(
-                    debt.status.label,
-                    style: TextStyle(color: debt.status.color, fontSize: 11, fontWeight: FontWeight.w600),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            Row(
-              children: [
-                Container(
-                  width: 40,
-                  height: 40,
-                  decoration: BoxDecoration(
-                    color: AppColors.surfaceSubtle,
-                    borderRadius: BorderRadius.circular(8),
-                  ),
-                  child: const Icon(Icons.storefront, color: AppColors.primary, size: 20),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(debt.agentName, style: AppTextStyles.labelLarge),
-                      const SizedBox(height: 2),
-                      Text(debt.note ?? 'Không có ghi chú', style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary), maxLines: 1, overflow: TextOverflow.ellipsis),
-                    ],
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 14),
-            const Divider(height: 1, color: AppColors.borderSubtle),
-            const SizedBox(height: 14),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Hạn trả', style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
-                    const SizedBox(height: 2),
-                    Text(_formatDate(debt.dueDate), style: AppTextStyles.bodySmall.copyWith(fontWeight: FontWeight.w600)),
-                  ],
-                ),
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                    Text('Số tiền', style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
-                    const SizedBox(height: 2),
-                    Text(
-                      '${_formatPrice(debt.amount)}đ',
-                      style: AppTextStyles.labelLarge.copyWith(color: debt.status == DebtStatus.paid ? AppColors.textPrimary : AppColors.statusError),
-                    ),
-                  ],
-                ),
-              ],
+            SizedBox(
+              height: 400,
+              child: EmptyDataWidget(
+                message: state.status == null
+                    ? 'Bạn chưa có khoản nợ nào.'
+                    : 'Không có khoản nợ "${DebtStatus.label(state.status)}".',
+                fallbackIcon: Icons.receipt_long_outlined,
+              ),
             ),
           ],
         ),
+      );
+    }
+    return RefreshIndicator(
+      onRefresh: notifier.refresh,
+      child: ListView.separated(
+        controller: _scroll,
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(16),
+        itemCount: state.items.length + 1,
+        separatorBuilder: (_, __) => const SizedBox(height: 12),
+        itemBuilder: (_, i) {
+          if (i == state.items.length) return _footer(state, notifier);
+          final e = state.items[i];
+          return DebtEntryCard(
+            key: Key('debt_${e.id}'),
+            entry: e,
+            onTap: () => context.push('/debt/${e.id}'),
+          );
+        },
       ),
     );
   }
 
-  String _formatDate(DateTime dt) {
-    return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
-  }
-
-  String _formatPrice(double price) {
-    return price.toInt().toString().replaceAll(RegExp(r'\B(?=(\d{3})+(?!\d))'), '.');
+  Widget _footer(DebtListState state, MyDebtEntriesController notifier) {
+    if (state.isLoadingMore) {
+      return const Padding(
+        padding: EdgeInsets.all(12),
+        child: Center(
+            child: SizedBox(
+                width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))),
+      );
+    }
+    if (state.loadMoreError != null) {
+      return Center(
+        child: TextButton.icon(
+          key: const Key('debts_load_more_retry'),
+          onPressed: notifier.loadMore,
+          icon: const Icon(Icons.refresh),
+          label: const Text('Không tải thêm được. Thử lại'),
+        ),
+      );
+    }
+    if (state.hasMore) {
+      return Center(
+        child: TextButton(
+          key: const Key('debts_load_more'),
+          onPressed: notifier.loadMore,
+          child: const Text('Xem thêm'),
+        ),
+      );
+    }
+    return const SizedBox(height: 16);
   }
 }

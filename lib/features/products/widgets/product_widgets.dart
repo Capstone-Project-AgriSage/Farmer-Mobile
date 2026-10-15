@@ -11,39 +11,73 @@ import '../data/catalog_models.dart';
 import '../providers/catalog_providers.dart';
 
 /// Ảnh sản phẩm có ô giữ chỗ khi chưa có ảnh / lỗi tải / đang tải.
+///
+/// Ảnh được giải mã đúng kích thước hiển thị (`memCacheWidth`) thay vì ảnh gốc
+/// (thường 1000px+), đỡ tốn bộ nhớ khi cuộn lưới dài; hiện mờ dần khi tải xong.
 class ProductImage extends StatelessWidget {
   const ProductImage({
     super.key,
     required this.url,
     this.iconSize = 40,
     this.borderRadius = BorderRadius.zero,
+    this.fit = BoxFit.cover,
   });
 
   final String? url;
   final double iconSize;
   final BorderRadius borderRadius;
+  final BoxFit fit;
 
   @override
   Widget build(BuildContext context) {
-    final placeholder = Container(
-      color: AppColors.surfaceSubtle,
-      alignment: Alignment.center,
-      child: Icon(Icons.inventory_2_outlined,
-          size: iconSize, color: AppColors.borderStrong),
+    final placeholder = DecoratedBox(
+      decoration: const BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [Color(0xFFF1F7F0), Color(0xFFE6EFE5)],
+        ),
+      ),
+      child: Center(
+        child: Icon(Icons.eco_outlined,
+            size: iconSize, color: AppColors.primary.withValues(alpha: 0.28)),
+      ),
     );
     final u = url;
     return ClipRRect(
       borderRadius: borderRadius,
       child: (u == null || u.isEmpty)
           ? placeholder
-          : CachedNetworkImage(
-              imageUrl: u,
-              fit: BoxFit.cover,
-              placeholder: (_, __) => placeholder,
-              errorWidget: (_, __, ___) => placeholder,
-            ),
+          : LayoutBuilder(builder: (context, c) {
+              final dpr = MediaQuery.devicePixelRatioOf(context);
+              final w = c.maxWidth.isFinite ? (c.maxWidth * dpr).round() : null;
+              return CachedNetworkImage(
+                imageUrl: u,
+                fit: fit,
+                width: double.infinity,
+                height: double.infinity,
+                memCacheWidth: w,
+                fadeInDuration: const Duration(milliseconds: 250),
+                placeholder: (_, __) => placeholder,
+                errorWidget: (_, __, ___) => placeholder,
+              );
+            }),
     );
   }
+}
+
+/// Biểu tượng gợi ý theo tên danh mục (danh mục do cửa hàng tự đặt tên).
+IconData categoryIcon(String name) {
+  final n = name.toLowerCase();
+  if (n.contains('giống') || n.contains('hạt')) return Icons.spa_outlined;
+  if (n.contains('phân')) return Icons.grass_outlined;
+  if (n.contains('thuốc') || n.contains('bvtv') || n.contains('trừ')) {
+    return Icons.science_outlined;
+  }
+  if (n.contains('dụng cụ') || n.contains('máy') || n.contains('thiết bị')) {
+    return Icons.handyman_outlined;
+  }
+  return Icons.category_outlined;
 }
 
 /// Giá "từ ..." của sản phẩm, hoặc "Chưa có giá".
@@ -84,6 +118,8 @@ class ProductCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Giữ chiều cao 2 dòng tên để các thẻ thẳng hàng (co giãn theo cỡ chữ hệ thống).
+    final nameHeight = MediaQuery.textScalerOf(context).scale(38);
     return GestureDetector(
       key: Key('product_${product.id}'),
       onTap: () => context.push('${AppRoutes.products}/${product.id}'),
@@ -91,49 +127,80 @@ class ProductCard extends StatelessWidget {
         width: width,
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.borderSubtle),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.05),
+                blurRadius: 14,
+                offset: const Offset(0, 4)),
+          ],
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Expanded(
-              child: SizedBox(
-                width: double.infinity,
-                child: ProductImage(
-                  url: product.imageUrl,
-                  borderRadius:
-                      const BorderRadius.vertical(top: Radius.circular(16)),
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(6, 6, 6, 0),
+                child: Stack(
+                  children: [
+                    Positioned.fill(
+                      child: ProductImage(
+                        url: product.imageUrl,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                    ),
+                    // Nhãn danh mục đè lên góc ảnh.
+                    Positioned(
+                      left: 8,
+                      top: 8,
+                      right: 8,
+                      child: Align(
+                        alignment: Alignment.topLeft,
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
+                          decoration: BoxDecoration(
+                            color: Colors.white.withValues(alpha: 0.92),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            product.categoryName,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                            style: AppTextStyles.caption.copyWith(
+                                color: AppColors.primaryDark, fontWeight: FontWeight.w600),
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ),
               ),
             ),
             Padding(
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.fromLTRB(12, 10, 12, 12),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(
-                    product.categoryName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.caption.copyWith(
-                        color: AppColors.primary, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 4),
                   SizedBox(
-                    // Giữ chiều cao 2 dòng để các thẻ thẳng hàng.
-                    height: 40,
+                    height: nameHeight,
                     child: Text(
                       product.name,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: AppTextStyles.bodySmall.copyWith(
                           fontWeight: FontWeight.w600,
+                          fontSize: 13,
+                          height: 1.4,
                           color: AppColors.textPrimary),
                     ),
                   ),
                   const SizedBox(height: 6),
-                  FromPriceText(product.fromPrice),
+                  FromPriceText(product.fromPrice,
+                      style: AppTextStyles.bodyMedium.copyWith(
+                          color: AppColors.primaryDark,
+                          fontWeight: FontWeight.w700,
+                          fontSize: 15,
+                          height: 1.3)),
                 ],
               ),
             ),

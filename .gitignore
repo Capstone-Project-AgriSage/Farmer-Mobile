@@ -46,3 +46,9 @@ app.*.map.json
 
 # Widget Preview related
 .widget_preview/
+
+# Anh chup man hinh tam cua test/visual (xem xong thi xoa)
+/test/visual/shots/
+
+# Cau hinh may rieng cua tung nguoi (chep env/device.example.json thanh env/device.json)
+/env/device.json

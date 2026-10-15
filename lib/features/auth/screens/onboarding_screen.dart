@@ -17,6 +17,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   final _pageController = PageController();
   int _currentPage = 0;
 
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
   static const _slides = [
     _OnboardingSlide(
       icon: Icons.shopping_bag_outlined,
@@ -24,15 +30,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       iconColor: AppColors.primary,
       title: 'Mua vật tư dễ dàng',
       description:
-          'Đặt hàng phân bón, thuốc BVTV, hạt giống từ đại lý ngay trên điện thoại. Thanh toán qua QR hoặc ghi nợ mùa vụ.',
+          'Đặt hàng phân bón, thuốc BVTV, hạt giống từ đại lý ngay trên điện thoại. Thanh toán qua mã QR hoặc mua ghi nợ theo hạn mức cửa hàng cấp.',
     ),
     _OnboardingSlide(
       icon: Icons.camera_alt_outlined,
       color: Color(0xFFF3E5F5),
       iconColor: Color(0xFF7B1FA2),
-      title: 'AI chẩn đoán bệnh lúa',
+      title: 'Chẩn đoán bệnh lúa từ ảnh',
       description:
-          'Chụp ảnh lá lúa — AI nhận diện 4 bệnh phổ biến (Đạo ôn, Bạc lá, Khô vằn, Đốm nâu) và gợi ý thuốc phù hợp.',
+          'Chụp ảnh lá lúa gửi chuyên gia của cửa hàng — nhận kết luận về bệnh (Đạo ôn, Bạc lá, Khô vằn, Đốm nâu...) kèm hướng dẫn điều trị và sản phẩm gợi ý.',
     ),
     _OnboardingSlide(
       icon: Icons.account_balance_wallet_outlined,
@@ -40,7 +46,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       iconColor: Color(0xFFE65100),
       title: 'Sổ nợ minh bạch',
       description:
-          'Theo dõi công nợ với đại lý. Xác nhận 2 chiều — tránh tranh chấp, mọi giao dịch đều có chứng từ rõ ràng.',
+          'Theo dõi hạn mức, khoản nợ và hạn trả với cửa hàng. Trả nợ online qua payOS, khiếu nại ngay trong ứng dụng nếu thấy sai lệch.',
     ),
   ];
 
@@ -84,7 +90,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                   SmoothPageIndicator(
                     controller: _pageController,
                     count: _slides.length,
-                    effect: WormEffect(
+                    effect: const WormEffect(
                       activeDotColor: AppColors.primary,
                       dotColor: AppColors.borderSubtle,
                       dotHeight: 8,

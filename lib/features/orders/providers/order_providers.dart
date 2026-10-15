@@ -83,7 +83,7 @@ class MyOrdersController extends Notifier<OrderListState> {
   Future<void> _loadFirst() async {
     final gen = ++_generation;
     state = state.copyWith(
-        isLoading: true, error: () => null, loadMoreError: () => null);
+        isLoading: true, isLoadingMore: false, error: () => null, loadMoreError: () => null);
     try {
       final page = await _repo.list(status: state.status);
       if (gen != _generation) return;

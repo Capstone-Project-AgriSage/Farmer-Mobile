@@ -271,6 +271,28 @@ void main() {
       expect(find.text('1 Bao 25 kg = 25 kg'), findsOneWidget);
     });
 
+    testWidgets('tạm tính = giá quy cách đang chọn × số lượng', (tester) async {
+      await open(tester, '/products/p1', setup: seedDetail);
+      String subtotal() =>
+          tester.widget<Text>(find.byKey(const Key('detail_subtotal'))).data!;
+
+      expect(subtotal(), '32.000đ');
+      await tester.tap(find.byKey(const Key('pack_bao')));
+      await tester.pumpAndSettle();
+      expect(subtotal(), '780.000đ');
+      await tester.tap(find.byKey(const Key('qty_plus')));
+      await tester.pumpAndSettle();
+      expect(subtotal(), '1.560.000đ');
+    });
+
+    testWidgets('chưa có giá: không hiện tạm tính', (tester) async {
+      await open(tester, '/products/p1', setup: (h) => seedDetail(h,
+          json: detailJson(packagings: [
+            {'id': 'kg', 'unitName': 'Kilogram', 'symbol': 'kg', 'conversionToBase': 1, 'isBaseUnit': true, 'price': null},
+          ])));
+      expect(find.byKey(const Key('detail_subtotal')), findsNothing);
+    });
+
     testWidgets('thêm vào giỏ: gửi đúng quy cách + số lượng, badge tăng, có nút "Xem giỏ"',
         (tester) async {
       final h = await open(tester, '/products/p1', setup: seedDetail);
@@ -368,14 +390,15 @@ void main() {
       expect(find.byKey(const Key('add_to_cart')), findsNothing);
     });
 
-    testWidgets('đang tải: vòng tải', (tester) async {
+    testWidgets('đang tải: khung xương, chưa có nút thêm; tải xong mới có', (tester) async {
       final h = AppHarness()..signIn();
       seedDetail(h);
       final gate = Completer<void>();
       h.catalog.detailGate = gate.future;
       await h.pump(tester, initial: '/products/p1');
       await tester.pump();
-      expect(find.byType(CircularProgressIndicator), findsOneWidget);
+      expect(find.byType(ShimmerLoadingWidget), findsWidgets);
+      expect(find.byKey(const Key('add_to_cart')), findsNothing);
       gate.complete();
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('add_to_cart')), findsOneWidget);

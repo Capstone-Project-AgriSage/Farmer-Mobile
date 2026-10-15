@@ -3,23 +3,11 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/config/app_config.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/network/api_call.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/json_utils.dart';
 import '../../../core/network/paged_result.dart';
 import 'order_models.dart';
-
-Future<T> _run<T>(Future<T> Function() call,
-    {Map<int, String> messages = const {},
-    ApiException Function(ApiException e)? map}) async {
-  try {
-    return await call();
-  } on DioException catch (e) {
-    final error = ApiException.from(e);
-    final mapped = map?.call(error) ?? error;
-    final override = messages[mapped.statusCode];
-    throw override == null || mapped != error ? mapped : error.withMessage(override);
-  }
-}
 
 /// Đổi lý do từ chối khi đặt hàng (backend trả tiếng Anh) sang tiếng Việt.
 /// Backend không có mã lỗi riêng nên phải dựa vào nội dung `detail`.
@@ -48,7 +36,10 @@ ApiException mapCheckoutError(ApiException e) {
     } else if (d.toLowerCase().contains('address')) {
       msg = 'Địa chỉ giao hàng không hợp lệ hoặc đã bị xoá. Vui lòng chọn lại.';
     }
-    if (msg != null) return e.withMessage(msg);
+    // Lý do lạ: nếu backend đã trả tiếng Việt thì giữ, còn tiếng Anh thì dùng câu chung.
+    if (msg == null && e.message == e.detail) return e;
+    return e.withMessage(msg ??
+        'Không đặt được đơn hàng này. Vui lòng kiểm tra lại giỏ hàng hoặc liên hệ cửa hàng.');
   }
   if (e.statusCode == 404) {
     return e.withMessage('Địa chỉ giao hàng không còn tồn tại. Vui lòng chọn lại.');
@@ -72,7 +63,7 @@ class OrderRepository {
     String? addressId,
     String? note,
   }) =>
-      _run(
+      apiCall(
         () async {
           final trimmed = note?.trim();
           final res = await _dio.post<Map<String, dynamic>>(
@@ -91,17 +82,18 @@ class OrderRepository {
         map: mapCheckoutError,
       );
 
-  Future<PagedResult<OrderSummary>> list({int page = 1, String? status}) =>
-      _run(() async {
+  Future<PagedResult<OrderSummary>> list(
+          {int page = 1, String? status, int size = pageSize}) =>
+      apiCall(() async {
         final res = await _dio.get<Map<String, dynamic>>(
           '/api/me/orders',
           queryParameters:
-              cleanQuery({'page': page, 'pageSize': pageSize, 'status': status}),
+              cleanQuery({'page': page, 'pageSize': size, 'status': status}),
         );
         return PagedResult.fromJson(res.data!, OrderSummary.fromJson);
       });
 
-  Future<OrderDetail> get(String id) => _run(
+  Future<OrderDetail> get(String id) => apiCall(
         () async {
           final res = await _dio.get<Map<String, dynamic>>('/api/me/orders/$id');
           return OrderDetail.fromJson(res.data!);
@@ -110,7 +102,7 @@ class OrderRepository {
       );
 
   /// Chỉ huỷ được khi đơn đang chờ xác nhận.
-  Future<OrderDetail> cancel(String id, {String? reason}) => _run(
+  Future<OrderDetail> cancel(String id, {String? reason}) => apiCall(
         () async {
           final r = reason?.trim();
           final res = await _dio.post<Map<String, dynamic>>(
@@ -125,7 +117,7 @@ class OrderRepository {
         },
       );
 
-  Future<List<Delivery>> deliveries(String orderId) => _run(() async {
+  Future<List<Delivery>> deliveries(String orderId) => apiCall(() async {
         final res =
             await _dio.get<List<dynamic>>('/api/me/orders/$orderId/deliveries');
         return [
@@ -133,7 +125,7 @@ class OrderRepository {
         ];
       });
 
-  Future<OrderPayments> payments(String orderId) => _run(() async {
+  Future<OrderPayments> payments(String orderId) => apiCall(() async {
         final res = await _dio
             .get<Map<String, dynamic>>('/api/me/orders/$orderId/payments');
         return OrderPayments.fromJson(res.data!);
@@ -150,7 +142,7 @@ class PaymentRepository {
       'Thanh toán online đang gián đoạn. Vui lòng thử lại sau hoặc thanh toán tại cửa hàng.';
 
   /// Tạo link payOS trả phần còn lại của đơn. Server tự huỷ link cũ đang chờ.
-  Future<PayOsLink> createForOrder(String orderId) => _run(
+  Future<PayOsLink> createForOrder(String orderId) => apiCall(
         () async {
           final res = await _dio.post<Map<String, dynamic>>(
             '/api/me/payments/payos',
@@ -174,15 +166,42 @@ class PaymentRepository {
         },
       );
 
+  /// Tạo link payOS trả nợ. Tiền được trừ vào khoản đến hạn sớm nhất trước;
+  /// payOS chỉ nhận số tiền nguyên đồng.
+  Future<PayOsLink> createForDebt(double amount) => apiCall(
+        () async {
+          final res = await _dio.post<Map<String, dynamic>>(
+            '/api/me/payments/payos',
+            data: {'paymentContext': 'DEBT_REPAYMENT', 'amount': amount.round()},
+          );
+          return PayOsLink.fromJson(res.data!);
+        },
+        messages: {
+          503: _unavailable,
+          404: 'Bạn chưa có công nợ nào để thanh toán.',
+        },
+        map: (e) {
+          final d = e.detail ?? '';
+          if (e.statusCode == 422 && d.contains('owes')) {
+            return e.withMessage(
+                'Số tiền vượt quá số nợ hiện tại. Vui lòng tải lại và nhập lại.');
+          }
+          if (e.statusCode == 422 && d.contains('whole VND')) {
+            return e.withMessage('Chỉ thanh toán online được số tiền nguyên đồng.');
+          }
+          return e;
+        },
+      );
+
   /// Trạng thái thật của khoản thanh toán (chỉ tin cái này, không tin returnUrl).
-  Future<Payment> get(String paymentId) => _run(() async {
+  Future<Payment> get(String paymentId) => apiCall(() async {
         final res =
             await _dio.get<Map<String, dynamic>>('/api/me/payments/$paymentId');
         return Payment.fromJson(res.data!);
       });
 
   /// Hỏi payOS trực tiếp khi webhook chậm.
-  Future<Payment> sync(String paymentId) => _run(
+  Future<Payment> sync(String paymentId) => apiCall(
         () async {
           final res = await _dio
               .post<Map<String, dynamic>>('/api/payments/$paymentId/sync');
@@ -191,7 +210,7 @@ class PaymentRepository {
         messages: {503: _unavailable},
       );
 
-  Future<Payment> cancel(String paymentId) => _run(
+  Future<Payment> cancel(String paymentId) => apiCall(
         () async {
           final res = await _dio.post<Map<String, dynamic>>(
               '/api/me/payments/$paymentId/cancel');
@@ -205,7 +224,7 @@ class PaymentRepository {
 
   /// CHỈ môi trường dev (PayOS:Mode=Simulated): giả lập đã trả tiền.
   /// Môi trường thật trả 404.
-  Future<Payment> simulatePaid(String paymentId) => _run(
+  Future<Payment> simulatePaid(String paymentId) => apiCall(
         () async {
           final res = await _dio.post<Map<String, dynamic>>(
               '/api/payments/$paymentId/simulate-paid');
@@ -227,6 +246,10 @@ class CreditRepository {
       return CreditSummary.fromJson(res.data!);
     } on DioException catch (e) {
       if (e.response?.statusCode == 404) return null;
+      throw ApiException.from(e);
+    } on ApiException {
+      rethrow;
+    } catch (e) {
       throw ApiException.from(e);
     }
   }

@@ -1,7 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/network/api_exception.dart';
+import '../../../core/network/api_call.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../data/models/address.dart';
 
@@ -75,18 +75,7 @@ class ProfileRepository {
   /// Backend cho tối đa 10 địa chỉ.
   static const maxAddresses = 10;
 
-  Future<T> _run<T>(Future<T> Function() call,
-      {Map<int, String> messages = const {}}) async {
-    try {
-      return await call();
-    } on DioException catch (e) {
-      final error = ApiException.from(e);
-      final override = messages[error.statusCode];
-      throw override == null ? error : error.withMessage(override);
-    }
-  }
-
-  Future<FarmerProfile> getProfile() => _run(() async {
+  Future<FarmerProfile> getProfile() => apiCall(() async {
         final res = await _dio.get<Map<String, dynamic>>('/api/me/profile');
         return FarmerProfile.fromJson(res.data!);
       });
@@ -96,7 +85,7 @@ class ProfileRepository {
     DateTime? dateOfBirth,
     String? gender,
   }) =>
-      _run(() async {
+      apiCall(() async {
         final res = await _dio.put<Map<String, dynamic>>(
           '/api/me/profile',
           data: {
@@ -114,14 +103,14 @@ class ProfileRepository {
       '${d.day.toString().padLeft(2, '0')}';
 
   /// Địa chỉ mặc định đứng đầu danh sách.
-  Future<List<Address>> listAddresses() => _run(() async {
+  Future<List<Address>> listAddresses() => apiCall(() async {
         final res = await _dio.get<List<dynamic>>('/api/me/addresses');
         return [
           for (final a in res.data!) Address.fromJson(a as Map<String, dynamic>),
         ];
       });
 
-  Future<Address> createAddress(AddressInput input) => _run(
+  Future<Address> createAddress(AddressInput input) => apiCall(
         () async {
           final res = await _dio.post<Map<String, dynamic>>(
             '/api/me/addresses',
@@ -134,7 +123,7 @@ class ProfileRepository {
         },
       );
 
-  Future<Address> updateAddress(String id, AddressInput input) => _run(
+  Future<Address> updateAddress(String id, AddressInput input) => apiCall(
         () async {
           final res = await _dio.put<Map<String, dynamic>>(
             '/api/me/addresses/$id',
@@ -145,12 +134,12 @@ class ProfileRepository {
         messages: {404: 'Địa chỉ này không còn tồn tại.'},
       );
 
-  Future<void> deleteAddress(String id) => _run(
+  Future<void> deleteAddress(String id) => apiCall(
         () => _dio.delete<void>('/api/me/addresses/$id'),
         messages: {404: 'Địa chỉ này không còn tồn tại.'},
       );
 
-  Future<Address> setDefaultAddress(String id) => _run(
+  Future<Address> setDefaultAddress(String id) => apiCall(
         () async {
           final res = await _dio
               .post<Map<String, dynamic>>('/api/me/addresses/$id/set-default');

@@ -18,6 +18,10 @@ import '../../orders/widgets/order_widgets.dart';
 import '../../profile/providers/profile_providers.dart';
 import '../data/catalog_models.dart';
 import '../providers/catalog_providers.dart';
+import '../widgets/product_widgets.dart';
+import '../../home/providers/home_providers.dart';
+import '../../payment/providers/payment_providers.dart';
+import '../../payment/widgets/payment_actions.dart';
 
 /// Xác nhận đặt hàng (checkout) từ giỏ hàng hiện tại.
 class OrderConfirmScreen extends ConsumerStatefulWidget {
@@ -28,7 +32,9 @@ class OrderConfirmScreen extends ConsumerStatefulWidget {
 }
 
 class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
-  String _fulfillment = FulfillmentType.delivery;
+  /// Đặt online luôn là giao tận nơi (như web): nhận tại cửa hàng là bán tại quầy do cửa hàng tạo,
+  /// không phải lựa chọn của nông dân khi đặt online.
+  static const _fulfillment = FulfillmentType.delivery;
   String _settlement = SettlementType.full;
 
   /// null = dùng địa chỉ mặc định.
@@ -41,8 +47,12 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
   @override
   void initState() {
     super.initState();
-    // Giá có thể đổi từ lúc xem giỏ: lấy giỏ mới nhất trước khi đặt.
+    // Giá có thể đổi từ lúc xem giỏ: lấy giỏ mới nhất trước khi đặt (một lần).
     Future.microtask(() => ref.read(cartProvider.notifier).refresh());
+    // Snackbar của màn trước (vd. "Đã thêm vào giỏ") không được che ô tick/nút đặt hàng.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) ScaffoldMessenger.of(context).clearSnackBars();
+    });
   }
 
   @override
@@ -109,6 +119,8 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
     });
     final router = GoRouter.of(context);
     final messenger = ScaffoldMessenger.of(context);
+    // Sau `router.go` màn này bị huỷ nên không dùng `ref` được nữa: lấy sẵn.
+    final launcher = ref.read(paymentLauncherProvider);
     try {
       final order = await ref.read(orderRepositoryProvider).checkout(
             settlementType:
@@ -119,25 +131,66 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
           );
       // Giỏ đã chuyển thành đơn: tải lại (rỗng) và làm mới danh sách đơn.
       ref.read(cartProvider.notifier).refresh();
-      ref.invalidate(myOrdersProvider);
+      invalidateOrders(ref);
       messenger.showSnackBar(
           SnackBar(content: Text('Đặt hàng thành công: ${order.orderNumber}')));
       router.go('/orders/${order.id}');
       // Đơn trả ngay giao tận nơi: cửa hàng chỉ xác nhận khi đã nhận đủ tiền.
       if (order.settlementType == SettlementType.full &&
           order.fulfillmentType == FulfillmentType.delivery) {
-        router.push('${AppRoutes.qrPayment}?orderId=${order.id}');
+        await openPayosPayment(
+          router: router,
+          messenger: messenger,
+          start: () => launcher.startOrderPayment(order.id),
+        );
       }
     } on ApiException catch (e) {
       if (!mounted) return;
-      setState(() => _error = e.message);
-      // Giỏ có thể đã thay đổi (dòng ngừng bán, giá...): đồng bộ lại.
+      // Giỏ có thể đã thay đổi (dòng ngừng bán, giá...), hoặc đã thành đơn nếu chỉ mất phản hồi: đồng bộ lại.
       ref.read(cartProvider.notifier).refresh();
+      if (e.kind == ApiErrorKind.timeout) {
+        // Request đã đi nhưng mất câu trả lời: server có thể đã tạo đơn. KHÔNG mời đặt lại ngay
+        // (dễ trùng đơn), chỉ sang mục Đơn hàng để kiểm tra. (Cách xử lý của nhánh feature/mobile-diagnosis.)
+        invalidateOrders(ref);
+        setState(() {
+          _error = '';
+          _submitting = false;
+        });
+        await _warnMaybeCreated(router);
+        return;
+      }
+      setState(() => _error = e.message);
       if (e.statusCode == 404) ref.invalidate(addressesProvider);
     } finally {
       if (mounted) setState(() => _submitting = false);
     }
   }
+
+  Future<void> _warnMaybeCreated(GoRouter router) => showDialog<void>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Chưa nhận được phản hồi'),
+          content: const Text(
+            'Đơn hàng có thể đã được tạo. Bạn hãy vào mục Đơn hàng để kiểm tra trước khi đặt lại, '
+            'tránh tạo đơn trùng.',
+          ),
+          actions: [
+            TextButton(
+              key: const Key('maybe_created_close'),
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Đóng'),
+            ),
+            TextButton(
+              key: const Key('maybe_created_orders'),
+              onPressed: () {
+                Navigator.pop(ctx);
+                router.go(AppRoutes.orderList);
+              },
+              child: const Text('Xem đơn hàng'),
+            ),
+          ],
+        ),
+      );
 
   @override
   Widget build(BuildContext context) {
@@ -146,20 +199,28 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
     final credit = ref.watch(myCreditProvider);
     final cart = cartAsync.valueOrNull;
 
-    final isDelivery = _fulfillment == FulfillmentType.delivery;
     final address = _selectedAddress(addresses.valueOrNull ?? const []);
     final total = cart?.subtotal ?? 0;
     final creditBlocker = _creditBlocker(credit, total);
     final settlement = _resolveSettlement(credit, total);
     final canSubmit = cart != null &&
         cart.canCheckout &&
-        (!isDelivery || address != null) &&
+        address != null &&
         _agreed &&
         !_submitting;
 
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
-      appBar: AppBar(title: const Text('Xác nhận đặt hàng')),
+      appBar: AppBar(
+        title: const Text('Xác nhận đặt hàng'),
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        bottom: const PreferredSize(
+          preferredSize: Size.fromHeight(44),
+          child: _CheckoutSteps(current: 1),
+        ),
+      ),
       body: cartAsync.when(
         skipLoadingOnRefresh: true,
         skipLoadingOnReload: true,
@@ -185,95 +246,80 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
                   children: [
                     SectionCard(
                       icon: Icons.local_shipping_outlined,
-                      title: 'HÌNH THỨC NHẬN HÀNG',
-                      child: Column(
-                        children: [
-                          _OptionTile(
-                            key: const Key('opt_delivery'),
-                            selected: isDelivery,
-                            title: FulfillmentType.label(FulfillmentType.delivery),
-                            subtitle: 'Cửa hàng giao đến địa chỉ của bạn.',
-                            onTap: () => setState(
-                                () => _fulfillment = FulfillmentType.delivery),
-                          ),
-                          const SizedBox(height: 8),
-                          _OptionTile(
-                            key: const Key('opt_pickup'),
-                            selected: !isDelivery,
-                            title: FulfillmentType.label(FulfillmentType.pickup),
-                            subtitle: 'Bạn tự đến cửa hàng lấy hàng.',
-                            onTap: () => setState(
-                                () => _fulfillment = FulfillmentType.pickup),
-                          ),
-                        ],
+                      title: 'Hình thức nhận hàng',
+                      child: _OptionTile(
+                        key: const Key('opt_delivery'),
+                        icon: Icons.local_shipping_outlined,
+                        selected: true,
+                        title: FulfillmentType.label(FulfillmentType.delivery),
+                        subtitle: 'Cửa hàng giao đến địa chỉ của bạn.',
+                        onTap: () {},
                       ),
                     ),
-                    if (isDelivery) ...[
-                      const SizedBox(height: 12),
-                      SectionCard(
-                        icon: Icons.location_on_outlined,
-                        title: 'ĐỊA CHỈ NHẬN HÀNG',
-                        trailing: (addresses.valueOrNull?.isNotEmpty ?? false)
-                            ? TextButton(
-                                style: TextButton.styleFrom(
-                                    minimumSize: Size.zero,
-                                    padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                    tapTargetSize: MaterialTapTargetSize.shrinkWrap),
-                                key: const Key('address_change'),
-                                onPressed: () =>
-                                    _pickAddress(addresses.valueOrNull!),
-                                child: Text(address == null ? 'Chọn' : 'Thay đổi'),
-                              )
-                            : null,
-                        child: addresses.when(
-                          loading: () => const Padding(
-                            padding: EdgeInsets.all(8),
-                            child: Center(
-                                child: SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(strokeWidth: 2))),
-                          ),
-                          error: (e, _) => Row(
-                            children: [
-                              Expanded(
-                                  child: Text(ApiException.from(e).message,
-                                      style: AppTextStyles.bodySmall)),
-                              TextButton(
-                                onPressed: () => ref.invalidate(addressesProvider),
-                                child: const Text('Thử lại'),
-                              ),
-                            ],
-                          ),
-                          data: (list) => list.isEmpty
-                              ? Column(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Text('Bạn chưa có địa chỉ nhận hàng.',
-                                        style: AppTextStyles.bodySmall),
-                                    const SizedBox(height: 8),
-                                    OutlinedButton.icon(
-                                      key: const Key('address_add_first'),
-                                      onPressed: () => context
-                                          .push('${AppRoutes.profile}/addresses/add'),
-                                      icon: const Icon(Icons.add),
-                                      label: const Text('Thêm địa chỉ'),
-                                    ),
-                                  ],
-                                )
-                              : address == null
-                                  ? Text('Chưa chọn địa chỉ. Bấm "Chọn" để chọn địa chỉ nhận hàng.',
-                                      key: const Key('address_none'),
-                                      style: AppTextStyles.bodySmall
-                                          .copyWith(color: AppColors.statusWarning))
-                                  : _AddressView(address),
+                    const SizedBox(height: 12),
+                    SectionCard(
+                      icon: Icons.location_on_outlined,
+                      title: 'Địa chỉ nhận hàng',
+                      trailing: (addresses.valueOrNull?.isNotEmpty ?? false)
+                          ? TextButton(
+                              style: TextButton.styleFrom(
+                                  minimumSize: Size.zero,
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                  tapTargetSize: MaterialTapTargetSize.shrinkWrap),
+                              key: const Key('address_change'),
+                              onPressed: () =>
+                                  _pickAddress(addresses.valueOrNull!),
+                              child: Text(address == null ? 'Chọn' : 'Thay đổi'),
+                            )
+                          : null,
+                      child: addresses.when(
+                        loading: () => const Padding(
+                          padding: EdgeInsets.all(8),
+                          child: Center(
+                              child: SizedBox(
+                                  width: 20,
+                                  height: 20,
+                                  child: CircularProgressIndicator(strokeWidth: 2))),
                         ),
+                        error: (e, _) => Row(
+                          children: [
+                            Expanded(
+                                child: Text(ApiException.from(e).message,
+                                    style: AppTextStyles.bodySmall)),
+                            TextButton(
+                              onPressed: () => ref.invalidate(addressesProvider),
+                              child: const Text('Thử lại'),
+                            ),
+                          ],
+                        ),
+                        data: (list) => list.isEmpty
+                            ? Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text('Bạn chưa có địa chỉ nhận hàng.',
+                                      style: AppTextStyles.bodySmall),
+                                  const SizedBox(height: 8),
+                                  OutlinedButton.icon(
+                                    key: const Key('address_add_first'),
+                                    onPressed: () => context
+                                        .push('${AppRoutes.profile}/addresses/add'),
+                                    icon: const Icon(Icons.add),
+                                    label: const Text('Thêm địa chỉ'),
+                                  ),
+                                ],
+                              )
+                            : address == null
+                                ? Text('Chưa chọn địa chỉ. Bấm "Chọn" để chọn địa chỉ nhận hàng.',
+                                    key: const Key('address_none'),
+                                    style: AppTextStyles.bodySmall
+                                        .copyWith(color: AppColors.statusWarning))
+                                : _AddressView(address),
                       ),
-                    ],
+                    ),
                     const SizedBox(height: 12),
                     SectionCard(
                       icon: Icons.receipt_long_outlined,
-                      title: 'SẢN PHẨM (${cart.lines.length})',
+                      title: 'Sản phẩm (${cart.lines.length})',
                       child: Column(
                         children: [
                           for (final l in cart.lines) _CartLineSummary(l),
@@ -299,22 +345,23 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
                     const SizedBox(height: 12),
                     SectionCard(
                       icon: Icons.payments_outlined,
-                      title: 'THANH TOÁN',
+                      title: 'Thanh toán',
                       child: Column(
                         children: [
                           _OptionTile(
                             key: const Key('opt_full'),
+                            icon: Icons.qr_code_2_rounded,
                             selected: settlement == SettlementType.full,
                             title: 'Trả ngay',
-                            subtitle: isDelivery
-                                ? 'Thanh toán online qua payOS (VietQR) ngay sau khi đặt. Cửa hàng xác nhận đơn khi đã nhận đủ tiền.'
-                                : 'Thanh toán online qua payOS, hoặc trả tiền mặt khi nhận hàng tại cửa hàng.',
+                            subtitle:
+                                'Thanh toán online qua payOS (VietQR) ngay sau khi đặt. Cửa hàng xác nhận đơn khi đã nhận đủ tiền.',
                             onTap: () => setState(
                                 () => _settlement = SettlementType.full),
                           ),
                           const SizedBox(height: 8),
                           _OptionTile(
                             key: const Key('opt_credit'),
+                            icon: Icons.account_balance_wallet_outlined,
                             selected: settlement == SettlementType.credit,
                             enabled: creditBlocker == null,
                             title: 'Mua ghi nợ',
@@ -330,7 +377,7 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
                     const SizedBox(height: 12),
                     SectionCard(
                       icon: Icons.edit_note,
-                      title: 'GHI CHÚ CHO CỬA HÀNG (TUỲ CHỌN)',
+                      title: 'Ghi chú cho cửa hàng (tuỳ chọn)',
                       child: TextField(
                         key: const Key('order_note'),
                         controller: _noteCtrl,
@@ -344,28 +391,40 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
                       ),
                     ),
                     const SizedBox(height: 12),
-                    InkWell(
-                      key: const Key('order_agree'),
-                      onTap: () => setState(() => _agreed = !_agreed),
-                      child: Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Checkbox(
-                            value: _agreed,
-                            onChanged: (v) => setState(() => _agreed = v ?? false),
-                          ),
-                          Expanded(
-                            child: Padding(
-                              padding: const EdgeInsets.only(top: 12),
-                              child: Text(
-                                'Tôi đã kiểm tra thông tin đơn hàng. Giỏ hàng không giữ hàng; '
-                                'cửa hàng sẽ xác nhận còn hàng khi duyệt đơn.',
-                                style: AppTextStyles.bodySmall
-                                    .copyWith(color: AppColors.textSecondary),
+                    Material(
+                      color: _agreed ? AppColors.primaryLight : AppColors.surface,
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        side: BorderSide(
+                            color: _agreed ? AppColors.primary : AppColors.borderSubtle),
+                      ),
+                      child: InkWell(
+                        key: const Key('order_agree'),
+                        borderRadius: BorderRadius.circular(16),
+                        onTap: () => setState(() => _agreed = !_agreed),
+                        child: Padding(
+                          padding: const EdgeInsets.fromLTRB(4, 4, 14, 12),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Checkbox(
+                                value: _agreed,
+                                onChanged: (v) => setState(() => _agreed = v ?? false),
                               ),
-                            ),
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.only(top: 12),
+                                  child: Text(
+                                    'Tôi đã kiểm tra thông tin đơn hàng. Giỏ hàng không giữ hàng; '
+                                    'cửa hàng sẽ xác nhận còn hàng khi duyệt đơn.',
+                                    style: AppTextStyles.bodySmall
+                                        .copyWith(color: AppColors.textSecondary, fontSize: 13),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
+                        ),
                       ),
                     ),
                     if (_error.isNotEmpty) ...[
@@ -380,14 +439,15 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
       bottomNavigationBar: (cart == null || cart.isEmpty)
           ? null
           : Container(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+              padding: const EdgeInsets.fromLTRB(16, 14, 16, 12),
               decoration: BoxDecoration(
                 color: Colors.white,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
                 boxShadow: [
                   BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, -4)),
+                      color: Colors.black.withValues(alpha: 0.08),
+                      blurRadius: 20,
+                      offset: const Offset(0, -6)),
                 ],
               ),
               child: SafeArea(
@@ -400,14 +460,14 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text('Tổng tiền',
-                              style: AppTextStyles.caption
+                              style: AppTextStyles.bodySmall
                                   .copyWith(color: AppColors.textSecondary)),
                           FittedBox(
                             fit: BoxFit.scaleDown,
                             alignment: Alignment.centerLeft,
                             child: Text(formatVnd(total),
                                 key: const Key('checkout_total'),
-                                style: AppTextStyles.h3
+                                style: AppTextStyles.h2
                                     .copyWith(color: AppColors.primaryDark)),
                           ),
                         ],
@@ -419,8 +479,10 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
                       onPressed:
                           canSubmit ? () => _submit(cart, address) : null,
                       style: ElevatedButton.styleFrom(
-                        minimumSize: const Size(0, 50),
+                        minimumSize: const Size(0, 52),
                         padding: const EdgeInsets.symmetric(horizontal: 24),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(16)),
                       ),
                       child: _submitting
                           ? const SizedBox(
@@ -441,6 +503,7 @@ class _OrderConfirmScreenState extends ConsumerState<OrderConfirmScreen> {
 class _OptionTile extends StatelessWidget {
   const _OptionTile({
     super.key,
+    required this.icon,
     required this.selected,
     required this.title,
     required this.subtitle,
@@ -448,6 +511,7 @@ class _OptionTile extends StatelessWidget {
     this.enabled = true,
   });
 
+  final IconData icon;
   final bool selected;
   final bool enabled;
   final String title;
@@ -459,44 +523,58 @@ class _OptionTile extends StatelessWidget {
     final active = selected && enabled;
     return Opacity(
       opacity: enabled ? 1 : 0.6,
-      child: InkWell(
-        onTap: enabled ? onTap : null,
-        borderRadius: BorderRadius.circular(10),
-        child: Container(
-          padding: const EdgeInsets.all(12),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: active ? AppColors.primaryDark : AppColors.borderSubtle,
-              width: active ? 1.5 : 1,
-            ),
+      child: Material(
+        color: active ? AppColors.primaryLight : AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(
+            color: active ? AppColors.primary : AppColors.borderSubtle,
+            width: active ? 1.5 : 1,
           ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                active ? Icons.radio_button_checked : Icons.radio_button_unchecked,
-                size: 20,
-                color: active ? AppColors.primaryDark : AppColors.textMuted,
-              ),
-              const SizedBox(width: 8),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: AppTextStyles.bodyMedium
-                            .copyWith(fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 2),
-                    Text(subtitle,
-                        style: AppTextStyles.caption.copyWith(
-                            color: enabled
-                                ? AppColors.textSecondary
-                                : AppColors.statusWarning)),
-                  ],
+        ),
+        child: InkWell(
+          onTap: enabled ? onTap : null,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: active ? AppColors.surface : AppColors.surfaceSubtle,
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(icon,
+                      size: 22, color: active ? AppColors.primary : AppColors.textMuted),
                 ),
-              ),
-            ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          style: AppTextStyles.labelLarge.copyWith(
+                              color: active ? AppColors.primaryDark : AppColors.textPrimary)),
+                      const SizedBox(height: 2),
+                      Text(subtitle,
+                          style: AppTextStyles.bodySmall.copyWith(
+                              color: enabled
+                                  ? AppColors.textSecondary
+                                  : AppColors.statusWarning)),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Icon(
+                  active ? Icons.check_circle_rounded : Icons.circle_outlined,
+                  size: 22,
+                  color: active ? AppColors.primary : AppColors.borderStrong,
+                ),
+              ],
+            ),
           ),
         ),
       ),
@@ -511,18 +589,25 @@ class _AddressView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
+    return Container(
       key: const Key('address_selected'),
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text('${address.recipientName} · ${address.recipientPhone}',
-            style:
-                AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.bold)),
-        const SizedBox(height: 4),
-        Text(address.fullAddress,
-            style:
-                AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
-      ],
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.surfaceSubtle,
+        borderRadius: BorderRadius.circular(14),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('${address.recipientName} · ${address.recipientPhone}',
+              style: AppTextStyles.labelLarge),
+          const SizedBox(height: 4),
+          Text(address.fullAddress,
+              style: AppTextStyles.bodySmall
+                  .copyWith(color: AppColors.textSecondary, fontSize: 13)),
+        ],
+      ),
     );
   }
 }
@@ -537,18 +622,25 @@ class _CartLineSummary extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 6),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          SizedBox(
+            width: 48,
+            height: 48,
+            child: ProductImage(
+                url: line.imageUrl, iconSize: 20, borderRadius: BorderRadius.circular(12)),
+          ),
+          const SizedBox(width: 12),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(line.productName,
-                    style: AppTextStyles.bodySmall
-                        .copyWith(fontWeight: FontWeight.w600)),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.labelLarge.copyWith(fontSize: 13)),
+                const SizedBox(height: 2),
                 Text('${line.packagingName} × ${line.quantity}',
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.textMuted)),
+                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted)),
               ],
             ),
           ),
@@ -557,12 +649,77 @@ class _CartLineSummary extends StatelessWidget {
             line.lineTotal == null
                 ? CartUnavailableReason.label(line.unavailableReason)
                 : formatVnd(line.lineTotal!),
-            style: AppTextStyles.bodySmall.copyWith(
-                fontWeight: FontWeight.w600,
-                color: line.isAvailable
-                    ? AppColors.textPrimary
-                    : AppColors.statusWarning),
+            style: AppTextStyles.labelLarge.copyWith(
+                fontSize: 13,
+                color: line.isAvailable ? AppColors.textPrimary : AppColors.statusWarning),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Thanh bước đơn giản dưới tiêu đề: Giỏ hàng → Xác nhận → Thanh toán.
+class _CheckoutSteps extends StatelessWidget {
+  const _CheckoutSteps({required this.current});
+
+  /// 0 = giỏ hàng, 1 = xác nhận, 2 = thanh toán.
+  final int current;
+
+  static const _labels = ['Giỏ hàng', 'Xác nhận', 'Thanh toán'];
+
+  @override
+  Widget build(BuildContext context) {
+    Widget dot(int i) {
+      final done = i < current;
+      final active = i == current;
+      return Container(
+        width: 22,
+        height: 22,
+        decoration: BoxDecoration(
+          shape: BoxShape.circle,
+          color: done || active ? AppColors.primary : AppColors.surface,
+          border: Border.all(
+              color: done || active ? AppColors.primary : AppColors.borderStrong, width: 1.5),
+        ),
+        alignment: Alignment.center,
+        child: done
+            ? const Icon(Icons.check_rounded, size: 14, color: Colors.white)
+            : Text('${i + 1}',
+                style: AppTextStyles.caption.copyWith(
+                    color: active ? Colors.white : AppColors.textMuted,
+                    fontWeight: FontWeight.w700)),
+      );
+    }
+
+    // Màn hẹp: chỉ ghi chữ cho bước hiện tại để vạch nối không bị dồn thành chấm.
+    final narrow = MediaQuery.sizeOf(context).width < 360;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: Row(
+        children: [
+          for (var i = 0; i < _labels.length; i++) ...[
+            if (i > 0)
+              Expanded(
+                child: Container(
+                  height: 2,
+                  margin: const EdgeInsets.symmetric(horizontal: 6),
+                  color: i <= current ? AppColors.primary : AppColors.borderSubtle,
+                ),
+              ),
+            Semantics(
+              label: '${_labels[i]}${i == current ? ' (bước hiện tại)' : ''}',
+              child: dot(i),
+            ),
+            if (!narrow || i == current) ...[
+              const SizedBox(width: 6),
+              Text(_labels[i],
+                  maxLines: 1,
+                  style: AppTextStyles.bodySmall.copyWith(
+                      color: i <= current ? AppColors.primaryDark : AppColors.textMuted,
+                      fontWeight: i == current ? FontWeight.w700 : FontWeight.w500)),
+            ],
+          ],
         ],
       ),
     );

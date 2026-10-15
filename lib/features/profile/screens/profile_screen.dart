@@ -6,6 +6,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../router/app_router.dart';
 import '../../auth/providers/auth_controller.dart';
+import '../../dev/dev_tools_section.dart';
 
 class ProfileScreen extends ConsumerWidget {
   const ProfileScreen({super.key});
@@ -47,9 +48,19 @@ class ProfileScreen extends ConsumerWidget {
             // Header
             Container(
               padding: const EdgeInsets.fromLTRB(20, 60, 20, 30),
-              decoration: const BoxDecoration(
-                color: Color(0xFF1B5E20), // Dark green
-                borderRadius: BorderRadius.vertical(bottom: Radius.circular(32)),
+              decoration: BoxDecoration(
+                gradient: const LinearGradient(
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                  colors: [AppColors.primaryDark, AppColors.primary],
+                ),
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(32)),
+                boxShadow: [
+                  BoxShadow(
+                      color: AppColors.primary.withValues(alpha: 0.25),
+                      blurRadius: 18,
+                      offset: const Offset(0, 8)),
+                ],
               ),
               child: Row(
                 children: [
@@ -59,7 +70,7 @@ class ProfileScreen extends ConsumerWidget {
                     decoration: BoxDecoration(
                       color: Colors.white,
                       shape: BoxShape.circle,
-                      border: Border.all(color: Colors.white.withOpacity(0.5), width: 4),
+                      border: Border.all(color: Colors.white.withValues(alpha: 0.35), width: 4),
                     ),
                     alignment: Alignment.center,
                     child: Text(user?.initials ?? '?', style: const TextStyle(color: Color(0xFF1B5E20), fontWeight: FontWeight.bold, fontSize: 24)),
@@ -73,7 +84,7 @@ class ProfileScreen extends ConsumerWidget {
                         const SizedBox(height: 4),
                         Text(user?.fullName ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.h3.copyWith(color: Colors.white)),
                         const SizedBox(height: 4),
-                        Text(user?.phoneNumber ?? user?.email ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.bodyMedium.copyWith(color: Colors.white.withOpacity(0.9))),
+                        Text(user?.phoneNumber ?? user?.email ?? '', maxLines: 1, overflow: TextOverflow.ellipsis, style: AppTextStyles.bodyMedium.copyWith(color: Colors.white.withValues(alpha: 0.9))),
                       ],
                     ),
                   ),
@@ -87,11 +98,13 @@ class ProfileScreen extends ConsumerWidget {
               child: Column(
                 children: [
                     _buildSection(
-                      'TÀI KHOẢN',
+                      'Tài khoản',
                       [
                         _buildTile(Icons.person_outline, 'Thông tin cá nhân', () => context.push('/profile/edit')),
                         _buildTile(Icons.location_on_outlined, 'Quản lý địa chỉ', () => context.push('/profile/addresses')),
+                        _buildTile(Icons.assignment_return_outlined, 'Yêu cầu trả hàng', () => context.push('/returns')),
                         _buildTile(Icons.lock_outline, 'Đổi mật khẩu', () => context.push('/profile/password')),
+                        _buildTile(Icons.devices_outlined, 'Thiết bị đăng nhập', () => context.push(AppRoutes.sessions)),
                         _buildTile(Icons.notifications_outlined, 'Cài đặt thông báo', () => context.push('/profile/notifications')),
                         if (user != null && user.phoneNumber != null && !user.phoneVerified)
                           _buildTile(Icons.sms_outlined, 'Xác minh số điện thoại', () => context.push('${AppRoutes.otpVerify}?channel=phone&to=${Uri.encodeQueryComponent(user.phoneNumber!)}')),
@@ -101,26 +114,28 @@ class ProfileScreen extends ConsumerWidget {
                     ),
                   const SizedBox(height: 20),
                   _buildSection(
-                    'HỖ TRỢ',
+                    'Hỗ trợ',
                     [
                       _buildTile(Icons.help_outline, 'Trợ giúp & Hỗ trợ', () => context.push('/profile/help')),
                       _buildTile(Icons.description_outlined, 'Điều khoản sử dụng', () => context.push('/profile/terms')),
                       _buildTile(Icons.privacy_tip_outlined, 'Chính sách bảo mật', () => context.push('/profile/privacy')),
                     ],
                   ),
+                  const DevToolsSection(),
                   const SizedBox(height: 24),
                   
                   // Logout Button
                   SizedBox(
                     width: double.infinity,
                     child: OutlinedButton.icon(
+                      key: const Key('logout'),
                       onPressed: () => _confirmLogout(context, ref),
                       icon: const Icon(Icons.logout, color: AppColors.statusError),
                       label: Text('Đăng xuất', style: AppTextStyles.labelLarge.copyWith(color: AppColors.statusError)),
                       style: OutlinedButton.styleFrom(
                         padding: const EdgeInsets.symmetric(vertical: 16),
-                        side: BorderSide(color: AppColors.statusError.withOpacity(0.3)),
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        side: BorderSide(color: AppColors.statusError.withValues(alpha: 0.3)),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(18)),
                         backgroundColor: Colors.white,
                       ),
                     ),
@@ -141,16 +156,15 @@ class ProfileScreen extends ConsumerWidget {
       children: [
         Padding(
           padding: const EdgeInsets.only(left: 8, bottom: 8),
-          child: Text(title, style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.bold, color: AppColors.textMuted, letterSpacing: 0.5)),
+          child: Text(title, style: AppTextStyles.h4.copyWith(fontSize: 15)),
         ),
         Container(
           decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(color: AppColors.borderSubtle),
-            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.02), blurRadius: 8, offset: const Offset(0, 4))],
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.045), blurRadius: 14, offset: const Offset(0, 4))],
           ),
           child: ClipRRect(
-            borderRadius: BorderRadius.circular(16),
+            borderRadius: BorderRadius.circular(18),
             child: Material(
               color: Colors.white,
               child: Column(
@@ -182,12 +196,12 @@ class ProfileScreen extends ConsumerWidget {
         padding: const EdgeInsets.all(8),
         decoration: BoxDecoration(
           color: AppColors.primaryLight,
-          borderRadius: BorderRadius.circular(8),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(icon, color: AppColors.primary, size: 20),
       ),
       title: Text(title, style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w500)),
-      trailing: const Icon(Icons.chevron_right, color: AppColors.textMuted),
+      trailing: const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
       onTap: onTap,
     );
   }

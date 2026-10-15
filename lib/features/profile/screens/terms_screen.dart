@@ -32,16 +32,16 @@ class TermsScreen extends StatelessWidget {
             ),
             _buildSection(
               '3. Công nợ và Thanh toán',
-              'Các giao dịch mua bán chịu (công nợ) phải được sự xác nhận của cả nông dân và đại lý. AgriSage chỉ đóng vai trò ghi nhận và nhắc nhở, không chịu trách nhiệm giải quyết tranh chấp tài chính.',
+              'Bạn chỉ mua ghi nợ được khi cửa hàng đã cấp hạn mức tín dụng cho bạn. Số nợ, hạn trả và các khoản thanh toán do cửa hàng và hệ thống ghi nhận; nếu thấy sai lệch, bạn có thể khiếu nại ngay trong ứng dụng. AgriSage chỉ đóng vai trò ghi nhận và nhắc nhở, không chịu trách nhiệm giải quyết tranh chấp tài chính.',
             ),
             _buildSection(
-              '4. Tính năng Khám cây AI',
-              'Kết quả chẩn đoán bệnh từ AI chỉ mang tính chất tham khảo. Người dùng nên tham khảo ý kiến chuyên môn từ đại lý trước khi quyết định mua thuốc điều trị.',
+              '4. Tính năng khám cây',
+              'Ảnh lá lúa bạn gửi được chuyên gia của cửa hàng xem và đưa ra kết luận; kết luận chỉ mang tính chất tham khảo. Bạn nên hỏi thêm cửa hàng trước khi quyết định mua thuốc điều trị.',
             ),
             const SizedBox(height: 24),
             Center(
               child: Text(
-                'Cập nhật lần cuối: 15/09/2026',
+                'Cập nhật lần cuối: 12/10/2026',
                 style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
               ),
             ),

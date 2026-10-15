@@ -54,14 +54,27 @@ class _OrderListScreenState extends ConsumerState<OrderListScreen> {
               context.canPop() ? context.pop() : context.go(AppRoutes.home),
         ),
         title: const Text('Đơn hàng của tôi'),
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
       ),
       body: Column(
         children: [
           Container(
-            color: Colors.white,
-            padding: const EdgeInsets.symmetric(vertical: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.04),
+                    blurRadius: 12,
+                    offset: const Offset(0, 6)),
+              ],
+            ),
+            padding: const EdgeInsets.only(top: 4, bottom: 14),
             child: SizedBox(
-              height: 36,
+              // Cao theo cỡ chữ hệ thống để chữ to không bị cắt.
+              height: MediaQuery.textScalerOf(context).scale(20) + 20,
               child: ListView.separated(
                 padding: const EdgeInsets.symmetric(horizontal: 16),
                 scrollDirection: Axis.horizontal,
@@ -70,17 +83,29 @@ class _OrderListScreenState extends ConsumerState<OrderListScreen> {
                 itemBuilder: (_, i) {
                   final s = OrderStatus.filters[i];
                   final active = s == state.status;
-                  return ChoiceChip(
+                  return Material(
                     key: Key('order_filter_${s ?? 'all'}'),
-                    label: Text(OrderStatus.label(s)),
-                    selected: active,
-                    showCheckmark: false,
-                    selectedColor: AppColors.primaryDark,
-                    labelStyle: AppTextStyles.bodySmall.copyWith(
-                      color: active ? Colors.white : AppColors.textSecondary,
-                      fontWeight: active ? FontWeight.w600 : FontWeight.w500,
+                    color: active ? AppColors.primary : AppColors.surface,
+                    shape: StadiumBorder(
+                      side: BorderSide(
+                          color: active ? AppColors.primary : AppColors.borderSubtle),
                     ),
-                    onSelected: (_) => notifier.setStatus(s),
+                    child: InkWell(
+                      customBorder: const StadiumBorder(),
+                      onTap: () => notifier.setStatus(s),
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Center(
+                          widthFactor: 1,
+                          child: Text(OrderStatus.label(s),
+                              style: AppTextStyles.bodySmall.copyWith(
+                                fontSize: 13,
+                                color: active ? Colors.white : AppColors.textSecondary,
+                                fontWeight: active ? FontWeight.w700 : FontWeight.w500,
+                              )),
+                        ),
+                      ),
+                    ),
                   );
                 },
               ),
@@ -180,72 +205,123 @@ class _OrderCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InkWell(
-      key: Key('order_${order.id}'),
-      borderRadius: BorderRadius.circular(16),
-      onTap: () => context.push('/orders/${order.id}'),
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.borderSubtle),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
+    final (fg, bg) = OrderStatus.colors(order.status);
+    final pickup = order.fulfillmentType == FulfillmentType.pickup;
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.045),
+              blurRadius: 14,
+              offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          key: Key('order_${order.id}'),
+          borderRadius: BorderRadius.circular(18),
+          onTap: () => context.push('/orders/${order.id}'),
+          child: Padding(
+            padding: const EdgeInsets.all(14),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Expanded(
-                  child: Text(order.orderNumber,
-                      overflow: TextOverflow.ellipsis,
-                      style: AppTextStyles.bodyMedium
-                          .copyWith(fontWeight: FontWeight.bold)),
+                Row(
+                  children: [
+                    // Biểu tượng nhận hàng, tô theo màu trạng thái.
+                    Container(
+                      width: 44,
+                      height: 44,
+                      decoration: BoxDecoration(
+                        color: bg,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Icon(
+                          pickup ? Icons.storefront_outlined : Icons.local_shipping_outlined,
+                          color: fg,
+                          size: 22),
+                    ),
+                    const SizedBox(width: 12),
+                    // Mã đơn có trọn hàng (nhãn trạng thái nằm ở hàng dưới) nên không bị cắt.
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(order.orderNumber,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.labelLarge),
+                          const SizedBox(height: 2),
+                          Text('Đặt lúc ${formatDateTime(order.createdAt)}',
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: AppTextStyles.bodySmall
+                                  .copyWith(color: AppColors.textMuted)),
+                        ],
+                      ),
+                    ),
+                    const Icon(Icons.chevron_right_rounded, color: AppColors.textMuted),
+                  ],
                 ),
-                const SizedBox(width: 8),
-                OrderStatusBadge(order.status),
-              ],
-            ),
-            const SizedBox(height: 6),
-            Text(formatDateTime(order.createdAt),
-                style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
-            const Divider(height: 24, color: AppColors.borderSubtle),
-            Row(
-              children: [
-                Icon(
-                    order.fulfillmentType == FulfillmentType.pickup
-                        ? Icons.storefront_outlined
-                        : Icons.local_shipping_outlined,
-                    size: 16,
-                    color: AppColors.textSecondary),
-                const SizedBox(width: 6),
-                Expanded(
-                  child: Text(
-                    '${FulfillmentType.label(order.fulfillmentType)} · '
-                    '${SettlementType.label(order.settlementType)} · '
-                    '${order.itemCount} sản phẩm',
-                    style: AppTextStyles.caption
-                        .copyWith(color: AppColors.textSecondary),
-                  ),
+                const SizedBox(height: 12),
+                Wrap(
+                  spacing: 6,
+                  runSpacing: 6,
+                  crossAxisAlignment: WrapCrossAlignment.center,
+                  children: [
+                    OrderStatusBadge(order.status),
+                    _Pill(FulfillmentType.label(order.fulfillmentType)),
+                    _Pill(SettlementType.label(order.settlementType)),
+                    _Pill('${order.itemCount} sản phẩm'),
+                  ],
+                ),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 12),
+                  child: Divider(height: 1, color: AppColors.borderSubtle),
+                ),
+                Row(
+                  children: [
+                    Text('Tổng tiền',
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: AppColors.textSecondary, fontSize: 13)),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: FittedBox(
+                        fit: BoxFit.scaleDown,
+                        alignment: Alignment.centerRight,
+                        child: Text(formatVnd(order.totalAmount),
+                            style: AppTextStyles.h4.copyWith(color: AppColors.primaryDark)),
+                      ),
+                    ),
+                  ],
                 ),
               ],
             ),
-            const SizedBox(height: 8),
-            Row(
-              children: [
-                Text('Tổng tiền',
-                    style: AppTextStyles.bodySmall
-                        .copyWith(color: AppColors.textSecondary)),
-                const Spacer(),
-                Text(formatVnd(order.totalAmount),
-                    style: AppTextStyles.bodyMedium.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.primaryDark)),
-              ],
-            ),
-          ],
+          ),
         ),
       ),
     );
   }
+}
+
+/// Nhãn nhỏ nền nhạt (hình thức nhận, thanh toán, số sản phẩm).
+class _Pill extends StatelessWidget {
+  const _Pill(this.text);
+
+  final String text;
+
+  @override
+  Widget build(BuildContext context) => Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+        decoration: BoxDecoration(
+          color: AppColors.surfaceSubtle,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(text,
+            style: AppTextStyles.bodySmall
+                .copyWith(color: AppColors.textSecondary, fontWeight: FontWeight.w500)),
+      );
 }

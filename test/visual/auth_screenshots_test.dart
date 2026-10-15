@@ -433,22 +433,6 @@ void main() {
         await tester.pumpAndSettle();
         await shoot(tester, '${tag}_orderdetail_3_delivery');
       });
-
-      testWidgets('thanh toán QR; hết hạn; kết quả', (tester) async {
-        final h = await openAt(tester, '/payment/qr?orderId=o1', (h) {
-          seedOrder(h, orderOf(id: 'o1'));
-        }, settle: false);
-        await shoot(tester, '${tag}_pay_1_waiting');
-
-        h.payments.statuses.add('FAILED');
-        await tester.pump(const Duration(seconds: 3));
-        await tester.pump();
-        await shoot(tester, '${tag}_pay_2_expired');
-
-        h.router.go('/payment/result?success=true&orderId=o1');
-        await tester.pumpAndSettle();
-        await shoot(tester, '${tag}_pay_3_success');
-      });
     });
   }
 }

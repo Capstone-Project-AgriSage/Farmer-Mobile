@@ -1,22 +1,11 @@
 import 'package:dio/dio.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
-import '../../../core/network/api_exception.dart';
+import '../../../core/network/api_call.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/json_utils.dart';
 import '../../../core/network/paged_result.dart';
 import 'catalog_models.dart';
-
-Future<T> _run<T>(Future<T> Function() call,
-    {Map<int, String> messages = const {}}) async {
-  try {
-    return await call();
-  } on DioException catch (e) {
-    final error = ApiException.from(e);
-    final override = messages[error.statusCode];
-    throw override == null ? error : error.withMessage(override);
-  }
-}
 
 /// Catalog công khai (`/api/catalog/*`), không cần đăng nhập.
 class CatalogRepository {
@@ -29,7 +18,7 @@ class CatalogRepository {
   /// Backend giới hạn từ khoá 100 ký tự.
   static const maxSearchLength = 100;
 
-  Future<List<CategoryNode>> categories() => _run(() async {
+  Future<List<CategoryNode>> categories() => apiCall(() async {
         final res = await _dio.get<List<dynamic>>('/api/catalog/categories');
         return [
           for (final c in res.data!) CategoryNode.fromJson(c as Map<String, dynamic>),
@@ -43,7 +32,7 @@ class CatalogRepository {
     String? categoryId,
     String? search,
   }) =>
-      _run(() async {
+      apiCall(() async {
         final term = search?.trim();
         final res = await _dio.get<Map<String, dynamic>>(
           '/api/catalog/products',
@@ -59,7 +48,7 @@ class CatalogRepository {
         return PagedResult.fromJson(res.data!, CatalogProduct.fromJson);
       });
 
-  Future<ProductDetail> product(String id) => _run(
+  Future<ProductDetail> product(String id) => apiCall(
         () async {
           final res =
               await _dio.get<Map<String, dynamic>>('/api/catalog/products/$id');
@@ -82,7 +71,7 @@ class CartRepository {
   static const _unsellable =
       'Sản phẩm hoặc quy cách này hiện không thể đặt mua.';
 
-  Future<Cart> get() => _run(() async {
+  Future<Cart> get() => apiCall(() async {
         final res = await _dio.get<Map<String, dynamic>>('/api/me/cart');
         return Cart.fromJson(res.data!);
       });
@@ -93,7 +82,7 @@ class CartRepository {
     required String packagingId,
     required int quantity,
   }) =>
-      _run(
+      apiCall(
         () async {
           final res = await _dio.post<Map<String, dynamic>>(
             '/api/me/cart/items',
@@ -109,7 +98,7 @@ class CartRepository {
       );
 
   /// THAY số lượng của một dòng.
-  Future<Cart> setQuantity(String itemId, int quantity) => _run(
+  Future<Cart> setQuantity(String itemId, int quantity) => apiCall(
         () async {
           final res = await _dio.put<Map<String, dynamic>>(
             '/api/me/cart/items/$itemId',
@@ -120,7 +109,7 @@ class CartRepository {
         messages: {404: _notFound, 422: _unsellable},
       );
 
-  Future<Cart> remove(String itemId) => _run(
+  Future<Cart> remove(String itemId) => apiCall(
         () async {
           final res = await _dio
               .delete<Map<String, dynamic>>('/api/me/cart/items/$itemId');
@@ -129,7 +118,7 @@ class CartRepository {
         messages: {404: _notFound},
       );
 
-  Future<void> clear() => _run(() => _dio.delete<void>('/api/me/cart'));
+  Future<void> clear() => apiCall(() => _dio.delete<void>('/api/me/cart'));
 }
 
 final catalogRepositoryProvider =

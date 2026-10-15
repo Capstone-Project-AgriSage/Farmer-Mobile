@@ -64,27 +64,36 @@ class SectionCard extends StatelessWidget {
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.borderSubtle),
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.045),
+              blurRadius: 14,
+              offset: const Offset(0, 4)),
+        ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 20, color: AppColors.textSecondary),
-              const SizedBox(width: 8),
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 18, color: AppColors.primary),
+              ),
+              const SizedBox(width: 10),
               Expanded(
-                child: Text(title,
-                    style: AppTextStyles.caption.copyWith(
-                        fontWeight: FontWeight.bold,
-                        color: AppColors.textPrimary,
-                        letterSpacing: 0.3)),
+                child: Text(title, style: AppTextStyles.h4.copyWith(fontSize: 15)),
               ),
               if (trailing != null) trailing!,
             ],
           ),
-          const SizedBox(height: 12),
+          const SizedBox(height: 14),
           child,
         ],
       ),

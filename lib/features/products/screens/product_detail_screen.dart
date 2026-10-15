@@ -8,6 +8,7 @@ import '../../../core/network/api_exception.dart';
 import '../../../core/utils/money.dart';
 import '../../../router/app_router.dart';
 import '../../../shared/widgets/error_retry_widget.dart';
+import '../../../shared/widgets/shimmer_loading_widget.dart';
 import '../data/catalog_models.dart';
 import '../data/catalog_repository.dart';
 import '../providers/catalog_providers.dart';
@@ -40,14 +41,27 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
   Widget build(BuildContext context) {
     final detail = ref.watch(productDetailProvider(widget.productId));
     final product = detail.valueOrNull;
+    final selected = product == null ? null : _selectedOf(product);
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
       appBar: AppBar(
         title: const Text('Chi tiết sản phẩm'),
-        actions: const [CartIconButton(), SizedBox(width: 8)],
+        backgroundColor: AppColors.surface,
+        surfaceTintColor: Colors.transparent,
+        scrolledUnderElevation: 0,
+        actions: [
+          Container(
+            margin: const EdgeInsets.only(right: 12),
+            decoration: BoxDecoration(
+              color: AppColors.surfaceSubtle,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: const CartIconButton(),
+          ),
+        ],
       ),
       body: detail.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
+        loading: () => const _DetailSkeleton(),
         error: (e, _) => ErrorRetryWidget(
           error: e,
           onRetry: () =>
@@ -55,7 +69,7 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
         ),
         data: (p) => _DetailBody(
           product: p,
-          selected: _selectedOf(p),
+          selected: selected,
           onSelect: (o) => setState(() => _selectedId = o.id),
         ),
       ),
@@ -64,7 +78,8 @@ class _ProductDetailScreenState extends ConsumerState<ProductDetailScreen> {
       bottomNavigationBar: product == null
           ? null
           : _BottomBar(
-              enabled: _selectedOf(product) != null,
+              enabled: selected != null,
+              unitPrice: selected?.price,
               quantity: _quantity,
               adding: _adding,
               onQuantity: (q) => setState(() => _quantity = q),
@@ -125,97 +140,128 @@ class _DetailBody extends StatelessWidget {
     return ListView(
       padding: EdgeInsets.zero,
       children: [
-        Container(
-          height: 240,
-          margin: const EdgeInsets.all(16),
-          child: ProductImage(
-            url: p.imageUrl,
-            iconSize: 80,
-            borderRadius: BorderRadius.circular(20),
+        // Ảnh lớn bo góc, rồi khối thông tin chính.
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+          // Tỉ lệ 4:3 nhưng không cao quá 300 (máy tính bảng, xoay ngang).
+          child: Center(
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 300),
+              child: AspectRatio(
+                aspectRatio: 4 / 3,
+                child: ProductImage(
+                  url: p.imageUrl,
+                  iconSize: 80,
+                  borderRadius: BorderRadius.circular(24),
+                ),
+              ),
+            ),
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Wrap(
-                spacing: 8,
-                runSpacing: 8,
-                children: [
-                  _Tag(p.categoryName, AppColors.primary,
-                      AppColors.primaryLight),
-                  if (p.brandName != null)
-                    _Tag(p.brandName!, AppColors.textSecondary,
-                        AppColors.surfaceSecondary),
-                ],
-              ),
-              const SizedBox(height: 12),
-              Text(p.name, style: AppTextStyles.h3),
-              const SizedBox(height: 4),
-              Text('Mã: ${p.sku}',
-                  style: AppTextStyles.caption
-                      .copyWith(color: AppColors.textMuted)),
-              const SizedBox(height: 12),
-              if (selected != null)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.end,
+          padding: const EdgeInsets.only(bottom: 16),
+          child: Container(
+            margin: const EdgeInsets.symmetric(horizontal: 16),
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 18),
+            decoration: BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(24),
+              boxShadow: [
+                BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.06),
+                    blurRadius: 20,
+                    offset: const Offset(0, 6)),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: 8,
+                  runSpacing: 8,
                   children: [
-                    Text(formatVnd(selected.price!),
-                        key: const Key('detail_price'),
-                        style: AppTextStyles.h3
-                            .copyWith(color: AppColors.primary)),
-                    const SizedBox(width: 4),
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 2),
-                      child: Text('/ ${selected.label}',
-                          style: AppTextStyles.bodySmall
-                              .copyWith(color: AppColors.textMuted)),
-                    ),
+                    _Tag(p.categoryName, AppColors.primary, AppColors.primaryLight,
+                        icon: categoryIcon(p.categoryName)),
+                    if (p.brandName != null)
+                      _Tag(p.brandName!, AppColors.textSecondary,
+                          AppColors.surfaceSecondary,
+                          icon: Icons.verified_outlined),
                   ],
-                )
-              else
-                Text('Chưa có giá bán',
-                    key: const Key('detail_no_price'),
-                    style:
-                        AppTextStyles.h4.copyWith(color: AppColors.textMuted)),
-            ],
+                ),
+                const SizedBox(height: 12),
+                Text(p.name, style: AppTextStyles.h2.copyWith(fontSize: 21)),
+                const SizedBox(height: 4),
+                Text('Mã: ${p.sku}',
+                    style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted)),
+                const SizedBox(height: 14),
+                if (selected != null)
+                  Wrap(
+                    crossAxisAlignment: WrapCrossAlignment.end,
+                    spacing: 6,
+                    children: [
+                      Text(formatVnd(selected.price!),
+                          key: const Key('detail_price'),
+                          style: AppTextStyles.priceLarge.copyWith(fontSize: 26)),
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 3),
+                        child: Text('/ ${selected.label}',
+                            style: AppTextStyles.bodyMedium
+                                .copyWith(color: AppColors.textMuted)),
+                      ),
+                    ],
+                  )
+                else
+                  Text('Chưa có giá bán',
+                      key: const Key('detail_no_price'),
+                      style: AppTextStyles.h3.copyWith(color: AppColors.textMuted)),
+                if (selected != null && !selected.isBaseUnit && base != null) ...[
+                  const SizedBox(height: 6),
+                  Row(
+                    children: [
+                      const Icon(Icons.swap_horiz_rounded,
+                          size: 16, color: AppColors.textMuted),
+                      const SizedBox(width: 4),
+                      Flexible(
+                        child: Text(
+                          '1 ${selected.label} = ${selected.conversionToBase} ${base.symbol ?? base.unitName}',
+                          key: const Key('detail_conversion'),
+                          style: AppTextStyles.bodySmall
+                              .copyWith(color: AppColors.textSecondary),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ],
+            ),
           ),
         ),
         if (options.isNotEmpty)
           _Section(
-            icon: Icons.straighten,
+            icon: Icons.straighten_rounded,
             title: 'Chọn quy cách',
             child: Wrap(
-              spacing: 8,
-              runSpacing: 8,
+              spacing: 10,
+              runSpacing: 10,
               children: [
                 for (final o in options)
-                  ChoiceChip(
+                  _PackOption(
                     key: Key('pack_${o.id}'),
-                    label: Text('${o.label} · ${formatVnd(o.price!)}'),
+                    packaging: o,
                     selected: o.id == selected?.id,
-                    selectedColor: AppColors.primaryLight,
-                    onSelected: (_) => onSelect(o),
+                    onTap: () => onSelect(o),
                   ),
               ],
             ),
           ),
-        if (selected != null && !selected.isBaseUnit && base != null)
-          Padding(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
-            child: Text(
-              '1 ${selected.label} = ${selected.conversionToBase} ${base.symbol ?? base.unitName}',
-              key: const Key('detail_conversion'),
-              style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),
-            ),
-          ),
         if (options.isEmpty)
           const _Section(
-            icon: Icons.info_outline,
+            icon: Icons.info_outline_rounded,
             title: 'Chưa thể đặt mua',
-            child: Text(
-                'Sản phẩm này chưa có giá bán. Vui lòng liên hệ cửa hàng để được báo giá.'),
+            child: _Card(
+              child: Text(
+                  'Sản phẩm này chưa có giá bán. Vui lòng liên hệ cửa hàng để được báo giá.'),
+            ),
           ),
         if (p.ingredients.isNotEmpty)
           _Section(
@@ -224,21 +270,29 @@ class _DetailBody extends StatelessWidget {
             child: _Card(
               child: Column(
                 children: [
-                  for (final i in p.ingredients)
-                    Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
-                      child: Row(
-                        children: [
-                          Expanded(
-                              child:
-                                  Text(i.name, style: AppTextStyles.bodySmall)),
-                          if (i.concentration != null)
-                            Text(i.concentration!,
-                                style: AppTextStyles.bodySmall
-                                    .copyWith(fontWeight: FontWeight.w600)),
-                        ],
-                      ),
+                  for (var i = 0; i < p.ingredients.length; i++) ...[
+                    if (i > 0)
+                      const Divider(height: 16, color: AppColors.borderSubtle),
+                    Row(
+                      children: [
+                        Expanded(
+                            child: Text(p.ingredients[i].name,
+                                style: AppTextStyles.bodyMedium)),
+                        if (p.ingredients[i].concentration != null)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                            decoration: BoxDecoration(
+                              color: AppColors.primaryLight,
+                              borderRadius: BorderRadius.circular(20),
+                            ),
+                            child: Text(p.ingredients[i].concentration!,
+                                style: AppTextStyles.bodySmall.copyWith(
+                                    color: AppColors.primaryDark,
+                                    fontWeight: FontWeight.w700)),
+                          ),
+                      ],
                     ),
+                  ],
                 ],
               ),
             ),
@@ -247,9 +301,11 @@ class _DetailBody extends StatelessWidget {
           _Section(
             icon: Icons.description_outlined,
             title: 'Thông tin sản phẩm',
-            child: Text(p.description!.trim(),
-                style: AppTextStyles.bodySmall
-                    .copyWith(color: AppColors.textSecondary, height: 1.6)),
+            child: _Card(
+              child: Text(p.description!.trim(),
+                  style: AppTextStyles.bodyMedium
+                      .copyWith(color: AppColors.textSecondary, height: 1.6)),
+            ),
           ),
         if (_hasText(p.usageInstructions))
           _Section(
@@ -257,7 +313,7 @@ class _DetailBody extends StatelessWidget {
             title: 'Hướng dẫn sử dụng',
             child: _Card(
               child: Text(p.usageInstructions!.trim(),
-                  style: AppTextStyles.bodySmall.copyWith(height: 1.6)),
+                  style: AppTextStyles.bodyMedium.copyWith(height: 1.6)),
             ),
           ),
         _RelatedProducts(categoryId: p.categoryId, excludeId: p.id),
@@ -269,9 +325,72 @@ class _DetailBody extends StatelessWidget {
   static bool _hasText(String? s) => s != null && s.trim().isNotEmpty;
 }
 
+/// Một quy cách để chọn: tên + giá; đang chọn thì viền xanh và dấu tích.
+class _PackOption extends StatelessWidget {
+  const _PackOption({
+    super.key,
+    required this.packaging,
+    required this.selected,
+    required this.onTap,
+  });
+
+  final Packaging packaging;
+  final bool selected;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Semantics(
+      button: true,
+      selected: selected,
+      child: Material(
+        color: selected ? AppColors.primaryLight : AppColors.surface,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: BorderSide(
+            color: selected ? AppColors.primary : AppColors.borderSubtle,
+            width: selected ? 1.5 : 1,
+          ),
+        ),
+        child: InkWell(
+          onTap: onTap,
+          borderRadius: BorderRadius.circular(14),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(12, 10, 14, 10),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(
+                  selected ? Icons.check_circle_rounded : Icons.circle_outlined,
+                  size: 20,
+                  color: selected ? AppColors.primary : AppColors.borderStrong,
+                ),
+                const SizedBox(width: 8),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(packaging.label,
+                        style: AppTextStyles.labelLarge.copyWith(
+                            color: selected ? AppColors.primaryDark : AppColors.textPrimary)),
+                    Text(formatVnd(packaging.price!),
+                        style: AppTextStyles.bodySmall.copyWith(
+                            color: selected ? AppColors.primary : AppColors.textSecondary,
+                            fontWeight: FontWeight.w600)),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
 class _BottomBar extends StatelessWidget {
   const _BottomBar({
     required this.enabled,
+    required this.unitPrice,
     required this.quantity,
     required this.adding,
     required this.onQuantity,
@@ -279,6 +398,7 @@ class _BottomBar extends StatelessWidget {
   });
 
   final bool enabled;
+  final double? unitPrice;
   final int quantity;
   final bool adding;
   final ValueChanged<int> onQuantity;
@@ -286,47 +406,73 @@ class _BottomBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final price = unitPrice;
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
       decoration: BoxDecoration(
         color: Colors.white,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
         boxShadow: [
           BoxShadow(
-              color: Colors.black.withValues(alpha: 0.06),
-              blurRadius: 16,
+              color: Colors.black.withValues(alpha: 0.08),
+              blurRadius: 20,
               offset: const Offset(0, -6)),
         ],
       ),
       child: SafeArea(
         top: false,
-        child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: [
-            QuantityStepper(
-              value: quantity,
-              max: CartRepository.maxQuantity,
-              enabled: enabled && !adding,
-              onChanged: onQuantity,
-              // Màn hẹp (≤ 360): thu gọn để nút "Thêm vào giỏ" không xuống dòng.
-              compact: MediaQuery.sizeOf(context).width <= 360,
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: ElevatedButton.icon(
-                key: const Key('add_to_cart'),
-                onPressed: (enabled && !adding) ? onAdd : null,
-                icon: adding
-                    ? const SizedBox(
-                        width: 18,
-                        height: 18,
-                        child: CircularProgressIndicator(
-                            strokeWidth: 2, color: Colors.white))
-                    : const Icon(Icons.add_shopping_cart, size: 20),
-                label: FittedBox(
-                  fit: BoxFit.scaleDown,
-                  child: Text(enabled ? 'Thêm vào giỏ' : 'Chưa có giá',
-                      maxLines: 1),
+            if (enabled && price != null)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 10),
+                child: Row(
+                  children: [
+                    Text('Tạm tính',
+                        style: AppTextStyles.bodySmall
+                            .copyWith(color: AppColors.textSecondary, fontSize: 13)),
+                    const Spacer(),
+                    Text(formatVnd(price * quantity),
+                        key: const Key('detail_subtotal'),
+                        style: AppTextStyles.h4.copyWith(color: AppColors.primaryDark)),
+                  ],
                 ),
               ),
+            Row(
+              children: [
+                QuantityStepper(
+                  value: quantity,
+                  max: CartRepository.maxQuantity,
+                  enabled: enabled && !adding,
+                  onChanged: onQuantity,
+                  // Màn hẹp (≤ 360): thu gọn để nút "Thêm vào giỏ" không xuống dòng.
+                  compact: MediaQuery.sizeOf(context).width <= 360,
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: ElevatedButton.icon(
+                    key: const Key('add_to_cart'),
+                    onPressed: (enabled && !adding) ? onAdd : null,
+                    style: ElevatedButton.styleFrom(
+                      minimumSize: const Size(0, 50),
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                    ),
+                    icon: adding
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.add_shopping_cart_rounded, size: 20),
+                    label: FittedBox(
+                      fit: BoxFit.scaleDown,
+                      child: Text(enabled ? 'Thêm vào giỏ' : 'Chưa có giá',
+                          maxLines: 1),
+                    ),
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -348,13 +494,16 @@ class _RelatedProducts extends ConsumerWidget {
     // Phần phụ: lỗi hay rỗng thì ẩn, không làm phiền người dùng.
     final items = related.valueOrNull ?? const [];
     if (items.isEmpty) return const SizedBox.shrink();
+    // Cao theo cỡ chữ hệ thống để tên và giá không bị cắt.
+    final height = 190 + MediaQuery.textScalerOf(context).scale(70);
     return _Section(
-      icon: Icons.grid_view_outlined,
+      icon: Icons.grid_view_rounded,
       title: 'Sản phẩm cùng danh mục',
       child: SizedBox(
-        height: 250,
+        height: height,
         child: ListView.separated(
           scrollDirection: Axis.horizontal,
+          clipBehavior: Clip.none,
           itemCount: items.length,
           separatorBuilder: (_, __) => const SizedBox(width: 12),
           itemBuilder: (_, i) => ProductCard(product: items[i], width: 160),
@@ -375,17 +524,25 @@ class _Section extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 24, 16, 0),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, size: 20, color: AppColors.primary),
-              const SizedBox(width: 8),
-              Text(title,
-                  style: AppTextStyles.bodyMedium
-                      .copyWith(fontWeight: FontWeight.w700)),
+              Container(
+                width: 32,
+                height: 32,
+                decoration: BoxDecoration(
+                  color: AppColors.primaryLight,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icon, size: 18, color: AppColors.primary),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(title, style: AppTextStyles.h4.copyWith(fontSize: 17)),
+              ),
             ],
           ),
           const SizedBox(height: 12),
@@ -407,27 +564,74 @@ class _Card extends StatelessWidget {
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(
           color: Colors.white,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.borderSubtle),
+          borderRadius: BorderRadius.circular(18),
+          boxShadow: [
+            BoxShadow(
+                color: Colors.black.withValues(alpha: 0.04),
+                blurRadius: 12,
+                offset: const Offset(0, 4)),
+          ],
         ),
         child: child,
       );
 }
 
 class _Tag extends StatelessWidget {
-  const _Tag(this.text, this.fg, this.bg);
+  const _Tag(this.text, this.fg, this.bg, {this.icon});
 
   final String text;
   final Color fg;
   final Color bg;
+  final IconData? icon;
 
   @override
   Widget build(BuildContext context) => Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
         decoration:
-            BoxDecoration(color: bg, borderRadius: BorderRadius.circular(12)),
-        child: Text(text,
-            style: AppTextStyles.caption
-                .copyWith(color: fg, fontWeight: FontWeight.w600)),
+            BoxDecoration(color: bg, borderRadius: BorderRadius.circular(20)),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (icon != null) ...[
+              Icon(icon, size: 14, color: fg),
+              const SizedBox(width: 4),
+            ],
+            Flexible(
+              child: Text(text,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppTextStyles.bodySmall
+                      .copyWith(color: fg, fontWeight: FontWeight.w600)),
+            ),
+          ],
+        ),
       );
+}
+
+/// Khung xương trong lúc tải chi tiết (thay vòng quay).
+class _DetailSkeleton extends StatelessWidget {
+  const _DetailSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView(
+      physics: const NeverScrollableScrollPhysics(),
+      padding: const EdgeInsets.all(16),
+      children: const [
+        AspectRatio(
+          aspectRatio: 4 / 3,
+          child: ShimmerLoadingWidget(height: double.infinity, borderRadius: 24),
+        ),
+        SizedBox(height: 20),
+        ShimmerLoadingWidget(height: 14, width: 120, borderRadius: 7),
+        SizedBox(height: 14),
+        ShimmerLoadingWidget(height: 22, borderRadius: 8),
+        SizedBox(height: 10),
+        ShimmerLoadingWidget(height: 22, borderRadius: 8, margin: EdgeInsets.only(right: 120)),
+        SizedBox(height: 18),
+        ShimmerLoadingWidget(height: 28, width: 160, borderRadius: 8),
+        SizedBox(height: 28),
+        ShimmerLoadingWidget(height: 90, borderRadius: 18),
+      ],
+    );
+  }
 }

@@ -106,9 +106,15 @@ void main() {
       expect(e.message, contains('Địa chỉ giao hàng không còn tồn tại'));
     });
 
-    test('lỗi 422 lạ: giữ nguyên detail', () async {
+    test('lỗi 422 lạ (tiếng Anh): câu tiếng Việt chung, vẫn giữ detail gốc', () async {
       final e = await checkoutFails(problem(422, 'Something new.'));
-      expect(e.message, 'Something new.');
+      expect(e.message, contains('Không đặt được đơn hàng'));
+      expect(e.detail, 'Something new.');
+    });
+
+    test('lỗi 422 lạ nhưng đã là tiếng Việt: hiện nguyên văn', () async {
+      final e = await checkoutFails(problem(422, 'Cửa hàng tạm ngưng nhận đơn.'));
+      expect(e.message, 'Cửa hàng tạm ngưng nhận đơn.');
     });
   });
 
