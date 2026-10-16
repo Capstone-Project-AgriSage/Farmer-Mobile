@@ -172,7 +172,8 @@ class AppHarness {
             builder: (_, __) => const ForgotPasswordScreen()),
         GoRoute(
             path: AppRoutes.resetPassword,
-            builder: (_, __) => const ResetPasswordScreen()),
+            builder: (_, s) => ResetPasswordScreen(
+                initialIdentifier: s.extra is String ? s.extra as String : null)),
         GoRoute(
           path: AppRoutes.otpVerify,
           builder: (_, s) => OtpVerifyScreen(

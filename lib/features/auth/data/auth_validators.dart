@@ -85,4 +85,26 @@ abstract class AuthValidators {
   }
 
   static bool isOtp(String v) => RegExp(r'^[0-9]{6}$').hasMatch(v);
+
+  /// Mã đặt lại mật khẩu: 6 chữ số (SMS) hoặc token dài (email).
+  static String? resetCode(String? v) {
+    final s = v?.trim() ?? '';
+    if (s.isEmpty) return 'Vui lòng nhập mã xác nhận';
+    return isOtp(s) || isResetToken(s)
+        ? null
+        : 'Mã xác nhận không đúng định dạng';
+  }
+
+  /// Số điện thoại đi kèm mã 6 số: backend chỉ chấp nhận mã SMS cùng số điện
+  /// thoại (mã email là token dài, không cần số).
+  static String? phoneForSmsCode(String? v) {
+    final s = v?.trim() ?? '';
+    if (s.isEmpty) return 'Vui lòng nhập số điện thoại đã nhận mã';
+    if (s.contains('@')) {
+      return 'Mã 6 số được gửi qua SMS, hãy nhập số điện thoại';
+    }
+    return normalizePhone(s) == null
+        ? 'Số điện thoại di động Việt Nam không hợp lệ'
+        : null;
+  }
 }
