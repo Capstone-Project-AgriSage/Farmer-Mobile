@@ -253,6 +253,9 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
                     ),
                   ],
                   const SizedBox(height: 16),
+                  // Ngay dưới nút chụp để người dùng đọc trước khi chụp.
+                  const _CaptureTips(),
+                  const SizedBox(height: 16),
                   TextField(
                     key: const Key('cap_note'),
                     controller: _note,
@@ -265,51 +268,6 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
                     ),
                   ),
                   const SizedBox(height: 8),
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(18),
-                      boxShadow: [
-          BoxShadow(
-              color: Colors.black.withValues(alpha: 0.045),
-              blurRadius: 14,
-              offset: const Offset(0, 4)),
-        ],
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.all(6),
-                              decoration: BoxDecoration(
-                                color: const Color(0xFFFFF8E1),
-                                borderRadius: BorderRadius.circular(8),
-                              ),
-                              child: const Icon(Icons.lightbulb_outline,
-                                  color: Color(0xFFF57F17), size: 18),
-                            ),
-                            const SizedBox(width: 10),
-                            Expanded(
-                              child: Text('3 mẹo để chuyên gia nhận diện chính xác',
-                                  style: AppTextStyles.labelLarge),
-                            ),
-                          ],
-                        ),
-                        const SizedBox(height: 14),
-                        const _TipItem(number: '1', text: 'Chụp rõ nét, đủ ánh sáng tự nhiên'),
-                        const SizedBox(height: 10),
-                        const _TipItem(
-                            number: '2', text: 'Đặt lá bệnh ở giữa khung hình, chụp gần'),
-                        const SizedBox(height: 10),
-                        const _TipItem(
-                            number: '3', text: 'Tránh ảnh bị mờ, ngược sáng hoặc có bóng che'),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
                   Container(
                     padding: const EdgeInsets.all(14),
                     decoration: BoxDecoration(
@@ -427,6 +385,65 @@ class _ActionButton extends StatelessWidget {
           ),
         ),
         ),
+      ),
+    );
+  }
+}
+
+/// Cách chụp để AI và chuyên gia nhận đúng bệnh. Model chỉ học từ ảnh chụp gần một lá: ảnh cả cây hay cả ruộng
+/// gần như luôn bị nhận sai (AI-Service, research/report.md), nên mẹo nói rõ điều đó.
+class _CaptureTips extends StatelessWidget {
+  const _CaptureTips();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      key: const Key('cap_tips'),
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        boxShadow: [
+          BoxShadow(
+              color: Colors.black.withValues(alpha: 0.045),
+              blurRadius: 14,
+              offset: const Offset(0, 4)),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Container(
+                padding: const EdgeInsets.all(6),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFFFF8E1),
+                  borderRadius: BorderRadius.circular(8),
+                ),
+                child: const Icon(Icons.lightbulb_outline, color: Color(0xFFF57F17), size: 18),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text('Chụp thế nào để nhận đúng bệnh', style: AppTextStyles.labelLarge),
+              ),
+            ],
+          ),
+          const SizedBox(height: 14),
+          const _TipItem(
+              number: '1',
+              text: 'Chụp một lá bệnh, cách khoảng 15 đến 30 cm, lá chiếm gần hết khung hình'),
+          const SizedBox(height: 10),
+          const _TipItem(
+              number: '2', text: 'Để vết bệnh rõ ở giữa ảnh, giữ máy chắc tay cho ảnh nét'),
+          const SizedBox(height: 10),
+          const _TipItem(
+              number: '3', text: 'Chụp dưới ánh sáng tự nhiên, tránh ngược sáng và bóng che'),
+          const SizedBox(height: 10),
+          const _TipItem(
+              number: '4',
+              text: 'Không chụp cả cây hay cả ruộng: ở xa không thấy được vết bệnh'),
+        ],
       ),
     );
   }
