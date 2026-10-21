@@ -36,7 +36,7 @@ class TermsScreen extends StatelessWidget {
             ),
             _buildSection(
               '4. Tính năng khám cây',
-              'Ảnh lá lúa bạn gửi được chuyên gia của cửa hàng xem và đưa ra kết luận; kết luận chỉ mang tính chất tham khảo. Bạn nên hỏi thêm cửa hàng trước khi quyết định mua thuốc điều trị.',
+              'Ảnh lá lúa bạn gửi được AI phân tích tự động; kết quả và sản phẩm gợi ý là dự đoán của AI, có thể chưa chính xác và chỉ mang tính chất tham khảo, không thay thế tư vấn của cán bộ kỹ thuật. Bạn nên đọc kỹ nhãn thuốc và hỏi thêm cửa hàng trước khi quyết định mua và dùng thuốc.',
             ),
             const SizedBox(height: 24),
             Center(

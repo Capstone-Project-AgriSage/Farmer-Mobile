@@ -25,14 +25,21 @@ void main() {
         {void Function(AppHarness)? setup}) async {
       await useRealFonts(tester);
       final h = AppHarness()..signIn();
-      h.diagnosis.cases['w'] = caseOf('w',
-          status: 'UNDER_REVIEW', withImage: false, note: 'Lá vàng từ chóp, sau đợt mưa');
+      h.diagnosis.cases['w'] = caseOf('w', withImage: false, note: 'Lá vàng từ chóp, sau đợt mưa');
+      h.diagnosis.cases['a'] = caseOf('a',
+          status: 'AI_COMPLETED', withImage: false, note: 'Lá vàng từ chóp', result: aiResultJson());
+      h.diagnosis.cases['u'] = caseOf('u',
+          status: 'AI_COMPLETED',
+          withImage: false,
+          result: aiResultJson(
+              uncertain: true, code: 'BACTERIAL_LEAF_BLIGHT', name: 'Bacterial Leaf Blight'));
+      h.diagnosis.cases['f'] = caseOf('f', status: 'FAILED', withImage: false);
       h.diagnosis.cases['v'] =
           caseOf('v', status: 'VERIFIED', withImage: false, result: resultJson());
       h.diagnosis.cases['h'] = caseOf('h',
-          status: 'VERIFIED',
+          status: 'AI_COMPLETED',
           withImage: false,
-          result: resultJson(
+          result: aiResultJson(
               code: 'HEALTHY',
               name: 'Healthy',
               healthy: true,
@@ -46,10 +53,18 @@ void main() {
           inconclusive: {'comment': 'Ảnh bị mờ và ngược sáng, vui lòng chụp lại gần hơn.', 'hint': 'RETAKE_PHOTO'});
       h.diagnosis.cases['x'] = caseOf('x', status: 'CANCELLED', withImage: false);
       h.diagnosis.list0 = [
-        diagSummaryOf('v', status: 'VERIFIED', code: 'LEAF_BLAST', name: 'Leaf Blast'),
-        diagSummaryOf('w', status: 'UNDER_REVIEW'),
-        diagSummaryOf('i', status: 'INCONCLUSIVE'),
+        diagSummaryOf('a',
+            status: 'AI_COMPLETED', code: 'LEAF_BLAST', name: 'Leaf Blast', certainty: 'CONFIDENT'),
+        diagSummaryOf('u',
+            status: 'AI_COMPLETED',
+            code: 'BACTERIAL_LEAF_BLIGHT',
+            name: 'Bacterial Leaf Blight',
+            certainty: 'UNCERTAIN'),
+        diagSummaryOf('w'),
         diagSummaryOf('f', status: 'FAILED'),
+        diagSummaryOf('v',
+            status: 'VERIFIED', code: 'SHEATH_BLIGHT', name: 'Sheath Blight', certainty: 'VERIFIED'),
+        diagSummaryOf('i', status: 'INCONCLUSIVE'),
         diagSummaryOf('x', status: 'CANCELLED'),
       ];
       setup?.call(h);
@@ -103,13 +118,13 @@ void main() {
         await shoot(tester, '${tag}_diag_history_empty');
       });
 
-      testWidgets('chi tiết: đang chờ', (tester) async {
+      testWidgets('chi tiết: AI đang phân tích', (tester) async {
         await open(tester, '/ai-scan/case/w');
         await shoot(tester, '${tag}_diag_case_waiting');
       });
 
-      testWidgets('chi tiết: có kết quả (3 đoạn cuộn)', (tester) async {
-        await open(tester, '/ai-scan/case/v');
+      testWidgets('chi tiết: AI chắc chắn (3 đoạn cuộn)', (tester) async {
+        await open(tester, '/ai-scan/case/a');
         await shoot(tester, '${tag}_diag_case_result_top');
         await tester.drag(find.byType(Scrollable).first, const Offset(0, -700));
         await tester.pumpAndSettle();
@@ -117,6 +132,24 @@ void main() {
         await tester.drag(find.byType(Scrollable).first, const Offset(0, -900));
         await tester.pumpAndSettle();
         await shoot(tester, '${tag}_diag_case_result_bottom');
+      });
+
+      testWidgets('chi tiết: AI chưa chắc (2 đoạn cuộn)', (tester) async {
+        await open(tester, '/ai-scan/case/u');
+        await shoot(tester, '${tag}_diag_case_uncertain_top');
+        await tester.drag(find.byType(Scrollable).first, const Offset(0, -700));
+        await tester.pumpAndSettle();
+        await shoot(tester, '${tag}_diag_case_uncertain_bottom');
+      });
+
+      testWidgets('chi tiết: AI chưa phân tích được', (tester) async {
+        await open(tester, '/ai-scan/case/f');
+        await shoot(tester, '${tag}_diag_case_failed');
+      });
+
+      testWidgets('chi tiết: ca cũ cửa hàng đã xác nhận', (tester) async {
+        await open(tester, '/ai-scan/case/v');
+        await shoot(tester, '${tag}_diag_case_verified');
       });
 
       testWidgets('chi tiết: lá khoẻ mạnh', (tester) async {

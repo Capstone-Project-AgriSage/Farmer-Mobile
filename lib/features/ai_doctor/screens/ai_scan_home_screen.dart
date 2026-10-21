@@ -123,7 +123,7 @@ class AiScanHomeScreen extends StatelessWidget {
                           textAlign: TextAlign.center,
                           style: AppTextStyles.h3.copyWith(color: Colors.white)),
                       const SizedBox(height: 6),
-                      Text('Chuyên gia xem ảnh và tư vấn cho bạn',
+                      Text('AI cho biết bệnh và cách xử lý ngay',
                           textAlign: TextAlign.center,
                           style: AppTextStyles.bodySmall.copyWith(color: Colors.white70)),
                       const SizedBox(height: 18),
@@ -182,7 +182,7 @@ class AiScanHomeScreen extends StatelessWidget {
                     style: AppTextStyles.labelLarge.copyWith(color: const Color(0xFFE65100))),
                 const SizedBox(height: 4),
                 Text(
-                    'Ảnh của bạn được AI sàng lọc rồi chuyên gia của cửa hàng xem và kết luận. Bạn chỉ nhận kết quả sau khi chuyên gia xác nhận, kèm gợi ý điều trị và sản phẩm.',
+                    'AI phân tích ảnh và cho kết quả ngay, kèm cách xử lý và sản phẩm gợi ý khi AI chắc chắn. Khi AI chưa chắc, bạn được khuyên chụp lại hoặc hỏi cửa hàng. Kết quả chỉ để tham khảo.',
                     style:
                         AppTextStyles.bodySmall.copyWith(color: const Color(0xFF5D4037))),
               ],

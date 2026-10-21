@@ -45,11 +45,24 @@ void seed(AppHarness h) {
   }
   h.debt.repayments0 = [repaymentOf('1', amount: 1500000)];
   h.diagnosis.list0 = [
-    diagSummaryOf('v', status: 'VERIFIED', code: 'LEAF_BLAST', name: 'Leaf Blast'),
-    diagSummaryOf('w', status: 'UNDER_REVIEW'),
+    diagSummaryOf('v',
+        status: 'AI_COMPLETED', code: 'LEAF_BLAST', name: 'Leaf Blast', certainty: 'CONFIDENT'),
+    diagSummaryOf('w',
+        status: 'AI_COMPLETED',
+        code: 'BACTERIAL_LEAF_BLIGHT',
+        name: 'Bacterial Leaf Blight',
+        certainty: 'UNCERTAIN'),
+    diagSummaryOf('f', status: 'FAILED'),
   ];
-  h.diagnosis.cases['v'] = caseOf('v', status: 'VERIFIED', withImage: false, result: resultJson());
-  h.diagnosis.cases['w'] = caseOf('w', status: 'UNDER_REVIEW', withImage: false, note: 'Lá vàng từ chóp');
+  h.diagnosis.cases['v'] =
+      caseOf('v', status: 'AI_COMPLETED', withImage: false, result: aiResultJson());
+  h.diagnosis.cases['w'] = caseOf('w',
+      status: 'AI_COMPLETED',
+      withImage: false,
+      note: 'Lá vàng từ chóp',
+      result: aiResultJson(
+          uncertain: true, code: 'BACTERIAL_LEAF_BLIGHT', name: 'Bacterial Leaf Blight'));
+  h.diagnosis.cases['f'] = caseOf('f', status: 'FAILED', withImage: false);
   h.notifications.items = [
     notifOf('a', title: 'Đơn hàng đang được giao', type: 'ORDER_STATUS_CHANGED'),
     notifOf('b', title: 'Có khoản công nợ quá hạn', type: 'DEBT_OVERDUE', entityType: 'DEBT_ENTRY', read: true),
@@ -80,6 +93,7 @@ const _routes = <String>[
   '/ai-scan/history',
   '/ai-scan/case/v',
   '/ai-scan/case/w',
+  '/ai-scan/case/f',
   '/home/notifications',
   '/profile',
   '/profile/edit',

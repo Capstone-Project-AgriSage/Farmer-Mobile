@@ -15,8 +15,9 @@ App chỉ dành cho tài khoản role `FARMER`.
   (banner ở Trang chủ). Đặt hàng bị timeout thì không cho đặt lại ngay mà nhắc kiểm tra mục Đơn hàng (tránh trùng đơn).
 - **Công nợ**: hạn mức, tổng nợ, danh sách và chi tiết khoản nợ, khiếu nại, xem trước phân bổ và trả nợ qua payOS, lịch sử trả nợ.
 - **Trả hàng**: chọn hàng đã nhận để yêu cầu trả, theo dõi tiến trình, hoàn tiền, huỷ yêu cầu.
-- **Chẩn đoán bệnh lúa**: gửi ảnh lá lúa; chuyên gia của cửa hàng xem và kết luận (nông dân **không** thấy kết quả AI),
-  kèm hướng dẫn điều trị và sản phẩm gợi ý.
+- **Chẩn đoán bệnh lúa**: gửi ảnh lá lúa, AI cho kết quả ngay (không còn bước cửa hàng duyệt, từ 21/10/2026).
+  AI chắc chắn: bệnh, cách xử lý và sản phẩm gợi ý. AI chưa chắc: bệnh có thể là, không gợi ý thuốc, khuyên chụp lại
+  hoặc hỏi cửa hàng. AI lỗi: nút "Thử lại". Không bao giờ hiện xác suất.
 - **Thông báo**: danh sách, số chưa đọc, đọc/xoá, mở đúng màn hình tương ứng.
 
 Chưa có API ở backend nên app hiển thị "Sắp ra mắt" hoặc không có mục này: bài viết/tin tức, đánh giá sản phẩm,

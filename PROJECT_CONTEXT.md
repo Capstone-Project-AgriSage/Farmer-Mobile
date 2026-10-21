@@ -2,7 +2,7 @@
 
 ## 1. PROJECT OVERVIEW
 - **Tên**: AgriSage — app mobile cho NÔNG DÂN (repo `Farmer-Mobile`, package `farmer_mobile`, `applicationId = vn.agrisage.farmer`, `namespace` vẫn `com.example.farmer_mobile`).
-- **Mục tiêu hệ thống**: nông dân mua vật tư nông nghiệp từ cửa hàng/đại lý, trả ngay qua payOS hoặc mua ghi nợ, theo dõi đơn/giao hàng, quản lý công nợ, trả hàng, gửi ảnh lá lúa để chuyên gia cửa hàng chẩn đoán, nhận thông báo.
+- **Mục tiêu hệ thống**: nông dân mua vật tư nông nghiệp từ cửa hàng/đại lý, trả ngay qua payOS hoặc mua ghi nợ, theo dõi đơn/giao hàng, quản lý công nợ, trả hàng, gửi ảnh lá lúa để AI chẩn đoán ngay, nhận thông báo.
 - **Tech stack**: Flutter 3.47.4 / Dart 3.13 (SDK `D:\Develop\flutter`), `flutter_riverpod` (Notifier/AsyncNotifier, KHÔNG codegen), `go_router`, `dio` + `pretty_dio_logger`, `flutter_secure_storage` (token), `shared_preferences` (khoản thanh toán dở), `webview_flutter` (trang payOS), `cached_network_image`, `image_picker`, `url_launcher`, `google_fonts` (Inter, Be Vietnam Pro, tải lúc chạy), `shimmer`, `intl` 0.20, `flutter_localizations` (locale vi), `integration_test`.
 - **Backend**: ASP.NET (.NET 10) repo `Capstone-Project-AgriSage/Backend-Agrisage`, bản local của người dùng ở `D:\CAPSTONE BE\Backend-Agrisage` (chỉ đọc). Chạy: `dotnet run --project src/AgriSage.Api --urls http://localhost:5206`. Emulator gọi `http://10.0.2.2:5206`; máy thật `--dart-define=API_BASE_URL=http://<IP-LAN>:5206` hoặc `--dart-define-from-file=env/device.json`.
 - **Kiến trúc app**: feature-first `lib/features/<feature>/{data,providers,screens,widgets}`; `lib/core/{config,network,auth,storage,utils,theme,constants}`; `lib/shared/widgets`; router `lib/router/app_router.dart` (guard `authRedirect`). Features: `auth, home, products (catalog + giỏ + xác nhận + màn đơn), orders (models/repo/widgets đơn), payment, debt, returns, ai_doctor, notifications, profile, dev`.
@@ -91,7 +91,7 @@ Tất cả dưới `/api`; nông dân dùng `/me/*` (danh tính từ JWT). Danh 
 - Chỉ huỷ online khi `PENDING_CONFIRMATION`. Đơn trả ngay + giao tận nơi: cửa hàng chỉ xác nhận khi đã nhận đủ tiền → app tự mở thanh toán sau khi đặt. `canPay` = không phải CANCELLED/PARTIALLY_CANCELLED/COMPLETED.
 - Tiền chỉ tính đã trả khi server báo `PAID` (không tin link trả về payOS).
 - Mua ghi nợ cần hồ sơ tín dụng ACTIVE và đủ hạn mức; trả nợ phân bổ khoản đến hạn sớm nhất trước.
-- Nông dân KHÔNG thấy kết quả AI; chỉ ca `VERIFIED` (chuyên gia duyệt) có bệnh/điều trị/sản phẩm gợi ý.
+- Chẩn đoán (AI_DIAGNOSIS.md 2.0, từ 21/10/2026): không còn bước duyệt; nông dân thấy kết quả AI ngay. `CONFIDENT` có cách xử lý và sản phẩm gợi ý; `UNCERTAIN` không có thuốc/sản phẩm, khuyên chụp lại hoặc hỏi cửa hàng; `FAILED` có nút Thử lại (`POST /api/me/diagnosis-cases/{id}/retry`). Ca cũ `VERIFIED`/`INCONCLUSIVE` vẫn đọc được. Không hiện xác suất.
 - **Hiển thị đơn (chốt trong đợt UI)**: đơn CANCELLED không hiện timeline và không hiện "Còn phải trả" (ghi "Đơn đã huỷ, bạn không cần thanh toán thêm"); lý do huỷ mặc định của backend hiện "Bạn đã huỷ đơn này", lý do người dùng tự nhập giữ nguyên; đơn ghi nợ không có thanh tiến độ thanh toán; PARTIALLY_CANCELLED có bước cuối ghi "Huỷ phần còn lại" (màu cam), không ghi "Hoàn thành".
 
 ## 10. DECISIONS
@@ -106,7 +106,7 @@ Tất cả dưới `/api`; nông dân dùng `/me/*` (danh tính từ JWT). Danh 
 - **Tài khoản test chưa có hạn mức** (`GET me/credit` 404) → công nợ có dữ liệu và mua ghi nợ thành công chỉ test bằng fake. Ảnh hưởng: xem UI Công nợ với dữ liệu thật. Cần cửa hàng/Backend cấp hạn mức cho một tài khoản test.
 - **SMTP/SMS chưa cấu hình** → quên mật khẩu & OTP trả 503. Cần Backend cấu hình `appsettings.Local.json`.
 - **Màn làm tiếp sau Đơn hàng**: UNCONFIRMED, chờ người dùng chọn (Công nợ, Chẩn đoán…).
-- Ca chẩn đoán VERIFIED cần nhân viên duyệt; dev server chưa có model AI (ca thật thành FAILED) → UI chẩn đoán có kết quả chỉ xem bằng dữ liệu giả.
+- Chẩn đoán có kết quả thật cần AI-Service chạy artifact 0.2.0; AI-Service tắt thì ca thành FAILED (nông dân bấm Thử lại khi AI chạy lại).
 
 ## 12. ERRORS / KNOWN ISSUES
 - **Môi trường**: BE, adb, emulator do Claude khởi động bị dừng khi kết thúc lượt trả lời → mọi bước cần emulator/BE phải làm trọn trong MỘT lượt. Máy chỉ còn ~0,5 GB RAM trống khi chạy emulator → emulator hay tự tắt. Khởi động bằng PowerShell `Start-Process emulator.exe -avd Pixel_7 -no-snapshot -no-audio -no-boot-anim -memory 3072 -gpu swiftshader_indirect`, chờ ~90–100s; tắt Gradle daemon (`taskkill /F /IM java.exe`) để đỡ RAM.

@@ -18,10 +18,10 @@ import '../providers/diagnosis_providers.dart';
 import '../widgets/diagnosis_widgets.dart';
 import '../../home/providers/home_providers.dart';
 
-/// Chi tiết một ca chẩn đoán. Kết quả chỉ có khi chuyên gia đã xác nhận.
+/// Chi tiết một ca chẩn đoán. Từ 21/10/2026 không còn chuyên gia duyệt: AI phân tích xong là có kết quả
+/// (AI chắc chắn, hoặc chưa chắc thì không gợi ý thuốc). AI lỗi thì nông dân bấm "Thử lại".
 ///
-/// Chưa có thông báo đẩy nên khi ca còn chờ, màn hình tự hỏi lại định kỳ và
-/// khi người dùng quay lại app.
+/// Khi AI còn đang phân tích, màn hình tự hỏi lại định kỳ và khi người dùng quay lại app.
 class DiagnoseCaseScreen extends ConsumerStatefulWidget {
   const DiagnoseCaseScreen({
     super.key,
@@ -40,6 +40,7 @@ class _DiagnoseCaseScreenState extends ConsumerState<DiagnoseCaseScreen>
     with WidgetsBindingObserver {
   Timer? _poll;
   bool _cancelling = false;
+  bool _retrying = false;
 
   @override
   void initState() {
@@ -81,7 +82,7 @@ class _DiagnoseCaseScreenState extends ConsumerState<DiagnoseCaseScreen>
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Huỷ ca chẩn đoán'),
-        content: Text('Bạn muốn huỷ ca ${c.caseNumber}? Chuyên gia sẽ không xem ảnh này nữa.'),
+        content: Text('Bạn muốn huỷ ca ${c.caseNumber}? Ca sẽ được lưu là đã huỷ.'),
         actions: [
           TextButton(
             key: const Key('case_cancel_no'),
@@ -110,6 +111,21 @@ class _DiagnoseCaseScreenState extends ConsumerState<DiagnoseCaseScreen>
       await _refresh();
     } finally {
       if (mounted) setState(() => _cancelling = false);
+    }
+  }
+
+  Future<void> _retry(DiagnosisCase c) async {
+    setState(() => _retrying = true);
+    final messenger = ScaffoldMessenger.of(context);
+    try {
+      await ref.read(diagnosisRepositoryProvider).retry(c.id);
+      if (!mounted) return;
+      await _refresh();
+    } on ApiException catch (e) {
+      messenger.showSnackBar(SnackBar(content: Text(e.message)));
+      await _refresh();
+    } finally {
+      if (mounted) setState(() => _retrying = false);
     }
   }
 
@@ -156,12 +172,18 @@ class _DiagnoseCaseScreenState extends ConsumerState<DiagnoseCaseScreen>
               if (d.image != null) const SizedBox(height: 12),
               _Header(c: d),
               const SizedBox(height: 12),
-              if (d.status == DiagnosisStatus.verified && d.result != null)
+              if (d.result != null)
                 _ResultView(result: d.result!)
               else if (d.status == DiagnosisStatus.inconclusive)
                 _InconclusiveView(info: d.inconclusive)
               else if (d.status == DiagnosisStatus.cancelled)
                 const _CancelledView()
+              else if (d.status == DiagnosisStatus.failed || d.canRetry)
+                _FailedView(
+                  canRetry: d.canRetry,
+                  retrying: _retrying,
+                  onRetry: () => _retry(d),
+                )
               else
                 const _WaitingView(),
               if (d.note != null && d.note!.isNotEmpty) ...[
@@ -269,7 +291,7 @@ class _Header extends StatelessWidget {
   }
 }
 
-/// Đang chờ chuyên gia (gộp mọi trạng thái trung gian, kể cả khi AI lỗi).
+/// AI đang phân tích ảnh (thường chỉ vài giây).
 class _WaitingView extends StatelessWidget {
   const _WaitingView();
 
@@ -277,18 +299,63 @@ class _WaitingView extends StatelessWidget {
   Widget build(BuildContext context) {
     return SectionCard(
       icon: Icons.hourglass_top,
-      title: 'Đang chờ chuyên gia',
+      title: 'AI đang phân tích ảnh',
       child: Column(
         key: const Key('case_waiting'),
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const _Step(text: 'Đã gửi ảnh', done: true),
-          const _Step(text: 'Chuyên gia xem xét ảnh', current: true),
-          const _Step(text: 'Có kết quả và gợi ý điều trị', last: true),
+          const _Step(text: 'AI phân tích ảnh', current: true),
+          const _Step(text: 'Có kết quả và cách xử lý', last: true),
           const SizedBox(height: 12),
           Text(
-            'Chuyên gia của cửa hàng sẽ xem ảnh và cho bạn kết luận. Kết quả không hiện ngay lập tức. Kéo xuống để làm mới hoặc quay lại sau.',
+            'Thường chỉ mất vài giây. Kéo xuống để làm mới.',
             style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// AI chưa phân tích được ảnh (dịch vụ AI bận hoặc chưa sẵn sàng): thử lại, hoặc gửi ảnh khác.
+class _FailedView extends StatelessWidget {
+  const _FailedView({required this.canRetry, required this.retrying, required this.onRetry});
+
+  final bool canRetry;
+  final bool retrying;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return SectionCard(
+      icon: Icons.cloud_off_outlined,
+      title: 'Chưa phân tích được ảnh',
+      child: Column(
+        key: const Key('case_failed'),
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Text(
+            'Dịch vụ AI đang bận hoặc chưa sẵn sàng. Bạn hãy thử lại sau ít phút, hoặc gửi một ảnh khác.',
+            style: AppTextStyles.bodySmall,
+          ),
+          const SizedBox(height: 12),
+          if (canRetry)
+            ElevatedButton.icon(
+              key: const Key('case_retry'),
+              onPressed: retrying ? null : onRetry,
+              icon: retrying
+                  ? const SizedBox(
+                      width: 18, height: 18, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
+                  : const Icon(Icons.refresh),
+              label: Text(retrying ? 'Đang phân tích lại...' : 'Thử lại'),
+            ),
+          const SizedBox(height: 8),
+          OutlinedButton.icon(
+            key: const Key('case_new_photo'),
+            onPressed: retrying ? null : () => context.pushReplacement(AppRoutes.imageCapture),
+            icon: const Icon(Icons.camera_alt_outlined),
+            label: const Text('Gửi ảnh khác'),
           ),
         ],
       ),
@@ -354,15 +421,15 @@ class _InconclusiveView extends StatelessWidget {
     final retake = info?.hint == 'RETAKE_PHOTO' || info?.hint == null;
     return SectionCard(
       icon: Icons.photo_camera_outlined,
-      title: 'Chuyên gia chưa kết luận được',
+      title: 'Cửa hàng chưa kết luận được',
       child: Column(
         key: const Key('case_inconclusive'),
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             retake
-                ? 'Ảnh chưa đủ rõ để chuyên gia kết luận. Bạn hãy chụp lại và gửi ảnh mới.'
-                : 'Chuyên gia chưa thể kết luận từ ảnh này.',
+                ? 'Ảnh chưa đủ rõ để kết luận. Bạn hãy chụp lại và gửi ảnh mới.'
+                : 'Chưa thể kết luận từ ảnh này.',
             style: AppTextStyles.bodySmall,
           ),
           if (info?.comment != null && info!.comment!.isNotEmpty) ...[
@@ -374,7 +441,7 @@ class _InconclusiveView extends StatelessWidget {
                 color: AppColors.surfaceSubtle,
                 borderRadius: BorderRadius.circular(8),
               ),
-              child: Text('Chuyên gia nhắn: "${info!.comment}"',
+              child: Text('Cửa hàng nhắn: "${info!.comment}"',
                   key: const Key('case_comment'), style: AppTextStyles.bodySmall),
             ),
           ],
@@ -402,8 +469,15 @@ class _ResultView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final d = result.disease;
-    final color = d.isHealthy ? AppColors.statusSuccess : AppColors.statusWarning;
-    final bg = d.isHealthy ? AppColors.statusSuccessSurface : AppColors.statusWarningSurface;
+    final uncertain = result.isUncertain;
+    final color = d.isHealthy && !uncertain ? AppColors.statusSuccess : AppColors.statusWarning;
+    final bg = d.isHealthy && !uncertain ? AppColors.statusSuccessSurface : AppColors.statusWarningSurface;
+    final heading = switch (result.certainty) {
+      DiagnosisCertainty.uncertain => 'AI chưa chắc chắn, có thể là',
+      DiagnosisCertainty.confident => 'Kết quả từ AI',
+      _ => 'Cửa hàng đã xác nhận',
+    };
+    final noContent = !_has(d.symptoms) && !_has(d.prevention) && result.treatments.isEmpty;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
@@ -419,12 +493,21 @@ class _ResultView extends StatelessWidget {
             children: [
               Row(
                 children: [
-                  Icon(d.isHealthy ? Icons.verified_rounded : Icons.coronavirus_outlined,
-                      size: 18, color: color),
+                  Icon(
+                      uncertain
+                          ? Icons.help_outline_rounded
+                          : d.isHealthy
+                              ? Icons.verified_rounded
+                              : Icons.coronavirus_outlined,
+                      size: 18,
+                      color: color),
                   const SizedBox(width: 6),
-                  Text('Chuyên gia kết luận',
-                      style: AppTextStyles.caption
-                          .copyWith(color: color, fontWeight: FontWeight.w700)),
+                  Flexible(
+                    child: Text(heading,
+                        key: const Key('case_certainty'),
+                        style: AppTextStyles.caption
+                            .copyWith(color: color, fontWeight: FontWeight.w700)),
+                  ),
                 ],
               ),
               const SizedBox(height: 4),
@@ -433,19 +516,48 @@ class _ResultView extends StatelessWidget {
                   style: AppTextStyles.h2.copyWith(color: color)),
               if (d.name.isNotEmpty && d.name != d.displayName)
                 Text(d.name, style: AppTextStyles.caption.copyWith(color: color)),
-              if (d.isHealthy) ...[
+              if (d.isHealthy && !uncertain) ...[
                 const SizedBox(height: 6),
                 Text('Cây không có dấu hiệu bệnh.',
                     style: AppTextStyles.bodySmall.copyWith(color: color)),
               ],
+              if (result.isFromAi) ...[
+                const SizedBox(height: 6),
+                Text('Kết quả do AI dự đoán từ ảnh, có thể chưa chính xác.',
+                    style: AppTextStyles.caption.copyWith(color: color)),
+              ],
             ],
           ),
         ),
+        if (uncertain) ...[
+          const SizedBox(height: 12),
+          SectionCard(
+            icon: Icons.photo_camera_outlined,
+            title: 'Nên chụp lại hoặc hỏi cửa hàng',
+            child: Column(
+              key: const Key('case_uncertain'),
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                Text(
+                  'AI chưa chắc đây là bệnh gì nên chưa gợi ý thuốc. Bạn hãy chụp lại gần một lá bệnh, đủ sáng, hoặc mang mẫu lá đến cửa hàng để được tư vấn.',
+                  style: AppTextStyles.bodySmall,
+                ),
+                const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  key: const Key('case_retake'),
+                  onPressed: () => context.pushReplacement(AppRoutes.imageCapture),
+                  icon: const Icon(Icons.camera_alt),
+                  label: const Text('Chụp lại'),
+                ),
+              ],
+            ),
+          ),
+        ],
         if (result.reviewerComment != null && result.reviewerComment!.isNotEmpty) ...[
           const SizedBox(height: 12),
           SectionCard(
             icon: Icons.record_voice_over_outlined,
-            title: 'Nhận xét của chuyên gia',
+            title: 'Nhận xét của cửa hàng',
             child: Text(result.reviewerComment!,
                 key: const Key('case_comment'), style: AppTextStyles.bodySmall),
           ),
@@ -483,6 +595,16 @@ class _ResultView extends StatelessWidget {
             ),
           ),
         ],
+        if (noContent && !d.isHealthy) ...[
+          const SizedBox(height: 12),
+          SectionCard(
+            icon: Icons.info_outline,
+            title: 'Cách xử lý',
+            child: Text('Cửa hàng chưa nhập hướng dẫn cho bệnh này. Bạn hãy hỏi cửa hàng để được tư vấn.',
+                key: const Key('case_no_content'),
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
+          ),
+        ],
         if (result.products.isNotEmpty) ...[
           const SizedBox(height: 12),
           SectionCard(
@@ -496,20 +618,32 @@ class _ResultView extends StatelessWidget {
               ],
             ),
           ),
+        ] else if (result.certainty == DiagnosisCertainty.confident && !d.isHealthy) ...[
+          const SizedBox(height: 12),
+          SectionCard(
+            icon: Icons.shopping_bag_outlined,
+            title: 'Sản phẩm gợi ý',
+            child: Text('Cửa hàng chưa có sản phẩm gợi ý cho bệnh này, hãy hỏi cửa hàng.',
+                key: const Key('case_no_products'),
+                style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
+          ),
         ],
-        if (result.treatments.isNotEmpty || result.products.isNotEmpty) ...[
+        if (result.isFromAi || result.treatments.isNotEmpty || result.products.isNotEmpty) ...[
           const SizedBox(height: 12),
           Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: const Color(0xFFFFF8E1),
-            borderRadius: BorderRadius.circular(14),
+            key: const Key('case_disclaimer'),
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFF8E1),
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(
+              result.isFromAi
+                  ? 'Kết quả do AI gợi ý, không thay thế tư vấn của cán bộ kỹ thuật. Đọc kỹ nhãn thuốc và hỏi cửa hàng trước khi dùng.'
+                  : 'Hãy đọc kỹ hướng dẫn và liên hệ cửa hàng khi cần thêm tư vấn trước khi dùng thuốc.',
+              style: AppTextStyles.caption.copyWith(color: const Color(0xFF5D4037), height: 1.4),
+            ),
           ),
-          child: Text(
-            'Hãy đọc kỹ hướng dẫn và liên hệ cửa hàng khi cần thêm tư vấn trước khi dùng thuốc.',
-            style: AppTextStyles.caption.copyWith(color: const Color(0xFF5D4037), height: 1.4),
-          ),
-        ),
         ],
       ],
     );
@@ -543,6 +677,11 @@ class _TreatmentTile extends StatelessWidget {
         ),
         const SizedBox(height: 6),
         Text(t.instructions, style: AppTextStyles.bodySmall),
+        if (t.activeIngredientName != null && t.activeIngredientName!.isNotEmpty) ...[
+          const SizedBox(height: 4),
+          Text('Hoạt chất: ${t.activeIngredientName}',
+              style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
+        ],
         if (t.precautions != null && t.precautions!.trim().isNotEmpty) ...[
           const SizedBox(height: 6),
           Row(

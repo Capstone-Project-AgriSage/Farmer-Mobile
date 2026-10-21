@@ -10,7 +10,7 @@ import '../../../core/network/api_exception.dart';
 import '../data/diagnosis_repository.dart';
 import '../../home/providers/home_providers.dart';
 
-/// Chụp hoặc chọn ảnh lá lúa, thêm ghi chú rồi gửi cho chuyên gia.
+/// Chụp hoặc chọn ảnh lá lúa, thêm ghi chú rồi gửi cho AI phân tích.
 class ImageCaptureScreen extends ConsumerStatefulWidget {
   const ImageCaptureScreen({super.key});
 
@@ -263,7 +263,7 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
                     maxLines: 3,
                     maxLength: DiagnosisRepository.maxNoteLength,
                     decoration: const InputDecoration(
-                      labelText: 'Ghi chú cho chuyên gia (tuỳ chọn)',
+                      labelText: 'Ghi chú cho cửa hàng (tuỳ chọn)',
                       alignLabelWithHint: true,
                     ),
                   ),
@@ -282,7 +282,7 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'Ảnh được gửi cho chuyên gia của cửa hàng xem và kết luận. Kết quả cùng gợi ý điều trị sẽ hiện trong mục Lịch sử sau khi chuyên gia xác nhận.',
+                            'AI phân tích ảnh và cho kết quả ngay sau khi gửi. Kết quả do AI dự đoán, chỉ để tham khảo: hãy hỏi cửa hàng trước khi dùng thuốc.',
                             style: AppTextStyles.caption
                                 .copyWith(color: const Color(0xFF5D4037), height: 1.4),
                           ),
@@ -322,7 +322,7 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Colors.white))
                         : const Icon(Icons.send, size: 20),
-                    label: Text(_sending ? 'Đang gửi ảnh...' : 'Gửi ảnh cho chuyên gia'),
+                    label: Text(_sending ? 'AI đang phân tích...' : 'Gửi ảnh để AI chẩn đoán'),
                     style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
                   ),
                 ),
@@ -390,7 +390,7 @@ class _ActionButton extends StatelessWidget {
   }
 }
 
-/// Cách chụp để AI và chuyên gia nhận đúng bệnh. Model chỉ học từ ảnh chụp gần một lá: ảnh cả cây hay cả ruộng
+/// Cách chụp để AI nhận đúng bệnh. Model chỉ học từ ảnh chụp gần một lá: ảnh cả cây hay cả ruộng
 /// gần như luôn bị nhận sai (AI-Service, research/report.md), nên mẹo nói rõ điều đó.
 class _CaptureTips extends StatelessWidget {
   const _CaptureTips();

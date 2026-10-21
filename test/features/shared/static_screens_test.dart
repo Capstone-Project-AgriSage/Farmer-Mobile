@@ -43,7 +43,8 @@ void main() {
 
       await tester.tap(find.text('Chẩn đoán bệnh lúa hoạt động thế nào?'));
       await tester.pumpAndSettle();
-      expect(find.textContaining('chuyên gia của cửa hàng xem ảnh'), findsOneWidget);
+      expect(find.textContaining('AI phân tích và cho kết quả ngay'), findsOneWidget);
+      expect(find.textContaining('chuyên gia'), findsNothing);
     });
 
     testWidgets('FAQ không hứa điều app không làm', (tester) async {
@@ -62,7 +63,9 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('cửa hàng đã cấp hạn mức tín dụng'), findsOneWidget);
       expect(find.textContaining('của cả nông dân và đại lý'), findsNothing);
-      expect(find.textContaining('chuyên gia của cửa hàng xem và đưa ra kết luận'), findsOneWidget);
+      expect(find.textContaining('AI phân tích tự động'), findsOneWidget);
+      expect(find.textContaining('có thể chưa chính xác'), findsOneWidget);
+      expect(find.textContaining('chuyên gia'), findsNothing);
     });
 
     testWidgets('chính sách bảo mật mở được', (tester) async {

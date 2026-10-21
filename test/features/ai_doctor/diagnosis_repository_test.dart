@@ -76,7 +76,8 @@ void main() {
 
   group('gửi ảnh', () {
     test('multipart: trường image đúng tên/kiểu, ghi chú đã trim, timeout dài', () async {
-      use((o) => jsonBody(201, caseJson('c1', status: 'AI_COMPLETED', note: 'Lá vàng')));
+      use((o) => jsonBody(
+          201, caseJson('c1', status: 'AI_COMPLETED', note: 'Lá vàng', result: aiResultJson())));
       final c = await repo.create(photo: photo(), note: '  Lá vàng  ');
 
       final req = adapter.requests.single;
@@ -92,7 +93,8 @@ void main() {
       expect(req.sendTimeout, const Duration(seconds: 90));
       expect(req.receiveTimeout, const Duration(seconds: 90));
       expect(c.id, 'c1');
-      expect(c.isWaiting, isTrue);
+      expect(c.isWaiting, isFalse, reason: 'AI chạy xong trong yêu cầu gửi ảnh');
+      expect(c.result!.certainty, DiagnosisCertainty.confident);
     });
 
     test('ghi chú trống thì không gửi trường note', () async {
@@ -136,16 +138,60 @@ void main() {
   });
 
   group('đọc ca chẩn đoán', () {
-    test('mọi trạng thái chờ (kể cả AI lỗi) đều là "đang chờ", huỷ được', () {
-      for (final s in ['SUBMITTED', 'PROCESSING', 'AI_COMPLETED', 'UNDER_REVIEW', 'FAILED']) {
+    test('chỉ SUBMITTED / PROCESSING là đang phân tích; huỷ được khi chưa có kết quả', () {
+      for (final s in ['SUBMITTED', 'PROCESSING']) {
         expect(DiagnosisStatus.isWaiting(s), isTrue, reason: s);
         expect(DiagnosisStatus.canCancel(s), isTrue, reason: s);
-        expect(DiagnosisStatus.label(s), 'Chờ chuyên gia xem', reason: s);
+        expect(DiagnosisStatus.label(s), 'Đang phân tích', reason: s);
+      }
+      expect(DiagnosisStatus.isWaiting('FAILED'), isFalse);
+      expect(DiagnosisStatus.canCancel('FAILED'), isTrue);
+      expect(DiagnosisStatus.label('FAILED'), 'Chưa phân tích được');
+      for (final s in ['AI_COMPLETED', 'UNDER_REVIEW']) {
+        expect(DiagnosisStatus.isWaiting(s), isFalse, reason: s);
+        expect(DiagnosisStatus.canCancel(s), isFalse, reason: s);
+        expect(DiagnosisStatus.label(s), 'Đã có kết quả', reason: s);
       }
       for (final s in ['VERIFIED', 'INCONCLUSIVE', 'CANCELLED']) {
         expect(DiagnosisStatus.isWaiting(s), isFalse, reason: s);
         expect(DiagnosisStatus.canCancel(s), isFalse, reason: s);
       }
+      expect(DiagnosisStatus.label('VERIFIED'), 'Đã xác nhận');
+      expect(DiagnosisStatus.label(null), 'Tất cả');
+    });
+
+    test('kết quả AI chắc chắn: mức chắc chắn, hoạt chất của cách xử lý, sản phẩm gợi ý', () async {
+      use((o) => jsonBody(200, caseJson('c1', status: 'AI_COMPLETED', result: aiResultJson())));
+      final c = await repo.get('c1');
+      final r = c.result!;
+      expect(r.certainty, DiagnosisCertainty.confident);
+      expect(r.isFromAi, isTrue);
+      expect(r.isUncertain, isFalse);
+      expect(r.hint, isNull);
+      expect(r.reviewerComment, isNull);
+      expect(r.treatments.first.activeIngredientName, 'Tricyclazole');
+      expect(r.treatments.last.activeIngredientName, isNull);
+      expect(r.products.map((p) => p.storeProductId), ['sp1', 'sp2']);
+      expect(c.canRetry, isFalse);
+    });
+
+    test('AI chưa chắc: gợi ý chụp lại hoặc hỏi cửa hàng, không có thuốc / sản phẩm', () async {
+      use((o) => jsonBody(
+          200, caseJson('c1', status: 'AI_COMPLETED', result: aiResultJson(uncertain: true))));
+      final r = (await repo.get('c1')).result!;
+      expect(r.certainty, DiagnosisCertainty.uncertain);
+      expect(r.isUncertain, isTrue);
+      expect(r.hint, 'RETAKE_PHOTO_OR_ASK_STORE');
+      expect(r.treatments.map((t) => t.type), isNot(contains('CHEMICAL')));
+      expect(r.products, isEmpty);
+    });
+
+    test('ca cũ không có trường certainty: coi như cửa hàng đã xác nhận', () async {
+      use((o) => jsonBody(
+          200, caseJson('c1', status: 'VERIFIED', result: resultJson()..remove('certainty'))));
+      final r = (await repo.get('c1')).result!;
+      expect(r.certainty, DiagnosisCertainty.verified);
+      expect(r.isFromAi, isFalse);
     });
 
     test('ca đã xác nhận: bệnh, điều trị và sản phẩm sắp theo rankOrder', () async {
@@ -162,13 +208,22 @@ void main() {
       expect(r.products.map((p) => p.storeProductId), ['sp1', 'sp2']);
       expect(c.image!.url, startsWith('https://'));
       expect(c.isWaiting, isFalse);
+      expect(r.certainty, DiagnosisCertainty.verified);
     });
 
-    test('ca chưa có kết quả: không có result/inconclusive (không có AI)', () async {
-      use((o) => jsonBody(200, caseJson('c1', status: 'UNDER_REVIEW')));
+    test('ca đang phân tích: chưa có result / inconclusive, chưa cần thử lại', () async {
+      use((o) => jsonBody(200, caseJson('c1')));
       final c = await repo.get('c1');
       expect(c.result, isNull);
       expect(c.inconclusive, isNull);
+      expect(c.canRetry, isFalse);
+    });
+
+    test('AI chưa phân tích được: canRetry; thiếu trường canRetry thì coi là không', () async {
+      use((o) => jsonBody(200, caseJson('c1', status: 'FAILED')));
+      expect((await repo.get('c1')).canRetry, isTrue);
+      use((o) => jsonBody(200, caseJson('c1', status: 'FAILED')..remove('canRetry')));
+      expect((await repo.get('c1')).canRetry, isFalse);
     });
 
     test('ca chưa kết luận được: lời nhắn + gợi ý chụp lại', () async {
@@ -200,26 +255,38 @@ void main() {
   });
 
   group('danh sách', () {
-    test('phân trang + lọc trạng thái; chỉ ca VERIFIED có tên bệnh', () async {
+    test('phân trang + lọc trạng thái; ca có kết quả có tên bệnh và mức chắc chắn', () async {
       use((o) => jsonBody(200, {
             'items': [
               {
                 'id': 'a',
                 'caseNumber': 'DG-1',
-                'status': 'VERIFIED',
+                'status': 'AI_COMPLETED',
                 'submittedAt': '2026-10-12T02:00:00Z',
-                'completedAt': '2026-10-12T04:00:00Z',
+                'completedAt': '2026-10-12T02:00:05Z',
                 'diseaseCode': 'BROWN_SPOT',
                 'diseaseName': 'Brown Spot',
+                'certainty': 'CONFIDENT',
               },
               {
                 'id': 'b',
                 'caseNumber': 'DG-2',
                 'status': 'AI_COMPLETED',
                 'submittedAt': '2026-10-12T03:00:00Z',
+                'completedAt': '2026-10-12T03:00:05Z',
+                'diseaseCode': 'LEAF_BLAST',
+                'diseaseName': 'Leaf Blast',
+                'certainty': 'UNCERTAIN',
+              },
+              {
+                'id': 'c',
+                'caseNumber': 'DG-3',
+                'status': 'PROCESSING',
+                'submittedAt': '2026-10-12T04:00:00Z',
                 'completedAt': null,
                 'diseaseCode': null,
                 'diseaseName': null,
+                'certainty': null,
               },
             ],
             'page': 1,
@@ -227,12 +294,16 @@ void main() {
             'totalCount': 30,
             'totalPages': 2,
           }));
-      final r = await repo.list(status: 'VERIFIED');
+      final r = await repo.list(status: 'AI_COMPLETED');
 
       expect(adapter.requests.single.queryParameters,
-          {'page': 1, 'pageSize': 20, 'status': 'VERIFIED'});
-      expect(r.items.first.diseaseDisplay, 'Đốm nâu');
-      expect(r.items.last.diseaseDisplay, isNull);
+          {'page': 1, 'pageSize': 20, 'status': 'AI_COMPLETED'});
+      expect(r.items[0].diseaseDisplay, 'Đốm nâu');
+      expect(r.items[0].isUncertain, isFalse);
+      expect(r.items[1].diseaseDisplay, 'Đạo ôn lá');
+      expect(r.items[1].isUncertain, isTrue);
+      expect(r.items[2].diseaseDisplay, isNull);
+      expect(r.items[2].certainty, isNull);
       expect(r.hasMore, isTrue);
     });
 
@@ -242,6 +313,36 @@ void main() {
       for (final f in DiagnosisStatus.filters.whereType<String>()) {
         expect(backend, contains(f));
       }
+    });
+  });
+
+  group('thử lại', () {
+    test('POST đúng URL, timeout dài như lúc gửi ảnh, trả về ca đã có kết quả', () async {
+      use((o) => jsonBody(200, caseJson('c1', status: 'AI_COMPLETED', result: aiResultJson())));
+      final c = await repo.retry('c1');
+      final req = adapter.requests.single;
+      expect(req.path, '/api/me/diagnosis-cases/c1/retry');
+      expect(req.method, 'POST');
+      expect(req.sendTimeout, const Duration(seconds: 90));
+      expect(req.receiveTimeout, const Duration(seconds: 90));
+      expect(c.result!.certainty, DiagnosisCertainty.confident);
+    });
+
+    test('AI vẫn chưa sẵn sàng (503) → báo thử lại sau', () async {
+      use((o) => jsonBody(503, {'status': 503}));
+      expect(repo.retry('c1'), failsWith('Dịch vụ AI đang bận'));
+    });
+
+    test('ca đã có kết quả / đã huỷ (422) → báo không cần phân tích lại', () async {
+      use((o) => jsonBody(422, {'status': 422}));
+      expect(repo.retry('c1'), failsWith('không cần phân tích lại'));
+    });
+
+    test('429 → báo chờ; 404 → không tìm thấy', () async {
+      use((o) => jsonBody(429, {'status': 429}));
+      expect(repo.retry('c1'), failsWith('quá nhanh'));
+      use((o) => jsonBody(404, {'status': 404}));
+      expect(repo.retry('c1'), failsWith('Không tìm thấy ca chẩn đoán'));
     });
   });
 
@@ -260,7 +361,7 @@ void main() {
       expect(adapter.requests.single.data, <String, dynamic>{});
     });
 
-    test('đã có kết luận / đã huỷ (422) → thông báo', () async {
+    test('đã có kết quả / đã huỷ (422) → thông báo', () async {
       use((o) => jsonBody(422, {'status': 422, 'detail': "Diagnosis case 'DG-1' is Cancelled; this action is not allowed."}));
       expect(repo.cancel('c1'), failsWith('không thể huỷ'));
     });
