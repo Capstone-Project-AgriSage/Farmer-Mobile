@@ -49,11 +49,14 @@ void main() {
         for (var i = 1; i <= 12; i++) summaryOf('d$i', status: 'COMPLETED'),
         summaryOf('x1', status: 'CANCELLED'),
       ];
-      h.diagnosis.list0 = [diagSummaryOf('v', status: 'VERIFIED', code: 'LEAF_BLAST', name: 'Leaf Blast')];
+      h.diagnosis.list0 = [
+        diagSummaryOf('v',
+            status: 'AI_COMPLETED', code: 'LEAF_BLAST', name: 'Leaf Blast', certainty: 'CONFIDENT'),
+      ];
       h.diagnosis.cases['v'] = caseOf('v',
-          status: 'VERIFIED',
+          status: 'AI_COMPLETED',
           withImage: false,
-          result: resultJson(products: [
+          result: aiResultJson(products: [
             {'storeProductId': 'sp1', 'productId': 'p1', 'name': 'Thuốc đặc trị đạo ôn Fuji-One 40WP', 'sku': 'F1', 'rankOrder': 1},
             {'storeProductId': 'sp2', 'productId': 'p2', 'name': 'Phân NPK 20-20-15', 'sku': 'N1', 'rankOrder': 2},
           ]));
@@ -76,10 +79,23 @@ void main() {
         await shoot(tester, '${tag}_home_empty');
       });
 
-      testWidgets('trang chủ: đang chờ chuyên gia, chưa nợ', (tester) async {
+      testWidgets('trang chủ: AI chưa chắc, chưa nợ', (tester) async {
         await open(tester, '/home', setup: (h) {
           h.orders.list0 = [summaryOf('a', status: 'CONFIRMED')];
-          h.diagnosis.list0 = [diagSummaryOf('w', status: 'UNDER_REVIEW')];
+          h.diagnosis.list0 = [
+            diagSummaryOf('u',
+                status: 'AI_COMPLETED',
+                code: 'BACTERIAL_LEAF_BLIGHT',
+                name: 'Bacterial Leaf Blight',
+                certainty: 'UNCERTAIN'),
+          ];
+        });
+        await shoot(tester, '${tag}_home_uncertain');
+      });
+
+      testWidgets('trang chủ: AI đang phân tích', (tester) async {
+        await open(tester, '/home', setup: (h) {
+          h.diagnosis.list0 = [diagSummaryOf('w')];
         });
         await shoot(tester, '${tag}_home_waiting');
       });

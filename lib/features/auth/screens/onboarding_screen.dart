@@ -38,7 +38,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       iconColor: Color(0xFF7B1FA2),
       title: 'Chẩn đoán bệnh lúa từ ảnh',
       description:
-          'Chụp ảnh lá lúa gửi chuyên gia của cửa hàng — nhận kết luận về bệnh (Đạo ôn, Bạc lá, Khô vằn, Đốm nâu...) kèm hướng dẫn điều trị và sản phẩm gợi ý.',
+          'Chụp ảnh lá lúa để AI nhận diện bệnh ngay (Đạo ôn, Bạc lá, Khô vằn, Đốm nâu...) kèm cách xử lý và sản phẩm gợi ý.',
     ),
     _OnboardingSlide(
       icon: Icons.account_balance_wallet_outlined,

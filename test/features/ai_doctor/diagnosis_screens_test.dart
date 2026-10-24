@@ -30,7 +30,8 @@ void main() {
     testWidgets('lúc đầu chưa có ảnh: chưa có nút gửi', (tester) async {
       await open(tester, '/ai-scan/capture');
       expect(find.byKey(const Key('cap_send')), findsNothing);
-      expect(find.textContaining('chuyên gia của cửa hàng xem và kết luận'), findsOneWidget);
+      expect(find.textContaining('AI phân tích ảnh và cho kết quả ngay'), findsOneWidget);
+      expect(find.textContaining('chuyên gia'), findsNothing);
     });
 
     testWidgets('hướng dẫn chụp nằm ngay dưới nút chụp, trước ô ghi chú, và nói không chụp cả cây',
@@ -120,7 +121,7 @@ void main() {
       expect(find.byKey(const Key('cap_send')), findsOneWidget);
     });
 
-    testWidgets('gửi thành công: gọi API với ảnh + ghi chú, mở chi tiết ca đang chờ', (tester) async {
+    testWidgets('gửi thành công: gọi API với ảnh + ghi chú, mở ngay kết quả AI', (tester) async {
       final h = await open(tester, '/ai-scan/capture');
       await tester.tap(find.byKey(const Key('cap_gallery')));
       await tester.pumpAndSettle();
@@ -132,7 +133,11 @@ void main() {
       expect(h.diagnosis.lastCreate!.photo.name, 'leaf.jpg');
       expect(h.diagnosis.lastCreate!.note, 'Lá vàng từ chóp');
       expect(find.byType(DiagnoseCaseScreen), findsOneWidget);
-      expect(find.byKey(const Key('case_waiting')), findsOneWidget);
+      expect(find.byKey(const Key('case_result')), findsOneWidget);
+      expect(textOf(tester, 'case_certainty'), 'Kết quả từ AI');
+      expect(find.byKey(const Key('case_waiting')), findsNothing);
+      await tester.scrollUntilVisible(find.text('Lá vàng từ chóp'), 300,
+          scrollable: find.byType(Scrollable).first);
       expect(find.text('Lá vàng từ chóp'), findsOneWidget);
     });
 
@@ -146,7 +151,7 @@ void main() {
       await tester.tap(find.byKey(const Key('cap_send')));
       await tester.pump();
 
-      expect(find.text('Đang gửi ảnh...'), findsOneWidget);
+      expect(find.text('AI đang phân tích...'), findsOneWidget);
       expect(tester.widget<ElevatedButton>(find.byKey(const Key('cap_send'))).onPressed, isNull);
       expect(h.diagnosis.calls.where((c) => c == 'create').length, 1);
       gate.complete();
@@ -187,30 +192,32 @@ void main() {
     });
   });
 
-  group('Chi tiết ca: đang chờ', () {
-    for (final s in ['SUBMITTED', 'PROCESSING', 'AI_COMPLETED', 'UNDER_REVIEW', 'FAILED']) {
-      testWidgets('$s: một trạng thái chờ duy nhất, không lộ kết quả AI', (tester) async {
+  group('Chi tiết ca: AI đang phân tích', () {
+    for (final s in ['SUBMITTED', 'PROCESSING']) {
+      testWidgets('$s: đang phân tích, chưa có kết quả, huỷ được', (tester) async {
         await open(tester, '/ai-scan/case/c1', setup: (h) {
           h.diagnosis.cases['c1'] = caseOf('c1', status: s, withImage: false, note: 'Ghi chú');
         });
-        expect(find.text('Chờ chuyên gia xem'), findsOneWidget);
+        expect(find.text('Đang phân tích'), findsOneWidget);
         expect(find.byKey(const Key('case_waiting')), findsOneWidget);
         expect(find.byKey(const Key('case_result')), findsNothing);
         expect(find.byKey(const Key('case_disease')), findsNothing);
+        expect(find.byKey(const Key('case_retry')), findsNothing);
         expect(find.byKey(const Key('case_cancel')), findsOneWidget);
         expect(find.text('Ghi chú'), findsOneWidget);
+        expect(find.textContaining('chuyên gia'), findsNothing);
       });
     }
 
-    testWidgets('tự làm mới định kỳ: khi chuyên gia kết luận thì màn hình cập nhật', (tester) async {
+    testWidgets('tự làm mới định kỳ: AI xong thì màn hình hiện kết quả', (tester) async {
       final h = await open(tester, '/ai-scan/case/c1', setup: (h) {
         h.diagnosisPollInterval = const Duration(seconds: 5);
-        h.diagnosis.cases['c1'] = caseOf('c1', status: 'UNDER_REVIEW', withImage: false);
+        h.diagnosis.cases['c1'] = caseOf('c1', withImage: false);
       });
       expect(find.byKey(const Key('case_waiting')), findsOneWidget);
 
       h.diagnosis.cases['c1'] =
-          caseOf('c1', status: 'VERIFIED', withImage: false, result: resultJson());
+          caseOf('c1', status: 'AI_COMPLETED', withImage: false, result: aiResultJson());
       await tester.pump(const Duration(seconds: 6));
       await tester.pumpAndSettle();
 
@@ -219,17 +226,25 @@ void main() {
       expect(find.byKey(const Key('case_cancel')), findsNothing);
     });
 
-    testWidgets('ca đã có kết quả thì KHÔNG hỏi lại định kỳ', (tester) async {
-      final h = await open(tester, '/ai-scan/case/c1', setup: (h) {
-        h.diagnosisPollInterval = const Duration(seconds: 5);
-        h.diagnosis.cases['c1'] =
-            caseOf('c1', status: 'VERIFIED', withImage: false, result: resultJson());
+    for (final s in ['AI_COMPLETED', 'VERIFIED', 'FAILED']) {
+      testWidgets('ca $s thì KHÔNG hỏi lại định kỳ', (tester) async {
+        final h = await open(tester, '/ai-scan/case/c1', setup: (h) {
+          h.diagnosisPollInterval = const Duration(seconds: 5);
+          h.diagnosis.cases['c1'] = caseOf('c1',
+              status: s,
+              withImage: false,
+              result: switch (s) {
+                'AI_COMPLETED' => aiResultJson(),
+                'VERIFIED' => resultJson(),
+                _ => null,
+              });
+        });
+        final before = h.diagnosis.calls.where((c) => c == 'get:c1').length;
+        await tester.pump(const Duration(seconds: 12));
+        await tester.pumpAndSettle();
+        expect(h.diagnosis.calls.where((c) => c == 'get:c1').length, before);
       });
-      final before = h.diagnosis.calls.where((c) => c == 'get:c1').length;
-      await tester.pump(const Duration(seconds: 12));
-      await tester.pumpAndSettle();
-      expect(h.diagnosis.calls.where((c) => c == 'get:c1').length, before);
-    });
+    }
 
     testWidgets('huỷ: đóng hộp thoại thì không huỷ', (tester) async {
       final h = await open(tester, '/ai-scan/case/c1', setup: (h) {
@@ -258,18 +273,18 @@ void main() {
       expect(find.textContaining('Đã huỷ ca chẩn đoán'), findsOneWidget);
     });
 
-    testWidgets('huỷ khi chuyên gia vừa kết luận (422): báo lỗi và tải lại', (tester) async {
+    testWidgets('huỷ khi AI vừa có kết quả (422): báo lỗi và tải lại', (tester) async {
       final h = await open(tester, '/ai-scan/case/c1', setup: (h) {
         h.diagnosis.cases['c1'] = caseOf('c1', withImage: false);
         h.diagnosis.cancelError = const ApiException(
             kind: ApiErrorKind.businessRule,
             statusCode: 422,
-            message: 'Chuyên gia đã có kết luận hoặc ca đã huỷ nên không thể huỷ nữa.');
+            message: 'Ca đã có kết quả hoặc đã huỷ nên không thể huỷ nữa.');
       });
       await tester.tap(find.byKey(const Key('case_cancel')));
       await tester.pumpAndSettle();
       h.diagnosis.cases['c1'] =
-          caseOf('c1', status: 'VERIFIED', withImage: false, result: resultJson());
+          caseOf('c1', status: 'AI_COMPLETED', withImage: false, result: aiResultJson());
       await tester.tap(find.byKey(const Key('case_cancel_yes')));
       await tester.pumpAndSettle();
 
@@ -279,16 +294,191 @@ void main() {
     });
   });
 
-  group('Chi tiết ca: đã có kết quả', () {
+  group('Chi tiết ca: AI chưa phân tích được', () {
+    testWidgets('FAILED: báo chưa phân tích được, có Thử lại, Gửi ảnh khác và Huỷ', (tester) async {
+      await open(tester, '/ai-scan/case/c1', setup: (h) {
+        h.diagnosis.cases['c1'] = caseOf('c1', status: 'FAILED', withImage: false);
+      });
+      expect(find.text('Chưa phân tích được'), findsOneWidget);
+      expect(find.byKey(const Key('case_failed')), findsOneWidget);
+      expect(find.byKey(const Key('case_retry')), findsOneWidget);
+      expect(find.byKey(const Key('case_new_photo')), findsOneWidget);
+      expect(find.byKey(const Key('case_cancel')), findsOneWidget);
+      expect(find.byKey(const Key('case_waiting')), findsNothing);
+      expect(find.byKey(const Key('case_result')), findsNothing);
+    });
+
+    testWidgets('ca kẹt ở SUBMITTED (server bảo thử lại được): hiện nút Thử lại', (tester) async {
+      await open(tester, '/ai-scan/case/c1', setup: (h) {
+        h.diagnosis.cases['c1'] = caseOf('c1', status: 'SUBMITTED', withImage: false, canRetry: true);
+      });
+      expect(find.byKey(const Key('case_failed')), findsOneWidget);
+      expect(find.byKey(const Key('case_retry')), findsOneWidget);
+      expect(find.byKey(const Key('case_waiting')), findsNothing);
+    });
+
+    testWidgets('Thử lại thành công: gọi API rồi hiện kết quả AI, hết nút huỷ', (tester) async {
+      final h = await open(tester, '/ai-scan/case/c1', setup: (h) {
+        h.diagnosis.cases['c1'] = caseOf('c1', status: 'FAILED', withImage: false);
+      });
+      await tester.tap(find.byKey(const Key('case_retry')));
+      await tester.pumpAndSettle();
+
+      expect(h.diagnosis.lastRetry, 'c1');
+      expect(find.byKey(const Key('case_result')), findsOneWidget);
+      expect(textOf(tester, 'case_disease'), 'Đạo ôn lá');
+      expect(find.byKey(const Key('case_failed')), findsNothing);
+      expect(find.byKey(const Key('case_cancel')), findsNothing);
+    });
+
+    testWidgets('Thử lại khi AI vẫn bận (503): báo lỗi, vẫn ở màn chưa phân tích được', (tester) async {
+      final h = await open(tester, '/ai-scan/case/c1', setup: (h) {
+        h.diagnosis.cases['c1'] = caseOf('c1', status: 'FAILED', withImage: false);
+        h.diagnosis.retryError = const ApiException(
+            kind: ApiErrorKind.unavailable,
+            statusCode: 503,
+            message: 'Dịch vụ AI đang bận. Bạn hãy thử lại sau ít phút.');
+      });
+      await tester.tap(find.byKey(const Key('case_retry')));
+      await tester.pumpAndSettle();
+
+      expect(h.diagnosis.lastRetry, 'c1');
+      expect(find.textContaining('Dịch vụ AI đang bận. Bạn hãy thử lại'), findsOneWidget);
+      expect(find.byKey(const Key('case_failed')), findsOneWidget);
+      expect(
+          tester.widget<ElevatedButton>(find.byKey(const Key('case_retry'))).onPressed, isNotNull,
+          reason: 'bấm thử lại được lần nữa');
+    });
+
+    testWidgets('Gửi ảnh khác mở màn chụp', (tester) async {
+      await open(tester, '/ai-scan/case/c1', setup: (h) {
+        h.diagnosis.cases['c1'] = caseOf('c1', status: 'FAILED', withImage: false);
+      });
+      await tester.tap(find.byKey(const Key('case_new_photo')));
+      await tester.pumpAndSettle();
+      expect(find.byType(ImageCaptureScreen), findsOneWidget);
+    });
+  });
+
+  group('Chi tiết ca: kết quả AI', () {
+    testWidgets('AI chắc chắn: bệnh, cách xử lý kèm hoạt chất, sản phẩm gợi ý, lưu ý AI có thể sai',
+        (tester) async {
+      await open(tester, '/ai-scan/case/c1', setup: (h) {
+        h.diagnosis.cases['c1'] =
+            caseOf('c1', status: 'AI_COMPLETED', withImage: false, result: aiResultJson());
+      });
+      expect(find.text('Đã có kết quả'), findsOneWidget);
+      expect(textOf(tester, 'case_certainty'), 'Kết quả từ AI');
+      expect(textOf(tester, 'case_disease'), 'Đạo ôn lá');
+      expect(find.textContaining('có thể chưa chính xác'), findsOneWidget);
+      expect(find.byKey(const Key('case_uncertain')), findsNothing);
+      expect(find.byKey(const Key('case_comment')), findsNothing);
+      expect(find.byKey(const Key('case_cancel')), findsNothing);
+
+      await tester.scrollUntilVisible(find.byKey(const Key('case_treatments')), 300,
+          scrollable: find.byType(Scrollable).first);
+      expect(find.text('Thuốc / hoá chất'), findsOneWidget);
+      expect(find.text('Hoạt chất: Tricyclazole'), findsOneWidget);
+
+      await tester.scrollUntilVisible(find.byKey(const Key('case_disclaimer')), 300,
+          scrollable: find.byType(Scrollable).first);
+      expect(find.byKey(const Key('case_products')), findsOneWidget);
+      expect(find.text('Thuốc Beam 75WP'), findsOneWidget);
+      expect(find.textContaining('Đọc kỹ nhãn thuốc'), findsOneWidget);
+    });
+
+    testWidgets('AI chưa chắc: "có thể là", không thuốc, không sản phẩm, nút Chụp lại', (tester) async {
+      await open(tester, '/ai-scan/case/c1', setup: (h) {
+        h.diagnosis.cases['c1'] = caseOf('c1',
+            status: 'AI_COMPLETED', withImage: false, result: aiResultJson(uncertain: true));
+      });
+      expect(textOf(tester, 'case_certainty'), 'AI chưa chắc chắn, có thể là');
+      expect(textOf(tester, 'case_disease'), 'Đạo ôn lá');
+      expect(find.byKey(const Key('case_uncertain')), findsOneWidget);
+      expect(find.text('Thuốc / hoá chất'), findsNothing);
+      expect(find.byKey(const Key('case_products')), findsNothing);
+      expect(find.byKey(const Key('case_no_products')), findsNothing);
+      expect(find.text('Cây không có dấu hiệu bệnh.'), findsNothing);
+
+      await tester.tap(find.byKey(const Key('case_retake')));
+      await tester.pumpAndSettle();
+      expect(find.byType(ImageCaptureScreen), findsOneWidget);
+    });
+
+    testWidgets('AI chưa chắc là lá khoẻ: KHÔNG báo "cây không có dấu hiệu bệnh"', (tester) async {
+      await open(tester, '/ai-scan/case/c1', setup: (h) {
+        h.diagnosis.cases['c1'] = caseOf('c1',
+            status: 'AI_COMPLETED',
+            withImage: false,
+            result: aiResultJson(
+                uncertain: true, code: 'HEALTHY', name: 'Healthy', healthy: true, treatments: []));
+      });
+      expect(textOf(tester, 'case_disease'), 'Lá khoẻ mạnh');
+      expect(find.text('Cây không có dấu hiệu bệnh.'), findsNothing);
+      expect(find.byKey(const Key('case_uncertain')), findsOneWidget);
+    });
+
+    testWidgets('AI chắc chắn nhưng cửa hàng chưa có sản phẩm khớp: mời hỏi cửa hàng', (tester) async {
+      await open(tester, '/ai-scan/case/c1', setup: (h) {
+        h.diagnosis.cases['c1'] = caseOf('c1',
+            status: 'AI_COMPLETED', withImage: false, result: aiResultJson(products: []));
+      });
+      await tester.scrollUntilVisible(find.byKey(const Key('case_no_products')), 300,
+          scrollable: find.byType(Scrollable).first);
+      expect(find.byKey(const Key('case_products')), findsNothing);
+    });
+
+    testWidgets('bệnh chưa có nội dung: mời hỏi cửa hàng thay vì để trống', (tester) async {
+      await open(tester, '/ai-scan/case/c1', setup: (h) {
+        h.diagnosis.cases['c1'] = caseOf('c1',
+            status: 'AI_COMPLETED',
+            withImage: false,
+            result: aiResultJson(symptoms: null, prevention: null, treatments: [], products: []));
+      });
+      expect(find.byKey(const Key('case_no_content')), findsOneWidget);
+      expect(find.byKey(const Key('case_treatments')), findsNothing);
+    });
+
+    testWidgets('AI chắc chắn lá khoẻ: thông báo tích cực, không có mục sản phẩm', (tester) async {
+      await open(tester, '/ai-scan/case/c1', setup: (h) {
+        h.diagnosis.cases['c1'] = caseOf('c1',
+            status: 'AI_COMPLETED',
+            withImage: false,
+            result: aiResultJson(
+                code: 'HEALTHY', name: 'Healthy', healthy: true, symptoms: null, prevention: null,
+                treatments: []));
+      });
+      expect(find.text('Cây không có dấu hiệu bệnh.'), findsOneWidget);
+      expect(find.byKey(const Key('case_products')), findsNothing);
+      expect(find.byKey(const Key('case_no_products')), findsNothing);
+      expect(find.byKey(const Key('case_no_content')), findsNothing);
+    });
+
+    testWidgets('ca cũ UNDER_REVIEW: hiện kết quả AI, không còn "chờ chuyên gia"', (tester) async {
+      await open(tester, '/ai-scan/case/c1', setup: (h) {
+        h.diagnosis.cases['c1'] =
+            caseOf('c1', status: 'UNDER_REVIEW', withImage: false, result: aiResultJson());
+      });
+      expect(find.byKey(const Key('case_result')), findsOneWidget);
+      expect(find.byKey(const Key('case_waiting')), findsNothing);
+      expect(find.byKey(const Key('case_cancel')), findsNothing);
+    });
+  });
+
+  group('Chi tiết ca: ca cũ cửa hàng đã xác nhận', () {
     testWidgets('bệnh, nhận xét, triệu chứng, phòng ngừa, điều trị theo thứ tự, sản phẩm', (tester) async {
       await open(tester, '/ai-scan/case/c1', setup: (h) {
         h.diagnosis.cases['c1'] =
             caseOf('c1', status: 'VERIFIED', withImage: false, result: resultJson());
       });
 
+      expect(find.text('Đã xác nhận'), findsOneWidget);
+      expect(textOf(tester, 'case_certainty'), 'Cửa hàng đã xác nhận');
       expect(textOf(tester, 'case_disease'), 'Đạo ôn lá');
       expect(find.text('Leaf Blast'), findsOneWidget);
+      expect(find.text('Nhận xét của cửa hàng'), findsOneWidget);
       expect(find.text('Vết bệnh hình thoi điển hình.'), findsOneWidget);
+      expect(find.textContaining('có thể chưa chính xác'), findsNothing);
       expect(find.text('Vết hình thoi màu nâu xám trên lá.'), findsOneWidget);
       expect(find.text('Bón phân cân đối, tránh thừa đạm.'), findsOneWidget);
 
@@ -355,8 +545,8 @@ void main() {
     });
   });
 
-  group('Chi tiết ca: chưa kết luận / huỷ / lỗi', () {
-    testWidgets('chưa kết luận: lời nhắn của chuyên gia + nút chụp lại mở màn chụp', (tester) async {
+  group('Chi tiết ca: chưa kết luận (ca cũ) / huỷ / lỗi mạng', () {
+    testWidgets('ca cũ chưa kết luận: lời nhắn của cửa hàng + nút chụp lại mở màn chụp', (tester) async {
       await open(tester, '/ai-scan/case/c1', setup: (h) {
         h.diagnosis.cases['c1'] = caseOf('c1',
             status: 'INCONCLUSIVE',
@@ -372,7 +562,7 @@ void main() {
       expect(find.byType(ImageCaptureScreen), findsOneWidget);
     });
 
-    testWidgets('chưa kết luận mà không có lời nhắn vẫn hiển thị được', (tester) async {
+    testWidgets('ca cũ chưa kết luận mà không có lời nhắn vẫn hiển thị được', (tester) async {
       await open(tester, '/ai-scan/case/c1', setup: (h) {
         h.diagnosis.cases['c1'] = caseOf('c1', status: 'INCONCLUSIVE', withImage: false);
       });
@@ -417,33 +607,49 @@ void main() {
   });
 
   group('Lịch sử', () {
-    testWidgets('hiện các ca với trạng thái; ca đã xác nhận có tên bệnh tiếng Việt', (tester) async {
+    testWidgets('hiện các ca với trạng thái; ca có kết quả có tên bệnh tiếng Việt', (tester) async {
       await open(tester, '/ai-scan/history', setup: (h) {
         h.diagnosis.list0 = [
-          diagSummaryOf('a', status: 'VERIFIED', code: 'BROWN_SPOT', name: 'Brown Spot'),
-          diagSummaryOf('b', status: 'UNDER_REVIEW'),
+          diagSummaryOf('a',
+              status: 'AI_COMPLETED', code: 'BROWN_SPOT', name: 'Brown Spot', certainty: 'CONFIDENT'),
+          diagSummaryOf('u',
+              status: 'AI_COMPLETED', code: 'LEAF_BLAST', name: 'Leaf Blast', certainty: 'UNCERTAIN'),
+          diagSummaryOf('v',
+              status: 'VERIFIED', code: 'SHEATH_BLIGHT', name: 'Sheath Blight', certainty: 'VERIFIED'),
+          diagSummaryOf('b'),
+          diagSummaryOf('f', status: 'FAILED'),
           diagSummaryOf('c', status: 'INCONCLUSIVE'),
           diagSummaryOf('d', status: 'CANCELLED'),
         ];
       });
       expect(find.text('Đốm nâu'), findsOneWidget);
-      expect(find.text('DG-a · ', findRichText: false), findsNothing);
-      expect(find.text('Đã có kết quả'), findsWidgets);
-      expect(find.text('Chờ chuyên gia xem'), findsOneWidget);
-      expect(find.text('Cần chụp lại'), findsWidgets);
+      expect(find.text('Có thể là Đạo ôn lá (AI chưa chắc)'), findsOneWidget);
+      expect(find.text('Khô vằn'), findsOneWidget);
+      Finder inCard(String id, String text) =>
+          find.descendant(of: find.byKey(Key('diag_$id')), matching: find.text(text));
+      expect(inCard('a', 'Đã có kết quả'), findsOneWidget);
+      expect(inCard('u', 'Đã có kết quả'), findsOneWidget);
+      expect(inCard('v', 'Đã xác nhận'), findsOneWidget);
       expect(find.text('DG-b'), findsOneWidget, reason: 'ca chưa có kết quả hiện mã ca, không có tên bệnh');
+      await tester.scrollUntilVisible(find.byKey(const Key('diag_d')), 300,
+          scrollable: find.byType(Scrollable).last);
+      expect(find.text('Đang phân tích'), findsWidgets);
+      expect(find.text('Chưa phân tích được'), findsWidgets);
+      expect(find.text('Cần chụp lại'), findsOneWidget);
+      expect(find.textContaining('chuyên gia'), findsNothing);
     });
 
     testWidgets('lọc theo trạng thái gọi API đúng', (tester) async {
       final h = await open(tester, '/ai-scan/history', setup: (h) {
         h.diagnosis.list0 = [
-          diagSummaryOf('a', status: 'VERIFIED', code: 'HEALTHY', name: 'Healthy'),
-          diagSummaryOf('b', status: 'UNDER_REVIEW'),
+          diagSummaryOf('a',
+              status: 'AI_COMPLETED', code: 'HEALTHY', name: 'Healthy', certainty: 'CONFIDENT'),
+          diagSummaryOf('b'),
         ];
       });
-      await tester.tap(find.byKey(const Key('diag_filter_VERIFIED')));
+      await tester.tap(find.byKey(const Key('diag_filter_AI_COMPLETED')));
       await tester.pumpAndSettle();
-      expect(h.diagnosis.listCalls.last, (page: 1, status: 'VERIFIED'));
+      expect(h.diagnosis.listCalls.last, (page: 1, status: 'AI_COMPLETED'));
       expect(find.byKey(const Key('diag_a')), findsOneWidget);
       expect(find.byKey(const Key('diag_b')), findsNothing);
     });
@@ -481,8 +687,9 @@ void main() {
 
     testWidgets('bấm một ca mở chi tiết', (tester) async {
       await open(tester, '/ai-scan/history', setup: (h) {
-        h.diagnosis.list0 = [diagSummaryOf('a', status: 'UNDER_REVIEW')];
-        h.diagnosis.cases['a'] = caseOf('a', status: 'UNDER_REVIEW', withImage: false);
+        h.diagnosis.list0 = [diagSummaryOf('a', status: 'AI_COMPLETED')];
+        h.diagnosis.cases['a'] =
+            caseOf('a', status: 'AI_COMPLETED', withImage: false, result: aiResultJson());
       });
       await tester.tap(find.byKey(const Key('diag_a')));
       await tester.pumpAndSettle();

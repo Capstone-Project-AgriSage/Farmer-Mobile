@@ -186,54 +186,101 @@ void main() {
 
     testWidgets('chỉ lấy 1 ca mới nhất (pageSize=1)', (tester) async {
       final h = await open(tester, setup: (h) {
-        h.diagnosis.list0 = [diagSummaryOf('a', status: 'UNDER_REVIEW')];
+        h.diagnosis.list0 = [diagSummaryOf('a')];
       });
       expect(h.diagnosis.listCalls.single, (page: 1, status: null));
     });
 
-    testWidgets('đang chờ chuyên gia: nói rõ, không có tên bệnh/sản phẩm', (tester) async {
+    final threeProducts = [
+      for (var i = 1; i <= 3; i++)
+        {
+          'storeProductId': 'sp$i',
+          'productId': 'p$i',
+          'name': 'Thuốc $i',
+          'sku': 'S$i',
+          'rankOrder': i,
+        }
+    ];
+
+    testWidgets('AI đang phân tích: nói rõ, không có tên bệnh/sản phẩm', (tester) async {
       await open(tester, setup: (h) {
-        h.diagnosis.list0 = [diagSummaryOf('a', status: 'AI_COMPLETED')];
+        h.diagnosis.list0 = [diagSummaryOf('a')];
       });
-      expect(find.text('Chờ chuyên gia xem'), findsOneWidget);
-      expect(find.textContaining('Chuyên gia đang xem ảnh của bạn'), findsOneWidget);
+      expect(find.text('Đang phân tích'), findsOneWidget);
+      expect(find.textContaining('AI đang phân tích ảnh của bạn'), findsOneWidget);
       expect(find.byKey(const Key('home_diag_disease')), findsNothing);
-      expect(find.byKey(const Key('home_diag_verified_note')), findsNothing,
-          reason: 'chưa có kết luận thì không ghi "do chuyên gia xác nhận"');
+      expect(find.byKey(const Key('home_diag_verified_note')), findsNothing);
+      expect(find.byKey(const Key('home_diag_ai_note')), findsNothing);
+      expect(find.textContaining('chuyên gia'), findsNothing);
     });
 
-    testWidgets('đã có kết luận: tên bệnh tiếng Việt + tối đa 2 sản phẩm gợi ý, bấm mở sản phẩm',
+    testWidgets('AI chắc chắn: tên bệnh tiếng Việt + tối đa 2 sản phẩm gợi ý, ghi rõ AI dự đoán',
         (tester) async {
       await open(tester, setup: (h) {
         h.diagnosis.list0 = [
-          diagSummaryOf('v', status: 'VERIFIED', code: 'LEAF_BLAST', name: 'Leaf Blast'),
+          diagSummaryOf('a',
+              status: 'AI_COMPLETED', code: 'LEAF_BLAST', name: 'Leaf Blast', certainty: 'CONFIDENT'),
         ];
-        h.diagnosis.cases['v'] = caseOf('v',
-            status: 'VERIFIED',
-            withImage: false,
-            result: resultJson(products: [
-              for (var i = 1; i <= 3; i++)
-                {
-                  'storeProductId': 'sp$i',
-                  'productId': 'p$i',
-                  'name': 'Thuốc $i',
-                  'sku': 'S$i',
-                  'rankOrder': i,
-                }
-            ]));
+        h.diagnosis.cases['a'] = caseOf('a',
+            status: 'AI_COMPLETED', withImage: false, result: aiResultJson(products: threeProducts));
       });
       expect(textOf(tester, 'home_diag_disease'), 'Đạo ôn lá');
       expect(find.text('Thuốc 1'), findsOneWidget);
       expect(find.text('Thuốc 2'), findsOneWidget);
       expect(find.text('Thuốc 3'), findsNothing, reason: 'chỉ hiện 2 sản phẩm đầu');
       expect(find.text('Đã có kết quả'), findsOneWidget);
+      expect(find.byKey(const Key('home_diag_ai_note')), findsOneWidget);
+      expect(find.byKey(const Key('home_diag_verified_note')), findsNothing);
+    });
+
+    testWidgets('AI chưa chắc: "Có thể là", khuyên chụp lại, KHÔNG tải và hiện sản phẩm', (tester) async {
+      final h = await open(tester, setup: (h) {
+        h.diagnosis.list0 = [
+          diagSummaryOf('u',
+              status: 'AI_COMPLETED', code: 'LEAF_BLAST', name: 'Leaf Blast', certainty: 'UNCERTAIN'),
+        ];
+        h.diagnosis.cases['u'] = caseOf('u',
+            status: 'AI_COMPLETED',
+            withImage: false,
+            result: aiResultJson(uncertain: true, products: threeProducts));
+      });
+      expect(textOf(tester, 'home_diag_disease'), 'Có thể là Đạo ôn lá');
+      expect(find.textContaining('AI chưa chắc chắn'), findsOneWidget);
+      expect(find.text('Thuốc 1'), findsNothing);
+      expect(h.diagnosis.calls, isNot(contains('get:u')));
+      expect(find.byKey(const Key('home_diag_ai_note')), findsOneWidget);
+    });
+
+    testWidgets('ca cũ cửa hàng đã xác nhận: tên bệnh, sản phẩm, ghi cửa hàng xác nhận', (tester) async {
+      await open(tester, setup: (h) {
+        h.diagnosis.list0 = [
+          diagSummaryOf('v',
+              status: 'VERIFIED', code: 'LEAF_BLAST', name: 'Leaf Blast', certainty: 'VERIFIED'),
+        ];
+        h.diagnosis.cases['v'] = caseOf('v',
+            status: 'VERIFIED', withImage: false, result: resultJson(products: threeProducts));
+      });
+      expect(textOf(tester, 'home_diag_disease'), 'Đạo ôn lá');
+      expect(find.text('Thuốc 1'), findsOneWidget);
+      expect(find.text('Đã xác nhận'), findsOneWidget);
       expect(find.byKey(const Key('home_diag_verified_note')), findsOneWidget);
+      expect(find.byKey(const Key('home_diag_ai_note')), findsNothing);
+    });
+
+    testWidgets('AI chưa phân tích được: mời mở ca để thử lại', (tester) async {
+      await open(tester, setup: (h) {
+        h.diagnosis.list0 = [diagSummaryOf('f', status: 'FAILED')];
+      });
+      expect(find.text('Chưa phân tích được'), findsOneWidget);
+      expect(find.textContaining('Mở để thử lại'), findsOneWidget);
+      expect(find.byKey(const Key('home_diag_disease')), findsNothing);
     });
 
     testWidgets('bấm ca gần đây mở chi tiết ca', (tester) async {
       await open(tester, setup: (h) {
-        h.diagnosis.list0 = [diagSummaryOf('a', status: 'UNDER_REVIEW')];
-        h.diagnosis.cases['a'] = caseOf('a', status: 'UNDER_REVIEW', withImage: false);
+        h.diagnosis.list0 = [diagSummaryOf('a', status: 'AI_COMPLETED')];
+        h.diagnosis.cases['a'] =
+            caseOf('a', status: 'AI_COMPLETED', withImage: false, result: aiResultJson());
       });
       await tester.tap(find.byKey(const Key('home_diag_latest')));
       await tester.pumpAndSettle();
@@ -248,12 +295,13 @@ void main() {
       expect(find.byKey(const Key('home_diag_verified_note')), findsNothing);
     });
 
-    testWidgets('ca đã huỷ: ghi đã huỷ, KHÔNG ghi "kết luận do chuyên gia xác nhận"', (tester) async {
+    testWidgets('ca đã huỷ: ghi đã huỷ, không có ghi chú kết quả', (tester) async {
       await open(tester, setup: (h) {
         h.diagnosis.list0 = [diagSummaryOf('c', status: 'CANCELLED')];
       });
       expect(find.textContaining('Bạn đã huỷ ca này'), findsOneWidget);
       expect(find.byKey(const Key('home_diag_verified_note')), findsNothing);
+      expect(find.byKey(const Key('home_diag_ai_note')), findsNothing);
     });
 
     testWidgets('lỗi mạng: thông báo trong thẻ, các thẻ khác vẫn có dữ liệu', (tester) async {

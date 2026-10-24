@@ -5,8 +5,8 @@ import '../../../core/network/json_utils.dart';
 
 /// Trạng thái ca chẩn đoán (`DiagnosisCaseStatus` của backend).
 ///
-/// Nông dân KHÔNG bao giờ thấy kết quả AI: mọi ca đều chờ chuyên gia duyệt.
-/// Các trạng thái trung gian của backend đều có nghĩa "đang chờ" với nông dân.
+/// Từ 21/10/2026 không còn chuyên gia duyệt (AI_DIAGNOSIS.md 2.0): AI phân tích xong là nông dân thấy kết quả
+/// ngay (AI_COMPLETED). UNDER_REVIEW, VERIFIED, INCONCLUSIVE chỉ còn ở các ca cũ.
 abstract class DiagnosisStatus {
   static const submitted = 'SUBMITTED';
   static const processing = 'PROCESSING';
@@ -17,27 +17,23 @@ abstract class DiagnosisStatus {
   static const inconclusive = 'INCONCLUSIVE';
   static const cancelled = 'CANCELLED';
 
-  /// Đang chờ chuyên gia (kể cả khi AI lỗi: chuyên gia chẩn đoán tay).
-  static bool isWaiting(String s) =>
-      s == submitted ||
-      s == processing ||
-      s == aiCompleted ||
-      s == underReview ||
-      s == failed;
+  /// AI đang phân tích (thường chỉ vài giây).
+  static bool isWaiting(String s) => s == submitted || s == processing;
 
-  /// Backend cho huỷ ở mọi trạng thái chờ.
-  static bool canCancel(String s) => isWaiting(s);
+  /// Chỉ huỷ khi chưa có kết quả: đang phân tích hoặc AI chưa phân tích được.
+  static bool canCancel(String s) => isWaiting(s) || s == failed;
 
-  /// Bộ lọc ở lịch sử. Backend chỉ lọc được MỘT trạng thái nên không có bộ lọc
-  /// "đang chờ" (gồm 5 trạng thái); các ca đang chờ nằm trong "Tất cả".
-  static const filters = <String?>[null, verified, inconclusive, cancelled];
+  /// Bộ lọc ở lịch sử (backend lọc MỘT trạng thái). Ca cũ đã duyệt nằm trong "Tất cả".
+  static const filters = <String?>[null, aiCompleted, failed, cancelled];
 
   static String label(String? s) => switch (s) {
         null => 'Tất cả',
-        verified => 'Đã có kết quả',
+        aiCompleted || underReview => 'Đã có kết quả',
+        verified => 'Đã xác nhận',
         inconclusive => 'Cần chụp lại',
+        failed => 'Chưa phân tích được',
         cancelled => 'Đã huỷ',
-        _ when isWaiting(s) => 'Chờ chuyên gia xem',
+        _ when isWaiting(s) => 'Đang phân tích',
         _ => s,
       };
 
@@ -45,11 +41,24 @@ abstract class DiagnosisStatus {
   static (Color, Color) colors(String s) {
     if (isWaiting(s)) return (AppColors.statusWarning, AppColors.statusWarningSurface);
     return switch (s) {
-      verified => (AppColors.statusSuccess, AppColors.statusSuccessSurface),
+      aiCompleted || underReview || verified => (AppColors.statusSuccess, AppColors.statusSuccessSurface),
+      failed => (AppColors.statusError, AppColors.statusErrorSurface),
       inconclusive => (const Color(0xFF1565C0), const Color(0xFFE3F2FD)),
       _ => (AppColors.textSecondary, AppColors.surfaceSubtle),
     };
   }
+}
+
+/// Mức chắc chắn của kết quả (`result.certainty`). Nông dân không bao giờ thấy con số xác suất.
+abstract class DiagnosisCertainty {
+  /// AI đạt ngưỡng: có cách xử lý và sản phẩm gợi ý.
+  static const confident = 'CONFIDENT';
+
+  /// AI chưa chắc: chỉ có bệnh đoán nhiều nhất, không có thuốc, khuyên chụp lại hoặc hỏi cửa hàng.
+  static const uncertain = 'UNCERTAIN';
+
+  /// Ca cũ đã được cửa hàng duyệt trước 21/10/2026.
+  static const verified = 'VERIFIED';
 }
 
 /// Tên tiếng Việt của 5 lớp bệnh backend dùng (`diseases.code`). Tên backend là
@@ -122,6 +131,7 @@ class Treatment {
     this.precautions,
     this.reason,
     this.rankOrder = 0,
+    this.activeIngredientName,
   });
 
   final String type;
@@ -131,6 +141,9 @@ class Treatment {
   final String? reason;
   final int rankOrder;
 
+  /// Hoạt chất của cách xử lý (thường với thuốc / hoá chất).
+  final String? activeIngredientName;
+
   factory Treatment.fromJson(Map<String, dynamic> json) => Treatment(
         type: json['type'] as String? ?? '',
         title: json['title'] as String? ?? '',
@@ -138,10 +151,12 @@ class Treatment {
         precautions: json['precautions'] as String?,
         reason: json['reason'] as String?,
         rankOrder: asInt(json['rankOrder']) ?? 0,
+        activeIngredientName: json['activeIngredientName'] as String?,
       );
 }
 
-/// Sản phẩm chuyên gia gợi ý. Không có giá: app lấy giá từ danh mục khi mở sản phẩm.
+/// Sản phẩm gợi ý (chứa hoạt chất của cách xử lý bệnh, hoặc do cửa hàng chọn ở ca cũ).
+/// Không có giá: app lấy giá từ danh mục khi mở sản phẩm.
 class RecommendedProduct {
   const RecommendedProduct({
     required this.storeProductId,
@@ -170,23 +185,34 @@ class RecommendedProduct {
       );
 }
 
-/// Kết quả đã được chuyên gia xác nhận (chỉ có khi VERIFIED).
+/// Kết quả nông dân đọc: của AI (CONFIDENT / UNCERTAIN) hoặc của cửa hàng ở ca cũ (VERIFIED).
 class DiagnosisResult {
   const DiagnosisResult({
     required this.disease,
     required this.treatments,
     required this.products,
     this.reviewerComment,
+    this.certainty = DiagnosisCertainty.verified,
+    this.hint,
   });
 
   final Disease disease;
   final String? reviewerComment;
   final List<Treatment> treatments;
   final List<RecommendedProduct> products;
+  final String certainty;
+
+  /// `RETAKE_PHOTO_OR_ASK_STORE` khi AI chưa chắc.
+  final String? hint;
+
+  bool get isUncertain => certainty == DiagnosisCertainty.uncertain;
+  bool get isFromAi => certainty != DiagnosisCertainty.verified;
 
   factory DiagnosisResult.fromJson(Map<String, dynamic> json) => DiagnosisResult(
         disease: Disease.fromJson(json['disease'] as Map<String, dynamic>),
         reviewerComment: json['reviewerComment'] as String?,
+        certainty: json['certainty'] as String? ?? DiagnosisCertainty.verified,
+        hint: json['hint'] as String?,
         treatments: [
           for (final t in (json['treatments'] as List? ?? const []))
             Treatment.fromJson(t as Map<String, dynamic>),
@@ -198,7 +224,7 @@ class DiagnosisResult {
       );
 }
 
-/// Chuyên gia chưa kết luận được: lời nhắn + gợi ý chụp lại.
+/// Ca cũ cửa hàng chưa kết luận được: lời nhắn + gợi ý chụp lại.
 class DiagnosisInconclusive {
   const DiagnosisInconclusive({this.comment, this.hint});
 
@@ -222,6 +248,7 @@ class DiagnosisSummary {
     this.completedAt,
     this.diseaseCode,
     this.diseaseName,
+    this.certainty,
   });
 
   final String id;
@@ -230,9 +257,14 @@ class DiagnosisSummary {
   final DateTime submittedAt;
   final DateTime? completedAt;
 
-  /// Chỉ có khi VERIFIED.
+  /// Bệnh AI đoán (hoặc cửa hàng đã xác nhận ở ca cũ); null khi chưa có kết quả.
   final String? diseaseCode;
   final String? diseaseName;
+
+  /// CONFIDENT / UNCERTAIN / VERIFIED, null khi chưa có kết quả.
+  final String? certainty;
+
+  bool get isUncertain => certainty == DiagnosisCertainty.uncertain;
 
   String? get diseaseDisplay => diseaseCode == null
       ? diseaseName
@@ -246,6 +278,7 @@ class DiagnosisSummary {
         completedAt: asDate(json['completedAt']),
         diseaseCode: json['diseaseCode'] as String?,
         diseaseName: json['diseaseName'] as String?,
+        certainty: json['certainty'] as String?,
       );
 }
 
@@ -261,6 +294,7 @@ class DiagnosisCase {
     this.image,
     this.result,
     this.inconclusive,
+    this.canRetry = false,
   });
 
   final String id;
@@ -272,6 +306,9 @@ class DiagnosisCase {
   final DiagnosisImage? image;
   final DiagnosisResult? result;
   final DiagnosisInconclusive? inconclusive;
+
+  /// AI chưa phân tích được (hoặc ca bị gián đoạn): gửi lại để AI phân tích.
+  final bool canRetry;
 
   bool get isWaiting => DiagnosisStatus.isWaiting(status);
   bool get canCancel => DiagnosisStatus.canCancel(status);
@@ -292,5 +329,6 @@ class DiagnosisCase {
         inconclusive: json['inconclusive'] == null
             ? null
             : DiagnosisInconclusive.fromJson(json['inconclusive'] as Map<String, dynamic>),
+        canRetry: json['canRetry'] as bool? ?? false,
       );
 }

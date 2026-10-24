@@ -138,8 +138,8 @@ class DiagnosisRepository {
     return _extensions[name.substring(dot + 1).toLowerCase()];
   }
 
-  /// Gửi ảnh. Server lưu ảnh, chạy AI rồi trả ca đang chờ chuyên gia (không có
-  /// kết quả AI). Có thể mất vài giây nên dùng timeout dài.
+  /// Gửi ảnh. Server lưu ảnh, chạy AI rồi trả ca đã có kết quả (AI_COMPLETED) hoặc FAILED (thử lại sau).
+  /// Có thể mất vài giây nên dùng timeout dài.
   Future<DiagnosisCase> create({required PickedPhoto photo, String? note}) => apiCall(
         () async {
           final type = photo.type?.mimeType ?? _contentType(photo.name)!;
@@ -189,7 +189,27 @@ class DiagnosisRepository {
         messages: {404: 'Không tìm thấy ca chẩn đoán.'},
       );
 
-  /// Huỷ khi chuyên gia chưa kết luận.
+  /// AI phân tích lại ảnh của một ca chưa phân tích được.
+  Future<DiagnosisCase> retry(String id) => apiCall(
+        () async {
+          final res = await _dio.post<Map<String, dynamic>>(
+            '/api/me/diagnosis-cases/$id/retry',
+            options: Options(
+              sendTimeout: AppConfig.uploadTimeout,
+              receiveTimeout: AppConfig.uploadTimeout,
+            ),
+          );
+          return DiagnosisCase.fromJson(res.data!);
+        },
+        messages: {
+          404: 'Không tìm thấy ca chẩn đoán.',
+          422: 'Ca này đã có kết quả hoặc đã huỷ nên không cần phân tích lại.',
+          429: 'Bạn thử lại quá nhanh. Vui lòng đợi một chút.',
+          503: 'Dịch vụ AI đang bận. Bạn hãy thử lại sau ít phút.',
+        },
+      );
+
+  /// Huỷ khi ca chưa có kết quả.
   Future<DiagnosisCase> cancel(String id, {String? reason}) => apiCall(
         () async {
           final r = reason?.trim();
@@ -201,7 +221,7 @@ class DiagnosisRepository {
         },
         messages: {
           404: 'Không tìm thấy ca chẩn đoán.',
-          422: 'Chuyên gia đã có kết luận hoặc ca đã huỷ nên không thể huỷ nữa.',
+          422: 'Ca đã có kết quả hoặc đã huỷ nên không thể huỷ nữa.',
         },
       );
 }

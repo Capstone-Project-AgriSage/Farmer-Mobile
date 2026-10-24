@@ -200,7 +200,9 @@ class _HistoryCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final verified = item.status == DiagnosisStatus.verified;
+    // Có bệnh để hiện: kết quả AI (hoặc ca cũ đã được cửa hàng xác nhận).
+    final hasDisease = item.diseaseDisplay != null;
+    final uncertain = item.isUncertain;
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
@@ -226,12 +228,24 @@ class _HistoryCard extends StatelessWidget {
               width: 44,
               height: 44,
               decoration: BoxDecoration(
-                color: verified ? AppColors.statusSuccessSurface : AppColors.surfaceSubtle,
+                color: !hasDisease
+                    ? AppColors.surfaceSubtle
+                    : uncertain
+                        ? AppColors.statusWarningSurface
+                        : AppColors.statusSuccessSurface,
                 borderRadius: BorderRadius.circular(14),
               ),
               child: Icon(
-                verified ? Icons.eco : Icons.local_florist_outlined,
-                color: verified ? AppColors.statusSuccess : AppColors.textMuted,
+                !hasDisease
+                    ? Icons.local_florist_outlined
+                    : uncertain
+                        ? Icons.help_outline_rounded
+                        : Icons.eco,
+                color: !hasDisease
+                    ? AppColors.textMuted
+                    : uncertain
+                        ? AppColors.statusWarning
+                        : AppColors.statusSuccess,
               ),
             ),
             const SizedBox(width: 12),
@@ -240,8 +254,10 @@ class _HistoryCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    verified && item.diseaseDisplay != null
-                        ? item.diseaseDisplay!
+                    hasDisease
+                        ? uncertain
+                            ? 'Có thể là ${item.diseaseDisplay!} (AI chưa chắc)'
+                            : item.diseaseDisplay!
                         : item.caseNumber,
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
@@ -249,7 +265,7 @@ class _HistoryCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    verified && item.diseaseDisplay != null
+                    hasDisease
                         ? '${item.caseNumber} · ${formatDateTime(item.submittedAt)}'
                         : formatDateTime(item.submittedAt),
                     maxLines: 1,

@@ -391,7 +391,7 @@ class _AiCard extends StatelessWidget {
                               size: 14, color: AppColors.primary),
                           const SizedBox(width: 4),
                           Flexible(
-                            child: Text('Chuyên gia hỗ trợ',
+                            child: Text('AI nhận diện ngay',
                                 maxLines: 1,
                                 overflow: TextOverflow.ellipsis,
                                 style: AppTextStyles.bodySmall.copyWith(
@@ -405,7 +405,7 @@ class _AiCard extends StatelessWidget {
                         style: AppTextStyles.h3.copyWith(color: AppColors.primaryDark)),
                     const SizedBox(height: 4),
                     Text(
-                      'Chụp ảnh lá lúa, chuyên gia của cửa hàng sẽ kết luận và gợi ý thuốc phù hợp.',
+                      'Chụp ảnh lá lúa, AI cho biết bệnh và cách xử lý ngay; cửa hàng tư vấn thêm khi cần.',
                       style: AppTextStyles.bodySmall
                           .copyWith(color: AppColors.textSecondary, fontSize: 13),
                     ),
@@ -743,7 +743,7 @@ class _DiagnosisSection extends ConsumerWidget {
                 ? _InlineEmpty(
                     key: const Key('home_diag_none'),
                     icon: Icons.photo_camera_outlined,
-                    message: 'Bạn chưa gửi ảnh lá lúa nào để chuyên gia xem.',
+                    message: 'Bạn chưa gửi ảnh lá lúa nào để AI chẩn đoán.',
                     button: OutlinedButton.icon(
                       key: const Key('home_diag_start'),
                       onPressed: () => context.push(AppRoutes.imageCapture),
@@ -769,22 +769,29 @@ class _DiagnosisBody extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final s = summary;
     final verified = s.status == DiagnosisStatus.verified;
+    final hasDisease = s.diseaseDisplay != null;
     final hint = switch (s.status) {
-      DiagnosisStatus.verified => 'Chuyên gia đã có kết luận cho ảnh của bạn.',
+      _ when hasDisease && s.isUncertain =>
+        'AI chưa chắc chắn. Hãy chụp lại gần một lá bệnh hoặc hỏi cửa hàng.',
+      _ when hasDisease && verified => 'Cửa hàng đã xác nhận kết quả cho ảnh của bạn.',
+      _ when hasDisease => 'AI đã có kết quả cho ảnh của bạn. Mở để xem cách xử lý.',
       DiagnosisStatus.inconclusive => 'Ảnh chưa đủ rõ. Hãy chụp lại và gửi ảnh mới.',
       DiagnosisStatus.cancelled => 'Bạn đã huỷ ca này.',
-      _ => 'Chuyên gia đang xem ảnh của bạn. Kết quả sẽ hiện ở đây khi có.',
+      DiagnosisStatus.failed => 'AI chưa phân tích được ảnh. Mở để thử lại.',
+      _ => 'AI đang phân tích ảnh của bạn.',
     };
     final (statusFg, statusBg) = DiagnosisStatus.colors(s.status);
     final icon = switch (s.status) {
-      DiagnosisStatus.verified => Icons.task_alt_rounded,
+      _ when hasDisease && s.isUncertain => Icons.help_outline_rounded,
+      _ when hasDisease => Icons.task_alt_rounded,
       DiagnosisStatus.inconclusive => Icons.camera_enhance_outlined,
       DiagnosisStatus.cancelled => Icons.block_rounded,
+      DiagnosisStatus.failed => Icons.cloud_off_outlined,
       _ => Icons.hourglass_top_rounded,
     };
 
-    // Sản phẩm chuyên gia gợi ý (chỉ khi đã có kết luận); lỗi thì bỏ qua phần này.
-    final products = verified
+    // Sản phẩm gợi ý: AI chắc chắn, hoặc ca cũ đã xác nhận; AI chưa chắc thì không có. Lỗi thì bỏ qua phần này.
+    final products = hasDisease && !s.isUncertain
         ? ref.watch(diagnosisDetailProvider(s.id)).valueOrNull?.result?.products ??
             const <RecommendedProduct>[]
         : const <RecommendedProduct>[];
@@ -826,9 +833,9 @@ class _DiagnosisBody extends ConsumerWidget {
                         DiagnosisStatusBadge(s.status),
                       ],
                     ),
-                    if (verified && s.diseaseDisplay != null) ...[
+                    if (hasDisease) ...[
                       const SizedBox(height: 4),
-                      Text(s.diseaseDisplay!,
+                      Text(s.isUncertain ? 'Có thể là ${s.diseaseDisplay!}' : s.diseaseDisplay!,
                           key: const Key('home_diag_disease'),
                           style: AppTextStyles.h4.copyWith(fontSize: 16)),
                     ],
@@ -848,7 +855,7 @@ class _DiagnosisBody extends ConsumerWidget {
         ),
         if (products.isNotEmpty) ...[
           const SizedBox(height: 14),
-          Text('Sản phẩm chuyên gia gợi ý',
+          Text('Sản phẩm gợi ý',
               style: AppTextStyles.bodySmall
                   .copyWith(color: AppColors.primary, fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
@@ -886,16 +893,20 @@ class _DiagnosisBody extends ConsumerWidget {
               ),
             ),
         ],
-        // Chỉ ca đã có kết luận mới "do chuyên gia xác nhận" (ca đang chờ/huỷ/chụp lại thì không).
-        if (verified) ...[
+        // Ca cũ cửa hàng đã xác nhận ghi rõ; kết quả AI ghi là AI dự đoán.
+        if (hasDisease) ...[
           const SizedBox(height: 6),
           Row(
-            key: const Key('home_diag_verified_note'),
+            key: Key(verified ? 'home_diag_verified_note' : 'home_diag_ai_note'),
             children: [
-              const Icon(Icons.verified_user_outlined, size: 16, color: AppColors.primary),
+              Icon(verified ? Icons.verified_user_outlined : Icons.auto_awesome_outlined,
+                  size: 16, color: AppColors.primary),
               const SizedBox(width: 6),
               Expanded(
-                child: Text('Kết luận do chuyên gia của cửa hàng xác nhận',
+                child: Text(
+                    verified
+                        ? 'Kết quả do cửa hàng xác nhận'
+                        : 'Kết quả do AI dự đoán, có thể chưa chính xác',
                     style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
               ),
             ],
