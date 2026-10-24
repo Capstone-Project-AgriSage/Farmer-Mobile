@@ -33,6 +33,18 @@ void main() {
       expect(find.textContaining('chuyên gia của cửa hàng xem và kết luận'), findsOneWidget);
     });
 
+    testWidgets('hướng dẫn chụp nằm ngay dưới nút chụp, trước ô ghi chú, và nói không chụp cả cây',
+        (tester) async {
+      await open(tester, '/ai-scan/capture');
+      final tips = find.byKey(const Key('cap_tips'));
+      expect(tips, findsOneWidget);
+      expect(find.descendant(of: tips, matching: find.textContaining('Chụp một lá bệnh')), findsOneWidget);
+      expect(find.descendant(of: tips, matching: find.textContaining('Không chụp cả cây')), findsOneWidget);
+      final tipsTop = tester.getTopLeft(tips).dy;
+      expect(tipsTop, greaterThan(tester.getBottomLeft(find.byKey(const Key('cap_camera'))).dy));
+      expect(tipsTop, lessThan(tester.getTopLeft(find.byKey(const Key('cap_note'))).dy));
+    });
+
     testWidgets('chọn từ thư viện / camera: hiện ảnh sẵn sàng và nút gửi', (tester) async {
       final h = await open(tester, '/ai-scan/capture');
       await tester.tap(find.byKey(const Key('cap_gallery')));
