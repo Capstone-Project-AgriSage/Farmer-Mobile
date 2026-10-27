@@ -1,14 +1,12 @@
-import 'dart:async';
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
+import '../../../core/network/realtime_events.dart';
 import '../providers/notification_providers.dart';
 
-/// Chuông thông báo kèm số chưa đọc. Chưa có thông báo đẩy nên tự hỏi lại định
-/// kỳ và khi quay lại app; lỗi mạng thì không hiện số (không báo sai).
+/// Refreshes from SignalR invalidations and app resume, without periodic HTTP polling.
 class NotificationBell extends ConsumerStatefulWidget {
   const NotificationBell({
     super.key,
@@ -30,19 +28,16 @@ class NotificationBell extends ConsumerStatefulWidget {
 
 class _NotificationBellState extends ConsumerState<NotificationBell>
     with WidgetsBindingObserver {
-  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _timer = Timer.periodic(widget.pollInterval, (_) => _refresh());
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _timer?.cancel();
     super.dispose();
   }
 
@@ -57,6 +52,10 @@ class _NotificationBellState extends ConsumerState<NotificationBell>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(realtimeEventsProvider, (_, event) {
+      final topic = event.valueOrNull;
+      if (topic == 'notifications' || topic == 'resync') _refresh();
+    });
     final count = ref.watch(unreadCountProvider).valueOrNull ?? 0;
     return Stack(
       clipBehavior: Clip.none,

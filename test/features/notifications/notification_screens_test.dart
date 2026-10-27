@@ -1,4 +1,6 @@
 import 'package:farmer_mobile/core/theme/app_theme.dart';
+import 'package:farmer_mobile/core/network/realtime_events.dart';
+import 'dart:async';
 import 'package:farmer_mobile/features/ai_doctor/screens/diagnose_case_screen.dart';
 import 'package:farmer_mobile/features/debt/screens/debt_detail_screen.dart';
 import 'package:farmer_mobile/features/notifications/data/notification_repository.dart';
@@ -207,6 +209,9 @@ void main() {
   });
 
   group('Chuông ở Home', () {
+    late StreamController<String> events;
+    setUp(() { events = StreamController<String>.broadcast(); });
+    tearDown(() async { await events.close(); });
     Future<FakeNotificationRepository> pumpBell(WidgetTester tester,
         {int? count, Object? countError, Duration poll = const Duration(seconds: 60)}) async {
       final repo = FakeNotificationRepository()
@@ -222,7 +227,7 @@ void main() {
         GoRoute(path: '/n', builder: (_, __) => const Scaffold(body: Text('NOTIF'))),
       ]);
       await tester.pumpWidget(ProviderScope(
-        overrides: [notificationRepositoryProvider.overrideWithValue(repo)],
+        overrides: [notificationRepositoryProvider.overrideWithValue(repo), realtimeEventsProvider.overrideWith((ref) => events.stream)],
         child: MaterialApp.router(theme: AppTheme.light, routerConfig: router),
       ));
       await tester.pumpAndSettle();
@@ -247,11 +252,15 @@ void main() {
       expect(find.byKey(const Key('bell')), findsOneWidget);
     });
 
-    testWidgets('tự hỏi lại định kỳ: có thông báo mới thì số tăng', (tester) async {
+    testWidgets('sự kiện realtime cập nhật chuông, đứng yên không polling', (tester) async {
       final repo = await pumpBell(tester, count: 1, poll: const Duration(seconds: 5));
       expect(find.text('1'), findsOneWidget);
       repo.unread0 = 4;
       await tester.pump(const Duration(seconds: 6));
+      await tester.pumpAndSettle();
+      expect(find.text('1'), findsOneWidget);
+      events.add('notifications');
+      await tester.pump();
       await tester.pumpAndSettle();
       expect(find.text('4'), findsOneWidget);
     });

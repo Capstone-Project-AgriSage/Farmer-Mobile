@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_provider.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/network/realtime_events.dart';
 import '../data/notification_models.dart';
 import '../data/notification_repository.dart';
 
@@ -67,6 +68,10 @@ class NotificationsController extends Notifier<NotificationListState> {
   @override
   NotificationListState build() {
     ref.watch(sessionProvider.select((s) => s.user?.id));
+    ref.listen(realtimeEventsProvider, (_, event) {
+      final topic = event.valueOrNull;
+      if (topic == 'notifications' || topic == 'resync') Future.microtask(_loadFirst);
+    });
     Future.microtask(_loadFirst);
     return const NotificationListState();
   }

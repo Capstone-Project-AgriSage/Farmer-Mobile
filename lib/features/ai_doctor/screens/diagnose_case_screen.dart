@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/network/realtime_events.dart';
 import '../../../router/app_router.dart';
 import '../../../shared/widgets/error_retry_widget.dart';
 import '../../../shared/widgets/shimmer_loading_widget.dart';
@@ -21,7 +20,7 @@ import '../../home/providers/home_providers.dart';
 /// Chi tiết một ca chẩn đoán. Từ 21/10/2026 không còn chuyên gia duyệt: AI phân tích xong là có kết quả
 /// (AI chắc chắn, hoặc chưa chắc thì không gợi ý thuốc). AI lỗi thì nông dân bấm "Thử lại".
 ///
-/// Khi AI còn đang phân tích, màn hình tự hỏi lại định kỳ và khi người dùng quay lại app.
+/// Cập nhật theo sự kiện SignalR hoặc khi quay lại app, không hỏi lại định kỳ.
 class DiagnoseCaseScreen extends ConsumerStatefulWidget {
   const DiagnoseCaseScreen({
     super.key,
@@ -38,7 +37,6 @@ class DiagnoseCaseScreen extends ConsumerStatefulWidget {
 
 class _DiagnoseCaseScreenState extends ConsumerState<DiagnoseCaseScreen>
     with WidgetsBindingObserver {
-  Timer? _poll;
   bool _cancelling = false;
   bool _retrying = false;
 
@@ -46,13 +44,11 @@ class _DiagnoseCaseScreenState extends ConsumerState<DiagnoseCaseScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    _poll = Timer.periodic(widget.pollInterval, (_) => _pollIfWaiting());
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
-    _poll?.cancel();
     super.dispose();
   }
 
@@ -131,6 +127,13 @@ class _DiagnoseCaseScreenState extends ConsumerState<DiagnoseCaseScreen>
 
   @override
   Widget build(BuildContext context) {
+    ref.listen(realtimeEventsProvider, (_, event) {
+      final topic = event.valueOrNull;
+      if (topic == 'diagnosis' || topic == 'resync') {
+        ref.invalidate(diagnosisDetailProvider(widget.caseId));
+        invalidateDiagnoses(ref);
+      }
+    });
     final detail = ref.watch(diagnosisDetailProvider(widget.caseId));
     final c = detail.valueOrNull;
 

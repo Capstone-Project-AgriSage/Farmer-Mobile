@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_provider.dart';
+import '../../../core/network/realtime_events.dart';
 import '../../ai_doctor/data/diagnosis_models.dart';
 import '../../ai_doctor/data/diagnosis_repository.dart';
 import '../../orders/data/order_models.dart';
@@ -61,6 +62,9 @@ final homeOrderStatsProvider = FutureProvider.autoDispose<HomeOrderStats>((ref) 
 /// Ca chẩn đoán mới nhất; null = chưa gửi ảnh nào.
 final latestDiagnosisProvider = FutureProvider.autoDispose<DiagnosisSummary?>((ref) async {
   ref.watch(sessionProvider.select((s) => s.user?.id));
+  ref.listen(realtimeEventsProvider, (_, event) {
+    if (event.valueOrNull == 'diagnosis' || event.valueOrNull == 'resync') ref.invalidateSelf();
+  });
   final page = await ref.watch(diagnosisRepositoryProvider).list(size: 1);
   return page.items.isEmpty ? null : page.items.first;
 });

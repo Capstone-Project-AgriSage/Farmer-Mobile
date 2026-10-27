@@ -1,5 +1,7 @@
 import 'package:farmer_mobile/core/auth/session_provider.dart';
 import 'package:farmer_mobile/core/network/dio_client.dart';
+import 'package:farmer_mobile/core/network/realtime_events.dart';
+import 'dart:async';
 import 'package:farmer_mobile/core/theme/app_theme.dart';
 import 'package:farmer_mobile/features/auth/data/auth_repository.dart';
 import 'package:farmer_mobile/features/auth/screens/forgot_password_screen.dart';
@@ -98,10 +100,12 @@ class AppHarness {
       locationServiceProvider.overrideWithValue(geo),
       ...paymentTestOverrides(paymentStore),
       tokenStorageProvider.overrideWithValue(this.storage),
+      realtimeEventsProvider.overrideWith((ref) => realtime.stream),
     ]);
   }
 
   final FakeAuthRepository repo;
+  final realtime = StreamController<String>.broadcast();
   final FakeProfileRepository profile = FakeProfileRepository();
   final FakeCatalogRepository catalog = FakeCatalogRepository();
   final FakeCartRepository cart = FakeCartRepository();
@@ -145,6 +149,7 @@ class AppHarness {
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
     addTearDown(container.dispose);
+    addTearDown(realtime.close);
 
     // Vào thẳng một màn (không qua splash) thì coi như phiên đã được xác định.
     if (initial != AppRoutes.splash &&

@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_provider.dart';
 import '../../../core/network/api_exception.dart';
+import '../../../core/network/realtime_events.dart';
 import '../data/diagnosis_models.dart';
 import '../data/diagnosis_repository.dart';
 
@@ -62,6 +63,9 @@ class MyDiagnosesController extends Notifier<DiagnosisListState> {
   @override
   DiagnosisListState build() {
     ref.watch(sessionProvider.select((s) => s.user?.id));
+    ref.listen(realtimeEventsProvider, (_, event) {
+      if (event.valueOrNull == 'diagnosis' || event.valueOrNull == 'resync') Future.microtask(_loadFirst);
+    });
     Future.microtask(_loadFirst);
     return const DiagnosisListState();
   }

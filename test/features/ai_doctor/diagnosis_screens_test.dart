@@ -209,16 +209,22 @@ void main() {
       });
     }
 
-    testWidgets('tự làm mới định kỳ: AI xong thì màn hình hiện kết quả', (tester) async {
+    testWidgets('sự kiện realtime cập nhật ca hiện tại mà không polling', (tester) async {
       final h = await open(tester, '/ai-scan/case/c1', setup: (h) {
         h.diagnosisPollInterval = const Duration(seconds: 5);
         h.diagnosis.cases['c1'] = caseOf('c1', withImage: false);
       });
       expect(find.byKey(const Key('case_waiting')), findsOneWidget);
 
+      final before = h.diagnosis.calls.where((c) => c == 'get:c1').length;
+      await tester.pump(const Duration(seconds: 12));
+      await tester.pumpAndSettle();
+      expect(h.diagnosis.calls.where((c) => c == 'get:c1').length, before);
+
       h.diagnosis.cases['c1'] =
           caseOf('c1', status: 'AI_COMPLETED', withImage: false, result: aiResultJson());
-      await tester.pump(const Duration(seconds: 6));
+      h.realtime.add('diagnosis');
+      await tester.pump();
       await tester.pumpAndSettle();
 
       expect(find.byKey(const Key('case_result')), findsOneWidget);
