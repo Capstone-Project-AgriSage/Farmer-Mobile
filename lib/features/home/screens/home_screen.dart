@@ -249,6 +249,13 @@ class _QuickActions extends ConsumerWidget {
             onTap: () => context.go(AppRoutes.products),
           ),
           _QuickAction(
+            key: const Key('home_qa_advisory'),
+            icon: Icons.spa_outlined,
+            label: 'Tư vấn',
+            color: const Color(0xFF00796B),
+            onTap: () => context.go(AppRoutes.advisory),
+          ),
+          _QuickAction(
             key: const Key('home_qa_cart'),
             icon: Icons.shopping_cart_outlined,
             label: 'Giỏ hàng',
