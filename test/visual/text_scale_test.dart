@@ -10,6 +10,7 @@ import 'package:farmer_mobile/features/auth/data/auth_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import '../helpers/advisory_fakes.dart';
 import '../helpers/app_harness.dart';
 import '../helpers/debt_fakes.dart';
 import '../helpers/diagnosis_fakes.dart';
@@ -63,6 +64,20 @@ void seed(AppHarness h) {
       result: aiResultJson(
           uncertain: true, code: 'BACTERIAL_LEAF_BLIGHT', name: 'Bacterial Leaf Blight'));
   h.diagnosis.cases['f'] = caseOf('f', status: 'FAILED', withImage: false);
+  // Tư vấn vật tư: một thuốc còn hàng có số lượng, một thuốc không đủ hàng, một thuốc chưa có liều, một phân bón.
+  h.areaStore.data['agrisage.advisory_area'] = '3.0|cong';
+  h.advisory.answer = (q) => recommendationJson(
+        areaSqm: q.areaSqm,
+        growthStage: q.growthStage,
+        protection: [
+          advisoryProductJson('sp1', 'Tilt Super 300EC - trị khô vằn, lem lép hạt', withPlan: q.areaSqm != null),
+          advisoryProductJson('sp2', 'Amistar Top 325SC - trị khô vằn, lem lép hạt', stock: 'NOT_ENOUGH', withPlan: q.areaSqm != null),
+          advisoryProductJson('sp3', 'Camilo 150SC - thuốc trừ đốm nâu, khô vằn', withPlan: false, preHarvestDays: null),
+        ],
+        nutrition: [
+          advisoryProductJson('sp4', 'Đạm Phú Mỹ (Urê hạt đục 46,3% N)', group: 'NUTRITION', stock: 'OUT_OF_STOCK', doseText: 'Chia 2-3 lần bón thúc, tổng 150-200 kg/ha tùy giống và đất.'),
+        ],
+      );
   h.notifications.items = [
     notifOf('a', title: 'Đơn hàng đang được giao', type: 'ORDER_STATUS_CHANGED'),
     notifOf('b', title: 'Có khoản công nợ quá hạn', type: 'DEBT_OVERDUE', entityType: 'DEBT_ENTRY', read: true),
@@ -88,6 +103,9 @@ const _routes = <String>[
   '/debt/b',
   '/debt/repay?amount=2000000',
   '/debt/history',
+  '/advisory',
+  '/advisory/problem/d-SHEATH_BLIGHT',
+  '/advisory/problem/d-SHEATH_BLIGHT?caseId=v',
   '/ai-scan',
   '/ai-scan/capture',
   '/ai-scan/history',

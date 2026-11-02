@@ -176,7 +176,7 @@ class _DiagnoseCaseScreenState extends ConsumerState<DiagnoseCaseScreen>
               _Header(c: d),
               const SizedBox(height: 12),
               if (d.result != null)
-                _ResultView(result: d.result!)
+                _ResultView(result: d.result!, caseId: d.id)
               else if (d.status == DiagnosisStatus.inconclusive)
                 _InconclusiveView(info: d.inconclusive)
               else if (d.status == DiagnosisStatus.cancelled)
@@ -465,9 +465,10 @@ class _InconclusiveView extends StatelessWidget {
 }
 
 class _ResultView extends StatelessWidget {
-  const _ResultView({required this.result});
+  const _ResultView({required this.result, required this.caseId});
 
   final DiagnosisResult result;
+  final String caseId;
 
   @override
   Widget build(BuildContext context) {
@@ -629,6 +630,17 @@ class _ResultView extends StatelessWidget {
             child: Text('Cửa hàng chưa có sản phẩm gợi ý cho bệnh này, hãy hỏi cửa hàng.',
                 key: const Key('case_no_products'),
                 style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
+          ),
+        ],
+        // Tư vấn đầy đủ (số lượng theo diện tích, giá, thêm vào giỏ) chỉ khi AI chắc chắn và không phải lá khoẻ.
+        if (result.certainty == DiagnosisCertainty.confident && !d.isHealthy && d.id.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          OutlinedButton.icon(
+            key: const Key('case_advisory'),
+            onPressed: () => context.push('${AppRoutes.advisory}/problem/${d.id}?caseId=$caseId'),
+            style: OutlinedButton.styleFrom(minimumSize: const Size(0, 50)),
+            icon: const Icon(Icons.spa_outlined),
+            label: const Text('Xem tư vấn chi tiết và số lượng cần mua'),
           ),
         ],
         if (result.isFromAi || result.treatments.isNotEmpty || result.products.isNotEmpty) ...[

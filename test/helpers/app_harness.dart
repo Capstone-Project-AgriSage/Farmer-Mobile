@@ -42,6 +42,10 @@ import 'package:farmer_mobile/features/debt/screens/debt_overview_screen.dart';
 import 'package:farmer_mobile/features/debt/screens/debt_repay_screen.dart';
 import 'package:farmer_mobile/features/orders/data/order_repository.dart';
 import 'package:farmer_mobile/features/ai_doctor/data/diagnosis_repository.dart';
+import 'package:farmer_mobile/features/advisory/data/advisory_repository.dart';
+import 'package:farmer_mobile/features/advisory/providers/advisory_providers.dart';
+import 'package:farmer_mobile/features/advisory/screens/advisory_result_screen.dart';
+import 'package:farmer_mobile/features/advisory/screens/advisory_search_screen.dart';
 import 'package:farmer_mobile/features/ai_doctor/screens/ai_scan_home_screen.dart';
 import 'package:farmer_mobile/features/ai_doctor/screens/diagnose_case_screen.dart';
 import 'package:farmer_mobile/features/ai_doctor/screens/diagnose_history_screen.dart';
@@ -58,6 +62,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:go_router/go_router.dart';
 
+import 'advisory_fakes.dart';
 import 'auth_fakes.dart';
 import 'catalog_fakes.dart';
 import 'debt_fakes.dart';
@@ -96,6 +101,8 @@ class AppHarness {
       returnRepositoryProvider.overrideWithValue(returns),
       notificationRepositoryProvider.overrideWithValue(notifications),
       diagnosisRepositoryProvider.overrideWithValue(diagnosis),
+      advisoryRepositoryProvider.overrideWithValue(advisory),
+      advisoryAreaStoreProvider.overrideWithValue(areaStore),
       photoPickerProvider.overrideWithValue(photos),
       locationServiceProvider.overrideWithValue(geo),
       ...paymentTestOverrides(paymentStore),
@@ -116,6 +123,10 @@ class AppHarness {
   final FakeReturnRepository returns = FakeReturnRepository();
   final FakeNotificationRepository notifications = FakeNotificationRepository();
   final FakeDiagnosisRepository diagnosis = FakeDiagnosisRepository();
+  final FakeAdvisoryRepository advisory = FakeAdvisoryRepository();
+
+  /// Diện tích nông dân nhập lần trước (bộ nhớ, thay cho shared_preferences).
+  final MemoryKeyValueStore areaStore = MemoryKeyValueStore();
   final FakePhotoPicker photos = FakePhotoPicker();
   final FakeLocationService geo = FakeLocationService();
 
@@ -236,6 +247,19 @@ class AppHarness {
         GoRoute(
           path: '/orders/:id/return',
           builder: (_, s) => ReturnRequestScreen(orderId: s.pathParameters['id']!),
+        ),
+        GoRoute(
+          path: AppRoutes.advisory,
+          builder: (_, __) => const AdvisorySearchScreen(),
+          routes: [
+            GoRoute(
+              path: 'problem/:id',
+              builder: (_, s) => AdvisoryResultScreen(
+                diseaseId: s.pathParameters['id']!,
+                diagnosisCaseId: s.uri.queryParameters['caseId'],
+              ),
+            ),
+          ],
         ),
         GoRoute(path: '/ai-scan', builder: (_, __) => const AiScanHomeScreen()),
         GoRoute(

@@ -54,6 +54,10 @@ import '../features/ai_doctor/screens/image_capture_screen.dart';
 import '../features/ai_doctor/screens/diagnose_case_screen.dart';
 import '../features/ai_doctor/screens/diagnose_history_screen.dart';
 
+// Tư vấn vật tư
+import '../features/advisory/screens/advisory_result_screen.dart';
+import '../features/advisory/screens/advisory_search_screen.dart';
+
 // Profile
 import '../features/profile/screens/profile_screen.dart';
 import '../features/profile/screens/edit_profile_screen.dart';
@@ -83,6 +87,7 @@ abstract class AppRoutes {
   static const home = '/home';
   static const products = '/products';
   static const aiScan = '/ai-scan';
+  static const advisory = '/advisory';
   static const debt = '/debt';
   static const profile = '/profile';
 
@@ -237,6 +242,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                 path: ':id',
                 builder: (_, state) => ProductDetailScreen(
                   productId: state.pathParameters['id']!,
+                ),
+              ),
+            ],
+          ),
+          GoRoute(
+            path: AppRoutes.advisory,
+            builder: (_, __) => const AdvisorySearchScreen(),
+            routes: [
+              GoRoute(
+                path: 'problem/:id',
+                builder: (_, state) => AdvisoryResultScreen(
+                  diseaseId: state.pathParameters['id']!,
+                  diagnosisCaseId: state.uri.queryParameters['caseId'],
                 ),
               ),
             ],
