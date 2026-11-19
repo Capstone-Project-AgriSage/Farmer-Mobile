@@ -72,7 +72,9 @@ class _AdvisoryResultScreenState extends ConsumerState<AdvisoryResultScreen> {
     FocusScope.of(context).unfocus();
     final parsed = _parseArea();
     if (!parsed.ok) {
-      setState(() => _areaError = 'Nhập diện tích là số lớn hơn 0 (tối đa 1.000 ha).');
+      // The limit in hectares comes from the server's limit in m² (10,000 m² = 1 ha), so the text cannot drift from it.
+      setState(() => _areaError =
+          'Nhập diện tích là số lớn hơn 0 (tối đa ${(AdvisoryRepository.maxAreaSqm / 10000).round()} ha).');
       return;
     }
     final value = parsed.value;
