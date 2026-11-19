@@ -143,6 +143,19 @@ void main() {
       expect(h.advisory.recommendCalls.last.areaSqm, 5000);
     });
 
+    testWidgets('quá 100 ha (giới hạn của server): báo đúng giới hạn và không gọi server', (tester) async {
+      final h = await open(tester, '/advisory/problem/d-SHEATH_BLIGHT',
+          setup: (h) => h.advisory.answer = answerWithPlan());
+      await tester.tap(find.byKey(const Key('advisory_unit_ha')));
+      await tester.pump();
+      final calls = h.advisory.recommendCalls.length;
+      await enter(tester, 'advisory_area', '101');
+      await tester.tap(find.byKey(const Key('advisory_apply')));
+      await tester.pumpAndSettle();
+      expect(find.text('Nhập diện tích là số lớn hơn 0 (tối đa 100 ha).'), findsOneWidget);
+      expect(h.advisory.recommendCalls.length, calls);
+    });
+
     testWidgets('diện tích đã nhập lần trước nằm sẵn trong ô và được dùng ngay, chỉ gọi một lần', (tester) async {
       final h = await open(tester, '/advisory/problem/d-SHEATH_BLIGHT', setup: (h) {
         h.areaStore.data[AdvisoryAreaController.key] = '2.5|cong';
