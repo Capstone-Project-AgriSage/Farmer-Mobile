@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/network/json_utils.dart';
+import 'crops.dart';
 
 /// Trạng thái ca chẩn đoán (`DiagnosisCaseStatus` của backend).
 ///
@@ -249,13 +250,20 @@ class DiagnosisSummary {
     this.diseaseCode,
     this.diseaseName,
     this.certainty,
-  });
+    this.cropType = Crops.rice,
+    String? cropName,
+  }) : cropName = cropName ?? '';
 
   final String id;
   final String caseNumber;
   final String status;
   final DateTime submittedAt;
   final DateTime? completedAt;
+
+  /// Cây nông dân chọn trước khi chụp; ca cũ (chưa có bước chọn cây) là lúa.
+  final String cropType;
+  final String cropName;
+  String get cropDisplay => cropName.isNotEmpty ? cropName : Crops.label(cropType);
 
   /// Bệnh AI đoán (hoặc cửa hàng đã xác nhận ở ca cũ); null khi chưa có kết quả.
   final String? diseaseCode;
@@ -279,6 +287,8 @@ class DiagnosisSummary {
         diseaseCode: json['diseaseCode'] as String?,
         diseaseName: json['diseaseName'] as String?,
         certainty: json['certainty'] as String?,
+        cropType: json['cropType'] as String? ?? Crops.rice,
+        cropName: json['cropName'] as String?,
       );
 }
 
@@ -295,7 +305,9 @@ class DiagnosisCase {
     this.result,
     this.inconclusive,
     this.canRetry = false,
-  });
+    this.cropType = Crops.rice,
+    String? cropName,
+  }) : cropName = cropName ?? '';
 
   final String id;
   final String caseNumber;
@@ -309,6 +321,11 @@ class DiagnosisCase {
 
   /// AI chưa phân tích được (hoặc ca bị gián đoạn): gửi lại để AI phân tích.
   final bool canRetry;
+
+  /// Cây nông dân chọn trước khi chụp; ca cũ là lúa.
+  final String cropType;
+  final String cropName;
+  String get cropDisplay => cropName.isNotEmpty ? cropName : Crops.label(cropType);
 
   bool get isWaiting => DiagnosisStatus.isWaiting(status);
   bool get canCancel => DiagnosisStatus.canCancel(status);
@@ -330,5 +347,7 @@ class DiagnosisCase {
             ? null
             : DiagnosisInconclusive.fromJson(json['inconclusive'] as Map<String, dynamic>),
         canRetry: json['canRetry'] as bool? ?? false,
+        cropType: json['cropType'] as String? ?? Crops.rice,
+        cropName: json['cropName'] as String?,
       );
 }

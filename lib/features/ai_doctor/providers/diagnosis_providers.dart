@@ -3,8 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/auth/session_provider.dart';
 import '../../../core/network/api_exception.dart';
 import '../../../core/network/realtime_events.dart';
+import '../data/crops.dart';
 import '../data/diagnosis_models.dart';
 import '../data/diagnosis_repository.dart';
+
+/// Các cây gửi ảnh chẩn đoán được (đổi khi cửa hàng bật mô hình AI khác), tải lại mỗi lần mở màn.
+final diagnosisCropsProvider = FutureProvider.autoDispose<List<DiagnosisCrop>>(
+    (ref) => ref.watch(diagnosisRepositoryProvider).crops());
 
 final diagnosisDetailProvider = FutureProvider.autoDispose
     .family<DiagnosisCase, String>(

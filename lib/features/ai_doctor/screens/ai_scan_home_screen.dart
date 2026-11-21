@@ -1,19 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
+import '../../../core/network/api_exception.dart';
+import '../data/crops.dart';
+import '../providers/diagnosis_providers.dart';
 
-class AiScanHomeScreen extends StatelessWidget {
+/// Trang đầu của chẩn đoán ảnh: lối chụp ảnh, cách hoạt động, và các cây cùng các bệnh mà mô hình AI đang dùng nhận
+/// được (lấy từ server, đổi theo mô hình cửa hàng bật).
+class AiScanHomeScreen extends ConsumerWidget {
   const AiScanHomeScreen({super.key});
-
-  static const _diseases = [
-    _DiseaseInfo('Đạo ôn lá', 'Leaf Blast', Icons.blur_on, Color(0xFF7B1FA2)),
-    _DiseaseInfo('Bạc lá', 'Bacterial Leaf Blight', Icons.water_damage, Color(0xFF1565C0)),
-    _DiseaseInfo('Khô vằn', 'Sheath Blight', Icons.texture, Color(0xFF795548)),
-    _DiseaseInfo('Đốm nâu', 'Brown Spot', Icons.circle, Color(0xFFE65100)),
-    _DiseaseInfo('Lá khoẻ mạnh', 'Healthy', Icons.eco, Color(0xFF2E7D32)),
-  ];
 
   static List<BoxShadow> get _shadow => [
         BoxShadow(
@@ -23,7 +21,8 @@ class AiScanHomeScreen extends StatelessWidget {
       ];
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final crops = ref.watch(diagnosisCropsProvider);
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
       appBar: AppBar(
@@ -48,19 +47,29 @@ class AiScanHomeScreen extends StatelessWidget {
             const SizedBox(height: 16),
             _notice(),
             const SizedBox(height: 24),
-            Text('5 tình trạng có thể nhận diện', style: AppTextStyles.h4),
+            Text('Cây trồng AI nhận diện được', style: AppTextStyles.h4),
             const SizedBox(height: 12),
-            GridView.builder(
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 2,
-                mainAxisExtent: 28 + MediaQuery.textScalerOf(context).scale(60),
-                crossAxisSpacing: 12,
-                mainAxisSpacing: 12,
+            crops.when(
+              loading: () => const Padding(
+                padding: EdgeInsets.all(16),
+                child: Center(child: CircularProgressIndicator()),
               ),
-              itemCount: _diseases.length,
-              itemBuilder: (_, i) => _diseaseTile(_diseases[i]),
+              error: (e, _) => Row(
+                key: const Key('scan_crops_error'),
+                children: [
+                  Expanded(
+                    child: Text(ApiException.from(e).message,
+                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.statusError)),
+                  ),
+                  TextButton(
+                      onPressed: () => ref.invalidate(diagnosisCropsProvider),
+                      child: const Text('Thử lại')),
+                ],
+              ),
+              data: (items) => items.isEmpty
+                  ? Text('Chưa có cây nào được chẩn đoán qua ảnh. Hãy hỏi cửa hàng.',
+                      style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary))
+                  : Column(children: [for (final c in items) _cropTile(c)]),
             ),
             const SizedBox(height: 80),
           ],
@@ -119,11 +128,11 @@ class AiScanHomeScreen extends StatelessWidget {
                             size: 40, color: Colors.white),
                       ),
                       const SizedBox(height: 16),
-                      Text('Chụp ảnh lá lúa',
+                      Text('Chụp ảnh lá cây trồng',
                           textAlign: TextAlign.center,
                           style: AppTextStyles.h3.copyWith(color: Colors.white)),
                       const SizedBox(height: 6),
-                      Text('AI cho biết bệnh và cách xử lý ngay',
+                      Text('Chọn cây rồi chụp lá: AI cho biết bệnh và cách xử lý ngay',
                           textAlign: TextAlign.center,
                           style: AppTextStyles.bodySmall.copyWith(color: Colors.white70)),
                       const SizedBox(height: 18),
@@ -193,8 +202,11 @@ class AiScanHomeScreen extends StatelessWidget {
     );
   }
 
-  Widget _diseaseTile(_DiseaseInfo d) {
+  /// Một cây: tên và các bệnh AI nhận được của cây đó (lá khoẻ luôn nhận được).
+  Widget _cropTile(DiagnosisCrop c) {
     return Container(
+      key: Key('scan_crop_${c.code}'),
+      margin: const EdgeInsets.only(bottom: 10),
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
         color: AppColors.surface,
@@ -202,29 +214,28 @@ class AiScanHomeScreen extends StatelessWidget {
         boxShadow: _shadow,
       ),
       child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Container(
             width: 38,
             height: 38,
+            alignment: Alignment.center,
             decoration: BoxDecoration(
-                color: d.color.withValues(alpha: 0.12),
-                borderRadius: BorderRadius.circular(12)),
-            child: Icon(d.icon, color: d.color, size: 20),
+                color: AppColors.primaryLight, borderRadius: BorderRadius.circular(12)),
+            child: const Icon(Icons.eco_outlined, color: AppColors.primary, size: 20),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                Text(d.name,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.labelLarge.copyWith(fontSize: 13)),
-                Text(d.enName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: AppTextStyles.caption),
+                Text(c.name, style: AppTextStyles.labelLarge),
+                const SizedBox(height: 2),
+                Text(
+                    c.diseases.isEmpty
+                        ? '${c.diseaseCount} bệnh và lá khoẻ'
+                        : '${c.diseases.map((d) => d.name).join(', ')} và lá khoẻ',
+                    style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
               ],
             ),
           ),
@@ -232,12 +243,4 @@ class AiScanHomeScreen extends StatelessWidget {
       ),
     );
   }
-}
-
-class _DiseaseInfo {
-  final String name;
-  final String enName;
-  final IconData icon;
-  final Color color;
-  const _DiseaseInfo(this.name, this.enName, this.icon, this.color);
 }

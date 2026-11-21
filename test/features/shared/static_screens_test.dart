@@ -41,7 +41,7 @@ void main() {
       }
       expect(find.textContaining('85%'), findsNothing, reason: 'không còn con số độ chính xác không có căn cứ');
 
-      await tester.tap(find.text('Chẩn đoán bệnh lúa hoạt động thế nào?'));
+      await tester.tap(find.text('Chẩn đoán bệnh cây trồng hoạt động thế nào?'));
       await tester.pumpAndSettle();
       expect(find.textContaining('AI phân tích và cho kết quả ngay'), findsOneWidget);
       expect(find.textContaining('chuyên gia'), findsNothing);
@@ -63,7 +63,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('cửa hàng đã cấp hạn mức tín dụng'), findsOneWidget);
       expect(find.textContaining('của cả nông dân và đại lý'), findsNothing);
-      expect(find.textContaining('AI phân tích tự động'), findsOneWidget);
+      // Ảnh rời khỏi máy chủ của cửa hàng (dịch vụ AI bên ngoài, AI_DIAGNOSIS.md 2.2): điều khoản phải nói rõ.
+      expect(find.textContaining('dịch vụ AI bên ngoài để phân tích tự động'), findsOneWidget);
       expect(find.textContaining('có thể chưa chính xác'), findsOneWidget);
       expect(find.textContaining('chuyên gia'), findsNothing);
     });

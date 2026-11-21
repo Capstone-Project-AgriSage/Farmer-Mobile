@@ -35,6 +35,10 @@ class _AdvisoryResultScreenState extends ConsumerState<AdvisoryResultScreen> {
   final _areaCtrl = TextEditingController();
   AreaUnit _unit = AreaUnit.cong;
   String? _stage;
+
+  /// Cây của vấn đề, biết khi có kết quả đầu tiên. Chỉ lúa có giai đoạn sinh trưởng (ADVISORY.md 1.1); chưa biết thì
+  /// coi là lúa như trước.
+  String? _crop;
   String? _areaError;
   late AdvisoryQuery _query;
   String? _addingId;
@@ -84,7 +88,7 @@ class _AdvisoryResultScreenState extends ConsumerState<AdvisoryResultScreen> {
       _query = AdvisoryQuery(
         diseaseId: widget.diseaseId,
         areaSqm: value == null ? null : value * _unit.sqm,
-        growthStage: _stage,
+        growthStage: _crop == null || _crop == 'RICE' ? _stage : null,
         diagnosisCaseId: widget.diagnosisCaseId,
       );
     });
@@ -126,6 +130,11 @@ class _AdvisoryResultScreenState extends ConsumerState<AdvisoryResultScreen> {
   @override
   Widget build(BuildContext context) {
     final result = ref.watch(advisoryRecommendationProvider(_query));
+    final crop = result.valueOrNull?.problem.cropType;
+    if (crop != null && crop != _crop) {
+      // Ghi nhớ ngay trong lần dựng này để lần đổi diện tích sau không gửi giai đoạn cho cây không phải lúa.
+      _crop = crop;
+    }
 
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
@@ -158,6 +167,7 @@ class _AdvisoryResultScreenState extends ConsumerState<AdvisoryResultScreen> {
             controller: _areaCtrl,
             unit: _unit,
             stage: _stage,
+            showStage: _crop == null || _crop == 'RICE',
             error: _areaError,
             onUnit: (u) => setState(() => _unit = u),
             onStage: _pickStage,
@@ -278,12 +288,13 @@ class _ProblemHeader extends StatelessWidget {
   }
 }
 
-/// Diện tích ruộng và giai đoạn lúa: hai điều kiện để tính số lượng và lọc sản phẩm.
+/// Diện tích ruộng và giai đoạn lúa: hai điều kiện để tính số lượng và lọc sản phẩm. Cây khác lúa không có giai đoạn.
 class _FieldCard extends StatelessWidget {
   const _FieldCard({
     required this.controller,
     required this.unit,
     required this.stage,
+    this.showStage = true,
     required this.error,
     required this.onUnit,
     required this.onStage,
@@ -293,6 +304,7 @@ class _FieldCard extends StatelessWidget {
   final TextEditingController controller;
   final AreaUnit unit;
   final String? stage;
+  final bool showStage;
   final String? error;
   final ValueChanged<AreaUnit> onUnit;
   final ValueChanged<String?> onStage;
@@ -342,6 +354,7 @@ class _FieldCard extends StatelessWidget {
           ),
           const SizedBox(height: 4),
           Text('1 công = 1.000 m², 1 sào = 360 m².', style: AppTextStyles.caption.copyWith(color: AppColors.textMuted)),
+          if (showStage) ...[
           const SizedBox(height: 14),
           Text('Lúa đang ở giai đoạn', style: AppTextStyles.caption.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 6),
@@ -368,6 +381,7 @@ class _FieldCard extends StatelessWidget {
                 ),
             ],
           ),
+          ],
           const SizedBox(height: 14),
           ElevatedButton(
             key: const Key('advisory_apply'),

@@ -7,6 +7,7 @@ import '../../../core/network/api_call.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/json_utils.dart';
 import '../../../core/network/paged_result.dart';
+import 'crops.dart';
 import 'diagnosis_models.dart';
 import 'photo_type.dart';
 
@@ -102,7 +103,7 @@ class ImagePickerPhotoPicker implements PhotoPicker {
   }
 }
 
-/// Chẩn đoán bệnh lúa qua ảnh (`/api/me/diagnosis-cases`).
+/// Chẩn đoán bệnh cây trồng qua ảnh (`/api/me/diagnosis-cases`): chọn cây trước, rồi gửi ảnh lá của cây đó.
 class DiagnosisRepository {
   DiagnosisRepository(this._dio);
 
@@ -138,9 +139,18 @@ class DiagnosisRepository {
     return _extensions[name.substring(dot + 1).toLowerCase()];
   }
 
-  /// Gửi ảnh. Server lưu ảnh, chạy AI rồi trả ca đã có kết quả (AI_COMPLETED) hoặc FAILED (thử lại sau).
-  /// Có thể mất vài giây nên dùng timeout dài.
-  Future<DiagnosisCase> create({required PickedPhoto photo, String? note}) => apiCall(
+  /// Các cây gửi ảnh được lúc này (AI_DIAGNOSIS.md 2.2): cây có bệnh mà mô hình AI đang dùng nhận được.
+  Future<List<DiagnosisCrop>> crops() => apiCall(() async {
+        final res = await _dio.get<List<dynamic>>('/api/me/diagnosis/crops');
+        return [
+          for (final c in res.data ?? const [])
+            DiagnosisCrop.fromJson(c as Map<String, dynamic>),
+        ];
+      });
+
+  /// Gửi ảnh lá của cây [cropType]. Server lưu ảnh, chạy AI (chỉ chọn trong các bệnh của cây đó) rồi trả ca đã có
+  /// kết quả (AI_COMPLETED) hoặc FAILED (thử lại sau). Có thể mất vài giây nên dùng timeout dài.
+  Future<DiagnosisCase> create({required PickedPhoto photo, String? note, String? cropType}) => apiCall(
         () async {
           final type = photo.type?.mimeType ?? _contentType(photo.name)!;
           final n = note?.trim();
@@ -148,6 +158,7 @@ class DiagnosisRepository {
             'image': await MultipartFile.fromFile(photo.path,
                 filename: photo.name, contentType: DioMediaType.parse(type)),
             if (n != null && n.isNotEmpty) 'note': n,
+            if (cropType != null) 'cropType': cropType,
           });
           final res = await _dio.post<Map<String, dynamic>>(
             '/api/me/diagnosis-cases',
@@ -161,6 +172,7 @@ class DiagnosisRepository {
         },
         messages: {
           413: 'Ảnh quá lớn (tối đa 5 MB).',
+          422: 'Cây này chưa được chẩn đoán qua ảnh. Hãy chọn cây khác hoặc hỏi cửa hàng.',
           429: 'Bạn gửi ảnh quá nhanh. Vui lòng đợi một chút rồi thử lại.',
         },
         map: (e) => e.statusCode == 400

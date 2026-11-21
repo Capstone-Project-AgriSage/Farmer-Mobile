@@ -30,8 +30,8 @@ class HelpSupportScreen extends StatelessWidget {
           'sau đó bạn mang hàng về cửa hàng để được kiểm tra. Tiền hoàn lại được trừ vào công nợ trước, phần còn lại hoàn bằng tiền.',
     ),
     (
-      'Chẩn đoán bệnh lúa hoạt động thế nào?',
-      'Bạn gửi ảnh lá lúa, AI phân tích và cho kết quả ngay: bệnh, cách xử lý và sản phẩm gợi ý khi AI chắc chắn. '
+      'Chẩn đoán bệnh cây trồng hoạt động thế nào?',
+      'Bạn chọn cây rồi gửi ảnh lá, AI phân tích và cho kết quả ngay: bệnh, cách xử lý và sản phẩm gợi ý khi AI chắc chắn. '
           'Khi AI chưa chắc, bạn được khuyên chụp lại hoặc hỏi cửa hàng. Các ca đã gửi nằm trong "Lịch sử khám cây". '
           'Kết quả chỉ mang tính tham khảo, hãy hỏi thêm cửa hàng trước khi dùng thuốc.',
     ),

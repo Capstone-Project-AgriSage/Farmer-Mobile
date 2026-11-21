@@ -2,6 +2,7 @@ import 'package:farmer_mobile/core/network/api_exception.dart';
 import 'package:farmer_mobile/features/advisory/data/advisory_models.dart';
 import 'package:farmer_mobile/features/advisory/providers/advisory_providers.dart';
 import 'package:farmer_mobile/features/advisory/screens/advisory_search_screen.dart';
+import 'package:farmer_mobile/features/ai_doctor/data/crops.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
@@ -90,6 +91,64 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('advisory_problem_header')), findsOneWidget, reason: 'đã sang màn tư vấn');
       expect(h.advisory.recommendCalls.single.diseaseId, 'd-BROWN_PLANTHOPPER');
+    });
+  });
+
+  group('Lọc theo cây (ADVISORY.md 1.1)', () {
+    final durianRow = problemJson('DURIAN_PHYTOPHTHORA', 'Thối gốc chảy nhựa', crop: 'DURIAN', summary: 'Vỏ thân chảy nhựa.');
+
+    testWidgets('mặc định mọi cây; chọn sầu riêng gửi cropType, nhớ cây và nói rõ khi chưa có vấn đề', (tester) async {
+      final h = await open(tester, '/advisory');
+      expect(h.advisory.problemCropCalls.single, isNull);
+      expect(find.byKey(const Key('advisory_crop_all')), findsOneWidget);
+      await tester.tap(find.byKey(const Key('advisory_crop_DURIAN')));
+      await tester.pumpAndSettle();
+      expect(h.advisory.problemCropCalls.last, 'DURIAN');
+      expect(h.cropStore.data[LastCropController.key], 'DURIAN');
+      expect(find.textContaining('chưa có vấn đề nào cho cây sầu riêng'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('advisory_crop_all')));
+      await tester.pumpAndSettle();
+      expect(h.advisory.problemCropCalls.last, isNull);
+      expect(h.cropStore.data.containsKey(LastCropController.key), isFalse);
+    });
+
+    testWidgets('mở với cây chọn lần trước (dùng chung với màn chụp ảnh)', (tester) async {
+      final h = await open(tester, '/advisory', setup: (h) {
+        h.advisory.problemRows = [...h.advisory.problemRows, durianRow];
+        h.cropStore.data[LastCropController.key] = 'DURIAN';
+      });
+      expect(h.advisory.problemCropCalls.single, 'DURIAN');
+      expect(find.byKey(const Key('advisory_problem_DURIAN_PHYTOPHTHORA')), findsOneWidget);
+      expect(find.byKey(const Key('advisory_problem_LEAF_BLAST')), findsNothing);
+      expect(find.byKey(const Key('advisory_problem_crop_DURIAN_PHYTOPHTHORA')), findsNothing,
+          reason: 'đã lọc một cây thì không cần ghi tên cây trên từng thẻ');
+    });
+
+    testWidgets('xem mọi cây: thẻ ghi rõ vấn đề thuộc cây nào', (tester) async {
+      await open(tester, '/advisory', setup: (h) => h.advisory.problemRows = [...h.advisory.problemRows, durianRow]);
+      expect(find.descendant(of: find.byKey(const Key('advisory_problem_crop_DURIAN_PHYTOPHTHORA')), matching: find.text('Sầu riêng')), findsOneWidget);
+      expect(find.descendant(of: find.byKey(const Key('advisory_problem_crop_LEAF_BLAST')), matching: find.text('Lúa')), findsOneWidget);
+    });
+
+    testWidgets('vấn đề của sầu riêng: không hỏi giai đoạn lúa, không gửi growthStage', (tester) async {
+      final h = await open(tester, '/advisory/problem/d-DURIAN_PHYTOPHTHORA', setup: (h) {
+        h.advisory.answer = (q) => recommendationJson(code: 'DURIAN_PHYTOPHTHORA', name: 'Thối gốc chảy nhựa', crop: 'DURIAN', areaSqm: q.areaSqm);
+      });
+      expect(find.byKey(const Key('advisory_stage_any')), findsNothing);
+      expect(find.text('Lúa đang ở giai đoạn'), findsNothing);
+      await tester.enterText(find.byKey(const Key('advisory_area')), '2');
+      await tester.ensureVisible(find.byKey(const Key('advisory_apply')));
+      await tester.tap(find.byKey(const Key('advisory_apply')));
+      await tester.pumpAndSettle();
+      expect(h.advisory.recommendCalls.last.growthStage, isNull);
+      expect(h.advisory.recommendCalls.last.areaSqm, isNotNull);
+    });
+
+    testWidgets('vấn đề của lúa vẫn hỏi giai đoạn', (tester) async {
+      await open(tester, '/advisory/problem/d-SHEATH_BLIGHT');
+      expect(find.byKey(const Key('advisory_stage_any')), findsOneWidget);
+      expect(find.byKey(const Key('advisory_stage_HEADING')), findsOneWidget);
     });
   });
 

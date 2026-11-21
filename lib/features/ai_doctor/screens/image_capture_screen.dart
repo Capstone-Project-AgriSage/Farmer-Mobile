@@ -7,10 +7,13 @@ import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/app_text_styles.dart';
 import '../../../core/network/api_exception.dart';
+import '../data/crops.dart';
 import '../data/diagnosis_repository.dart';
+import '../providers/diagnosis_providers.dart';
 import '../../home/providers/home_providers.dart';
 
-/// Chụp hoặc chọn ảnh lá lúa, thêm ghi chú rồi gửi cho AI phân tích.
+/// Chọn cây trồng, chụp hoặc chọn ảnh lá của cây đó, thêm ghi chú rồi gửi cho AI phân tích. Biết cây trước giúp AI
+/// chỉ chọn trong các bệnh của cây đó (AI_DIAGNOSIS.md 2.2).
 class ImageCaptureScreen extends ConsumerStatefulWidget {
   const ImageCaptureScreen({super.key});
 
@@ -21,6 +24,9 @@ class ImageCaptureScreen extends ConsumerStatefulWidget {
 class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
   final _note = TextEditingController();
   PickedPhoto? _photo;
+
+  /// Cây người dùng bấm chọn trên màn này; null = chưa bấm (khi đó dùng cây lần trước, hoặc cây duy nhất).
+  String? _crop;
   String? _error;
   bool _sending = false;
 
@@ -66,7 +72,25 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
     });
   }
 
-  Future<void> _send() async {
+  /// Cây sẽ gửi kèm ảnh, chỉ trong các cây server cho phép lúc này.
+  String? _selectedCrop(List<DiagnosisCrop> crops) {
+    bool offered(String? code) => code != null && crops.any((c) => c.code == code);
+    if (offered(_crop)) return _crop;
+    final last = ref.read(lastCropProvider);
+    if (offered(last)) return last;
+    return crops.length == 1 ? crops.first.code : null;
+  }
+
+  void _pickCrop(String code) {
+    if (_sending) return;
+    setState(() {
+      _crop = code;
+      _error = null;
+    });
+    ref.read(lastCropProvider.notifier).save(code);
+  }
+
+  Future<void> _send(String crop) async {
     final photo = _photo;
     if (photo == null || _sending) return;
     setState(() {
@@ -74,8 +98,10 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
       _error = null;
     });
     try {
-      final created =
-          await ref.read(diagnosisRepositoryProvider).create(photo: photo, note: _note.text);
+      final created = await ref
+          .read(diagnosisRepositoryProvider)
+          .create(photo: photo, note: _note.text, cropType: crop);
+      ref.read(lastCropProvider.notifier).save(crop);
       if (!mounted) return;
       invalidateDiagnoses(ref);
       context.pushReplacement('/ai-scan/case/${created.id}');
@@ -93,10 +119,12 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
   @override
   Widget build(BuildContext context) {
     final photo = _photo;
+    final crops = ref.watch(diagnosisCropsProvider);
+    final crop = crops.hasValue ? _selectedCrop(crops.requireValue) : null;
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
       appBar: AppBar(
-        title: const Text('Chụp ảnh lá lúa'),
+        title: const Text('Chụp ảnh lá cây'),
         backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
@@ -109,6 +137,20 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const _StepTitle(number: '1', text: 'Chọn cây trồng'),
+                  const SizedBox(height: 10),
+                  _CropPicker(
+                    crops: crops,
+                    selected: crop,
+                    enabled: !_sending,
+                    onPick: _pickCrop,
+                    onRetry: () => ref.invalidate(diagnosisCropsProvider),
+                  ),
+                  const SizedBox(height: 20),
+                  _StepTitle(
+                      number: '2',
+                      text: crop == null ? 'Chụp ảnh lá cây' : 'Chụp ảnh ${Crops.leafOf(crop)}'),
+                  const SizedBox(height: 10),
                   GestureDetector(
                     key: const Key('cap_preview'),
                     onTap: _sending ? null : () => _pick(PhotoSource.camera),
@@ -200,11 +242,15 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
                                     color: AppColors.primaryLight,
                                     shape: BoxShape.circle,
                                   ),
-                                  child: const Icon(Icons.add_a_photo_outlined,
-                                      size: 32, color: AppColors.primary),
+                                  // Icon cân đối: add_a_photo có dấu cộng ở góc nên trông lệch khỏi tâm vòng tròn.
+                                  alignment: Alignment.center,
+                                  child: const Icon(Icons.photo_camera_outlined,
+                                      size: 34, color: AppColors.primary),
                                 ),
                                 const SizedBox(height: 16),
-                                Text('Chạm để chụp ảnh lá lúa',
+                                Text(crop == null ? 'Chạm để chụp ảnh lá cây' : 'Chạm để chụp ảnh ${Crops.leafOf(crop)}',
+                                    key: const Key('cap_preview_hint'),
+                                    textAlign: TextAlign.center,
                                     style: AppTextStyles.bodyMedium
                                         .copyWith(fontWeight: FontWeight.w600)),
                                 const SizedBox(height: 6),
@@ -282,7 +328,7 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'AI phân tích ảnh và cho kết quả ngay sau khi gửi. Kết quả do AI dự đoán, chỉ để tham khảo: hãy hỏi cửa hàng trước khi dùng thuốc.',
+                            'AI phân tích ảnh và cho kết quả ngay sau khi gửi. Ảnh được gửi tới dịch vụ AI để phân tích. Kết quả do AI dự đoán, chỉ để tham khảo: hãy hỏi cửa hàng trước khi dùng thuốc.',
                             style: AppTextStyles.caption
                                 .copyWith(color: const Color(0xFF5D4037), height: 1.4),
                           ),
@@ -314,7 +360,7 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
                   width: double.infinity,
                   child: ElevatedButton.icon(
                     key: const Key('cap_send'),
-                    onPressed: _sending ? null : _send,
+                    onPressed: _sending || crop == null ? null : () => _send(crop),
                     icon: _sending
                         ? const SizedBox(
                             width: 18,
@@ -322,7 +368,11 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
                             child: CircularProgressIndicator(
                                 strokeWidth: 2, color: Colors.white))
                         : const Icon(Icons.send, size: 20),
-                    label: Text(_sending ? 'AI đang phân tích...' : 'Gửi ảnh để AI chẩn đoán'),
+                    label: Text(_sending
+                        ? 'AI đang phân tích...'
+                        : crop == null
+                            ? 'Chọn cây trồng trước khi gửi'
+                            : 'Gửi ảnh để AI chẩn đoán'),
                     style: ElevatedButton.styleFrom(minimumSize: const Size.fromHeight(52)),
                   ),
                 ),
@@ -330,6 +380,98 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
             ),
         ],
       ),
+    );
+  }
+}
+
+class _StepTitle extends StatelessWidget {
+  const _StepTitle({required this.number, required this.text});
+
+  final String number;
+  final String text;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Container(
+          width: 24,
+          height: 24,
+          alignment: Alignment.center,
+          decoration: const BoxDecoration(color: AppColors.primary, shape: BoxShape.circle),
+          child: Text(number,
+              style: AppTextStyles.caption.copyWith(color: Colors.white, fontWeight: FontWeight.bold)),
+        ),
+        const SizedBox(width: 10),
+        Expanded(child: Text(text, style: AppTextStyles.labelLarge)),
+      ],
+    );
+  }
+}
+
+/// Các cây gửi ảnh được lúc này (từ server). Đang tải / lỗi / chưa có cây nào đều nói rõ cho người dùng.
+class _CropPicker extends StatelessWidget {
+  const _CropPicker({
+    required this.crops,
+    required this.selected,
+    required this.enabled,
+    required this.onPick,
+    required this.onRetry,
+  });
+
+  final AsyncValue<List<DiagnosisCrop>> crops;
+  final String? selected;
+  final bool enabled;
+  final ValueChanged<String> onPick;
+  final VoidCallback onRetry;
+
+  @override
+  Widget build(BuildContext context) {
+    return crops.when(
+      loading: () => const Padding(
+        padding: EdgeInsets.symmetric(vertical: 8),
+        child: Center(
+            child: SizedBox(width: 22, height: 22, child: CircularProgressIndicator(strokeWidth: 2))),
+      ),
+      error: (e, _) => Container(
+        key: const Key('cap_crops_error'),
+        padding: const EdgeInsets.all(12),
+        decoration: BoxDecoration(
+            color: AppColors.statusErrorSurface, borderRadius: BorderRadius.circular(14)),
+        child: Row(
+          children: [
+            Expanded(
+              child: Text(ApiException.from(e).message,
+                  style: AppTextStyles.bodySmall.copyWith(color: AppColors.statusError)),
+            ),
+            TextButton(
+                key: const Key('cap_crops_retry'), onPressed: onRetry, child: const Text('Thử lại')),
+          ],
+        ),
+      ),
+      data: (items) => items.isEmpty
+          ? Text('Chưa có cây nào được chẩn đoán qua ảnh. Hãy hỏi cửa hàng.',
+              key: const Key('cap_crops_empty'),
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary))
+          : Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                for (final c in items)
+                  ChoiceChip(
+                    key: Key('cap_crop_${c.code}'),
+                    label: Text(c.name),
+                    selected: c.code == selected,
+                    showCheckmark: false,
+                    selectedColor: AppColors.primaryLight,
+                    labelStyle: AppTextStyles.bodySmall.copyWith(
+                      color: c.code == selected ? AppColors.primaryDark : AppColors.textSecondary,
+                      fontWeight: c.code == selected ? FontWeight.w700 : FontWeight.w500,
+                    ),
+                    onSelected: enabled ? (_) => onPick(c.code) : null,
+                  ),
+              ],
+            ),
     );
   }
 }

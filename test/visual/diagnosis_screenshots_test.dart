@@ -7,6 +7,7 @@
 import 'dart:io';
 
 import 'package:farmer_mobile/core/network/api_exception.dart';
+import 'package:farmer_mobile/features/ai_doctor/data/crops.dart';
 import 'package:farmer_mobile/features/ai_doctor/data/diagnosis_repository.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -16,6 +17,29 @@ import '../helpers/diagnosis_fakes.dart';
 import 'auth_screenshots_test.dart' show shoot, useRealFonts;
 
 final _on = Platform.environment['SCREENSHOTS'] == '1';
+
+/// Cả 5 cây của danh mục, tên bệnh dài để thấy chữ xuống dòng ở khung 320px.
+const _fiveCrops = [
+  DiagnosisCrop(code: 'RICE', name: 'Lúa', diseaseCount: 4, diseases: [
+    CropDisease(code: 'LEAF_BLAST', name: 'Bệnh đạo ôn lá'),
+    CropDisease(code: 'BACTERIAL_LEAF_BLIGHT', name: 'Bệnh bạc lá'),
+    CropDisease(code: 'BROWN_SPOT', name: 'Bệnh đốm nâu'),
+    CropDisease(code: 'SHEATH_BLIGHT', name: 'Bệnh khô vằn'),
+  ]),
+  DiagnosisCrop(code: 'DURIAN', name: 'Sầu riêng', diseaseCount: 2, diseases: [
+    CropDisease(code: 'DURIAN_PHYTOPHTHORA', name: 'Thối gốc chảy nhựa'),
+    CropDisease(code: 'DURIAN_ANTHRACNOSE', name: 'Thán thư'),
+  ]),
+  DiagnosisCrop(code: 'COFFEE', name: 'Cà phê', diseaseCount: 1, diseases: [
+    CropDisease(code: 'COFFEE_RUST', name: 'Gỉ sắt'),
+  ]),
+  DiagnosisCrop(code: 'CORN', name: 'Bắp (ngô)', diseaseCount: 1, diseases: [
+    CropDisease(code: 'CORN_LEAF_BLIGHT', name: 'Cháy lá lớn'),
+  ]),
+  DiagnosisCrop(code: 'MANGO', name: 'Xoài', diseaseCount: 1, diseases: [
+    CropDisease(code: 'MANGO_ANTHRACNOSE', name: 'Thán thư xoài'),
+  ]),
+];
 
 void main() {
   for (final width in [390.0, 320.0]) {
@@ -92,6 +116,23 @@ void main() {
         await tester.tap(find.byKey(const Key('cap_send')));
         await tester.pumpAndSettle();
         await shoot(tester, '${tag}_diag_capture_error');
+      });
+
+      testWidgets('chọn cây: 5 cây chưa chọn → đã chọn sầu riêng và có ảnh', (tester) async {
+        await open(tester, '/ai-scan/capture', setup: (h) => h.diagnosis.crops0 = _fiveCrops);
+        await shoot(tester, '${tag}_diag_capture_crops');
+        await tester.tap(find.byKey(const Key('cap_crop_DURIAN')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('cap_gallery')));
+        await tester.pumpAndSettle();
+        await shoot(tester, '${tag}_diag_capture_durian');
+      });
+
+      testWidgets('màn chính: 5 cây', (tester) async {
+        await open(tester, '/ai-scan', setup: (h) => h.diagnosis.crops0 = _fiveCrops);
+        await tester.drag(find.byType(Scrollable).first, const Offset(0, -500));
+        await tester.pumpAndSettle();
+        await shoot(tester, '${tag}_diag_home_crops');
       });
 
       testWidgets('ảnh sai định dạng', (tester) async {

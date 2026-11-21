@@ -7,26 +7,29 @@ import '../data/advisory_repository.dart';
 
 /// Điều kiện tìm vấn đề; khoá của provider nên so sánh theo giá trị.
 class AdvisoryProblemQuery {
-  const AdvisoryProblemQuery({this.search = '', this.type});
+  const AdvisoryProblemQuery({this.search = '', this.type, this.crop});
 
   final String search;
 
   /// null = mọi loại.
   final String? type;
 
-  @override
-  bool operator ==(Object other) =>
-      other is AdvisoryProblemQuery && other.search == search && other.type == type;
+  /// null = mọi cây.
+  final String? crop;
 
   @override
-  int get hashCode => Object.hash(search, type);
+  bool operator ==(Object other) =>
+      other is AdvisoryProblemQuery && other.search == search && other.type == type && other.crop == crop;
+
+  @override
+  int get hashCode => Object.hash(search, type, crop);
 }
 
 final advisoryProblemsProvider = FutureProvider.autoDispose
     .family<List<AdvisoryProblem>, AdvisoryProblemQuery>((ref, q) async {
   final page = await ref
       .watch(advisoryRepositoryProvider)
-      .problems(search: q.search.trim().isEmpty ? null : q.search, type: q.type);
+      .problems(search: q.search.trim().isEmpty ? null : q.search, type: q.type, cropType: q.crop);
   return page.items;
 });
 
