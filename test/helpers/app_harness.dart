@@ -41,6 +41,7 @@ import 'package:farmer_mobile/features/debt/screens/debt_list_screen.dart';
 import 'package:farmer_mobile/features/debt/screens/debt_overview_screen.dart';
 import 'package:farmer_mobile/features/debt/screens/debt_repay_screen.dart';
 import 'package:farmer_mobile/features/orders/data/order_repository.dart';
+import 'package:farmer_mobile/features/ai_doctor/data/crops.dart';
 import 'package:farmer_mobile/features/ai_doctor/data/diagnosis_repository.dart';
 import 'package:farmer_mobile/features/advisory/data/advisory_repository.dart';
 import 'package:farmer_mobile/features/advisory/providers/advisory_providers.dart';
@@ -103,6 +104,7 @@ class AppHarness {
       diagnosisRepositoryProvider.overrideWithValue(diagnosis),
       advisoryRepositoryProvider.overrideWithValue(advisory),
       advisoryAreaStoreProvider.overrideWithValue(areaStore),
+      cropChoiceStoreProvider.overrideWithValue(cropStore),
       photoPickerProvider.overrideWithValue(photos),
       locationServiceProvider.overrideWithValue(geo),
       ...paymentTestOverrides(paymentStore),
@@ -127,6 +129,9 @@ class AppHarness {
 
   /// Diện tích nông dân nhập lần trước (bộ nhớ, thay cho shared_preferences).
   final MemoryKeyValueStore areaStore = MemoryKeyValueStore();
+
+  /// Cây chọn lần trước (bộ nhớ, thay cho shared_preferences).
+  final MemoryKeyValueStore cropStore = MemoryKeyValueStore();
   final FakePhotoPicker photos = FakePhotoPicker();
   final FakeLocationService geo = FakeLocationService();
 

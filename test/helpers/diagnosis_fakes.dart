@@ -1,6 +1,7 @@
 import 'package:dio/dio.dart';
 import 'package:farmer_mobile/core/network/api_exception.dart';
 import 'package:farmer_mobile/core/network/paged_result.dart';
+import 'package:farmer_mobile/features/ai_doctor/data/crops.dart';
 import 'package:farmer_mobile/features/ai_doctor/data/diagnosis_models.dart';
 import 'package:farmer_mobile/features/ai_doctor/data/diagnosis_repository.dart';
 
@@ -13,9 +14,13 @@ Map<String, dynamic> caseJson(
   Map<String, dynamic>? result,
   Map<String, dynamic>? inconclusive,
   bool? canRetry,
+  String? cropType,
+  String? cropName,
 }) =>
     {
       'id': id,
+      if (cropType != null) 'cropType': cropType,
+      if (cropName != null) 'cropName': cropName,
       'caseNumber': 'DG-20261012-$id',
       'status': status,
       'submittedAt': '2026-10-12T02:00:00Z',
@@ -145,18 +150,24 @@ DiagnosisCase caseOf(String id,
         bool withImage = true,
         Map<String, dynamic>? result,
         Map<String, dynamic>? inconclusive,
-        bool? canRetry}) =>
+        bool? canRetry,
+        String? cropType,
+        String? cropName}) =>
     DiagnosisCase.fromJson(caseJson(id,
         status: status,
         note: note,
         withImage: withImage,
         result: result,
         inconclusive: inconclusive,
-        canRetry: canRetry));
+        canRetry: canRetry,
+        cropType: cropType,
+        cropName: cropName));
 
 DiagnosisSummary diagSummaryOf(String id,
-        {String status = 'PROCESSING', String? code, String? name, String? certainty}) =>
+        {String status = 'PROCESSING', String? code, String? name, String? certainty, String cropType = 'RICE', String? cropName}) =>
     DiagnosisSummary(
+      cropType: cropType,
+      cropName: cropName,
       id: id,
       caseNumber: 'DG-$id',
       status: status,
@@ -174,6 +185,15 @@ class FakeDiagnosisRepository extends DiagnosisRepository {
   List<DiagnosisSummary> list0 = [];
   int pageSize0 = 20;
 
+  /// Cây gửi ảnh được. Mặc định chỉ có lúa nên màn chụp tự chọn lúa (như trước khi có bước chọn cây).
+  List<DiagnosisCrop> crops0 = const [
+    DiagnosisCrop(code: 'RICE', name: 'Lúa', diseaseCount: 4, diseases: [
+      CropDisease(code: 'LEAF_BLAST', name: 'Bệnh đạo ôn lá'),
+      CropDisease(code: 'BROWN_SPOT', name: 'Bệnh đốm nâu'),
+    ]),
+  ];
+  Object? cropsError;
+
   Object? createError;
   Object? listError;
   Object? getError;
@@ -181,15 +201,22 @@ class FakeDiagnosisRepository extends DiagnosisRepository {
   Object? retryError;
   Future<void>? createGate;
 
-  ({PickedPhoto photo, String? note})? lastCreate;
+  ({PickedPhoto photo, String? note, String? cropType})? lastCreate;
   String? lastCancel;
   String? lastRetry;
   final List<({int page, String? status})> listCalls = [];
 
   @override
-  Future<DiagnosisCase> create({required PickedPhoto photo, String? note}) async {
+  Future<List<DiagnosisCrop>> crops() async {
+    calls.add('crops');
+    if (cropsError != null) throw cropsError!;
+    return crops0;
+  }
+
+  @override
+  Future<DiagnosisCase> create({required PickedPhoto photo, String? note, String? cropType}) async {
     calls.add('create');
-    lastCreate = (photo: photo, note: note);
+    lastCreate = (photo: photo, note: note, cropType: cropType);
     await createGate;
     if (createError != null) throw createError!;
     // Như server thật: AI chạy xong ngay trong yêu cầu gửi ảnh nên ca đã có kết quả.

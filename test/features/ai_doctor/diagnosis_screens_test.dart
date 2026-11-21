@@ -1,4 +1,5 @@
 import 'package:farmer_mobile/core/network/api_exception.dart';
+import 'package:farmer_mobile/features/ai_doctor/data/crops.dart';
 import 'package:farmer_mobile/features/ai_doctor/data/diagnosis_repository.dart';
 import 'package:farmer_mobile/features/ai_doctor/screens/diagnose_case_screen.dart';
 import 'package:farmer_mobile/features/ai_doctor/screens/image_capture_screen.dart';
@@ -192,6 +193,114 @@ void main() {
     });
   });
 
+  group('Chọn cây trồng trước khi chụp (AI_DIAGNOSIS.md 2.2)', () {
+    const rice = DiagnosisCrop(code: 'RICE', name: 'Lúa', diseaseCount: 4);
+    const durian = DiagnosisCrop(code: 'DURIAN', name: 'Sầu riêng', diseaseCount: 2);
+
+    bool sendEnabled(WidgetTester tester) =>
+        tester.widget<ElevatedButton>(find.byKey(const Key('cap_send'))).onPressed != null;
+
+    Future<void> pickPhoto(WidgetTester tester) async {
+      await tester.tap(find.byKey(const Key('cap_gallery')));
+      await tester.pumpAndSettle();
+    }
+
+    testWidgets('chỉ có một cây: tự chọn cây đó và gửi kèm cropType', (tester) async {
+      final h = await open(tester, '/ai-scan/capture');
+      expect(h.diagnosis.calls, contains('crops'));
+      expect(tester.widget<ChoiceChip>(find.byKey(const Key('cap_crop_RICE'))).selected, isTrue);
+      expect(find.text('Chụp ảnh lá lúa'), findsOneWidget, reason: 'bước 2 gọi đúng tên cây');
+      await pickPhoto(tester);
+      await tester.ensureVisible(find.byKey(const Key('cap_send')));
+      await tester.tap(find.byKey(const Key('cap_send')));
+      await tester.pumpAndSettle();
+      expect(h.diagnosis.lastCreate!.cropType, 'RICE');
+      expect(h.cropStore.data[LastCropController.key], 'RICE', reason: 'nhớ cây cho lần sau');
+    });
+
+    testWidgets('nhiều cây: chưa chọn thì không gửi được; chọn sầu riêng rồi gửi', (tester) async {
+      final h = await open(tester, '/ai-scan/capture', setup: (h) => h.diagnosis.crops0 = const [rice, durian]);
+      expect(find.byKey(const Key('cap_crop_DURIAN')), findsOneWidget);
+      expect(find.text('Chạm để chụp ảnh lá cây'), findsOneWidget);
+      await pickPhoto(tester);
+      expect(sendEnabled(tester), isFalse);
+      expect(find.text('Chọn cây trồng trước khi gửi'), findsOneWidget);
+
+      await tester.tap(find.byKey(const Key('cap_crop_DURIAN')));
+      await tester.pumpAndSettle();
+      expect(find.text('Chụp ảnh lá sầu riêng'), findsOneWidget);
+      expect(sendEnabled(tester), isTrue);
+      await tester.ensureVisible(find.byKey(const Key('cap_send')));
+      await tester.tap(find.byKey(const Key('cap_send')));
+      await tester.pumpAndSettle();
+      expect(h.diagnosis.lastCreate!.cropType, 'DURIAN');
+      expect(h.cropStore.data[LastCropController.key], 'DURIAN');
+    });
+
+    testWidgets('mở lại: chọn sẵn cây lần trước nếu server vẫn cho gửi ảnh cây đó', (tester) async {
+      await open(tester, '/ai-scan/capture', setup: (h) {
+        h.diagnosis.crops0 = const [rice, durian];
+        h.cropStore.data[LastCropController.key] = 'DURIAN';
+      });
+      expect(tester.widget<ChoiceChip>(find.byKey(const Key('cap_crop_DURIAN'))).selected, isTrue);
+      expect(find.text('Chạm để chụp ảnh lá sầu riêng'), findsOneWidget);
+    });
+
+    testWidgets('cây lần trước không còn được hỗ trợ: không tự chọn cây nào', (tester) async {
+      await open(tester, '/ai-scan/capture', setup: (h) {
+        h.diagnosis.crops0 = const [rice, durian];
+        h.cropStore.data[LastCropController.key] = 'MANGO';
+      });
+      expect(tester.widget<ChoiceChip>(find.byKey(const Key('cap_crop_RICE'))).selected, isFalse);
+      expect(tester.widget<ChoiceChip>(find.byKey(const Key('cap_crop_DURIAN'))).selected, isFalse);
+      expect(find.byKey(const Key('cap_crop_MANGO')), findsNothing);
+    });
+
+    testWidgets('lỗi tải danh sách cây: báo lỗi, Thử lại tải lại, chưa gửi được', (tester) async {
+      final h = await open(tester, '/ai-scan/capture', setup: (h) => h.diagnosis.cropsError = _net);
+      expect(find.byKey(const Key('cap_crops_error')), findsOneWidget);
+      await pickPhoto(tester);
+      expect(sendEnabled(tester), isFalse);
+      h.diagnosis.cropsError = null;
+      await tester.tap(find.byKey(const Key('cap_crops_retry')));
+      await tester.pumpAndSettle();
+      expect(find.byKey(const Key('cap_crops_error')), findsNothing);
+      expect(tester.widget<ChoiceChip>(find.byKey(const Key('cap_crop_RICE'))).selected, isTrue);
+      expect(sendEnabled(tester), isTrue);
+    });
+
+    testWidgets('chưa có cây nào được chẩn đoán qua ảnh: nói rõ, không gửi được', (tester) async {
+      await open(tester, '/ai-scan/capture', setup: (h) => h.diagnosis.crops0 = const []);
+      expect(find.byKey(const Key('cap_crops_empty')), findsOneWidget);
+      await pickPhoto(tester);
+      expect(sendEnabled(tester), isFalse);
+    });
+
+    testWidgets('icon máy ảnh cân đối giữa vòng tròn; báo ảnh được gửi tới dịch vụ AI', (tester) async {
+      await open(tester, '/ai-scan/capture');
+      final preview = find.byKey(const Key('cap_preview'));
+      expect(find.descendant(of: preview, matching: find.byIcon(Icons.photo_camera_outlined)), findsOneWidget);
+      expect(find.byIcon(Icons.add_a_photo_outlined), findsNothing);
+      final circle = tester.getCenter(find.ancestor(
+          of: find.descendant(of: preview, matching: find.byIcon(Icons.photo_camera_outlined)),
+          matching: find.byType(Container)).first);
+      final icon = tester.getCenter(find.descendant(of: preview, matching: find.byIcon(Icons.photo_camera_outlined)));
+      expect((circle - icon).distance, lessThan(0.5), reason: 'icon nằm đúng tâm vòng tròn');
+      expect(find.textContaining('Ảnh được gửi tới dịch vụ AI để phân tích'), findsOneWidget);
+    });
+
+    testWidgets('trang chẩn đoán liệt kê cây và bệnh AI nhận được, lấy từ server', (tester) async {
+      await open(tester, '/ai-scan', setup: (h) => h.diagnosis.crops0 = const [
+            DiagnosisCrop(code: 'RICE', name: 'Lúa', diseaseCount: 1, diseases: [CropDisease(code: 'LEAF_BLAST', name: 'Bệnh đạo ôn lá')]),
+            DiagnosisCrop(code: 'DURIAN', name: 'Sầu riêng', diseaseCount: 1, diseases: [CropDisease(code: 'DURIAN_PHYTOPHTHORA', name: 'Thối gốc chảy nhựa')]),
+          ]);
+      expect(find.text('Cây trồng AI nhận diện được'), findsOneWidget);
+      expect(find.descendant(of: find.byKey(const Key('scan_crop_DURIAN')), matching: find.text('Thối gốc chảy nhựa và lá khoẻ')), findsOneWidget);
+      expect(find.byKey(const Key('scan_crop_RICE')), findsOneWidget);
+      expect(find.text('Leaf Blast'), findsNothing, reason: 'không còn danh sách bệnh lúa viết cứng');
+    });
+  });
+
   group('Chi tiết ca: AI đang phân tích', () {
     for (final s in ['SUBMITTED', 'PROCESSING']) {
       testWidgets('$s: đang phân tích, chưa có kết quả, huỷ được', (tester) async {
@@ -367,6 +476,19 @@ void main() {
   });
 
   group('Chi tiết ca: kết quả AI', () {
+    testWidgets('ca sầu riêng: đầu trang ghi cây đã chọn', (tester) async {
+      await open(tester, '/ai-scan/case/c9', setup: (h) {
+        h.diagnosis.cases['c9'] = caseOf('c9',
+            status: 'AI_COMPLETED',
+            withImage: false,
+            cropType: 'DURIAN',
+            cropName: 'Sầu riêng',
+            result: aiResultJson(code: 'DURIAN_PHYTOPHTHORA', name: 'Thối gốc chảy nhựa'));
+      });
+      expect(textOf(tester, 'case_crop'), startsWith('Sầu riêng · Gửi lúc '));
+      expect(textOf(tester, 'case_disease'), 'Thối gốc chảy nhựa');
+    });
+
     testWidgets('AI chắc chắn: bệnh, cách xử lý kèm hoạt chất, sản phẩm gợi ý, lưu ý AI có thể sai',
         (tester) async {
       await open(tester, '/ai-scan/case/c1', setup: (h) {
@@ -376,6 +498,7 @@ void main() {
       expect(find.text('Đã có kết quả'), findsOneWidget);
       expect(textOf(tester, 'case_certainty'), 'Kết quả từ AI');
       expect(textOf(tester, 'case_disease'), 'Đạo ôn lá');
+      expect(textOf(tester, 'case_crop'), startsWith('Lúa · Gửi lúc '), reason: 'ca không ghi cây là lúa');
       expect(find.textContaining('có thể chưa chính xác'), findsOneWidget);
       expect(find.byKey(const Key('case_uncertain')), findsNothing);
       expect(find.byKey(const Key('case_comment')), findsNothing);
@@ -643,6 +766,26 @@ void main() {
       expect(find.text('Chưa phân tích được'), findsWidgets);
       expect(find.text('Cần chụp lại'), findsOneWidget);
       expect(find.textContaining('chuyên gia'), findsNothing);
+    });
+
+    testWidgets('mỗi ca ghi cây đã chọn; ca cũ không có cây là lúa', (tester) async {
+      await open(tester, '/ai-scan/history', setup: (h) {
+        h.diagnosis.list0 = [
+          diagSummaryOf('s',
+              status: 'AI_COMPLETED',
+              code: 'DURIAN_PHYTOPHTHORA',
+              name: 'Thối gốc chảy nhựa',
+              certainty: 'CONFIDENT',
+              cropType: 'DURIAN',
+              cropName: 'Sầu riêng'),
+          diagSummaryOf('w', cropType: 'COFFEE'),
+          diagSummaryOf('r', status: 'AI_COMPLETED', code: 'BROWN_SPOT', name: 'Brown Spot', certainty: 'CONFIDENT'),
+        ];
+      });
+      expect(textOf(tester, 'hist_sub_s'), startsWith('Sầu riêng · DG-s · '));
+      expect(find.text('Thối gốc chảy nhựa'), findsOneWidget);
+      expect(textOf(tester, 'hist_sub_w'), startsWith('Cà phê · '), reason: 'tên theo danh mục khi server không gửi tên');
+      expect(textOf(tester, 'hist_sub_r'), startsWith('Lúa · DG-r · '));
     });
 
     testWidgets('lọc theo trạng thái gọi API đúng', (tester) async {

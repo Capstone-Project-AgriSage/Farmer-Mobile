@@ -3,6 +3,7 @@ import 'dart:io';
 import 'package:dio/dio.dart';
 import 'package:farmer_mobile/core/network/api_exception.dart';
 import 'package:farmer_mobile/core/network/dio_client.dart';
+import 'package:farmer_mobile/features/ai_doctor/data/crops.dart';
 import 'package:farmer_mobile/features/ai_doctor/data/diagnosis_models.dart';
 import 'package:farmer_mobile/features/ai_doctor/data/diagnosis_repository.dart';
 import 'package:farmer_mobile/features/ai_doctor/data/photo_type.dart';
@@ -134,6 +135,59 @@ void main() {
     test('413 → ảnh quá lớn', () async {
       use((o) => jsonBody(413, {'status': 413}));
       expect(repo.create(photo: photo()), failsWith('quá lớn'));
+    });
+
+    test('gửi kèm cây đã chọn (trường cropType); không chọn thì không gửi trường này', () async {
+      use((o) => jsonBody(201, caseJson('c1')));
+      await repo.create(photo: photo(), note: 'Lá vàng', cropType: 'DURIAN');
+      await repo.create(photo: photo());
+      final fields = adapter.requests.map((r) => (r.data as FormData).fields.map((f) => (f.key, f.value)).toList());
+      expect(fields.first, [('note', 'Lá vàng'), ('cropType', 'DURIAN')]);
+      expect(fields.last, isEmpty);
+    });
+
+    test('422 (cây chưa được chẩn đoán qua ảnh) → mời chọn cây khác', () async {
+      use((o) => jsonBody(422, {'status': 422, 'detail': 'Photo diagnosis is not available for Xoài yet.'}));
+      expect(repo.create(photo: photo(), cropType: 'MANGO'), failsWith('chọn cây khác'));
+    });
+  });
+
+  group('danh sách cây gửi ảnh được', () {
+    test('đọc cây, số bệnh và tên các bệnh', () async {
+      use((o) => jsonBody(200, [
+            {'code': 'RICE', 'name': 'Lúa', 'diseaseCount': 4, 'photoDiagnosis': true, 'diseases': [
+              {'code': 'LEAF_BLAST', 'name': 'Bệnh đạo ôn lá'},
+            ]},
+            {'code': 'DURIAN', 'name': 'Sầu riêng', 'diseaseCount': 1, 'photoDiagnosis': true, 'diseases': [
+              {'code': 'DURIAN_PHYTOPHTHORA', 'name': 'Thối gốc chảy nhựa'},
+            ]},
+          ]));
+      final crops = await repo.crops();
+      expect(adapter.requests.single.path, '/api/me/diagnosis/crops');
+      expect(crops.map((c) => c.code), ['RICE', 'DURIAN']);
+      expect(crops[1].name, 'Sầu riêng');
+      expect(crops[1].diseases.single.name, 'Thối gốc chảy nhựa');
+      expect(crops[0].diseaseCount, 4);
+    });
+
+    test('ca và dòng lịch sử đọc cây đã chọn; server cũ không gửi thì là lúa', () {
+      final durian = DiagnosisSummary.fromJson({
+        'id': 's1', 'caseNumber': 'DG-1', 'status': 'AI_COMPLETED', 'submittedAt': '2026-11-21T02:00:00Z',
+        'cropType': 'DURIAN', 'cropName': 'Sầu riêng',
+      });
+      expect(durian.cropType, 'DURIAN');
+      expect(durian.cropDisplay, 'Sầu riêng');
+      final old = DiagnosisCase.fromJson(caseJson('c1'));
+      expect(old.cropType, 'RICE');
+      expect(old.cropDisplay, 'Lúa');
+      expect(DiagnosisCase.fromJson(caseJson('c2', cropType: 'CORN')).cropDisplay, 'Bắp (ngô)');
+    });
+
+    test('tên cây trong danh mục, kể cả mã chưa biết', () {
+      expect(Crops.label('CORN'), 'Bắp (ngô)');
+      expect(Crops.label(null), 'Lúa');
+      expect(Crops.label('TEA'), 'TEA');
+      expect(Crops.leafOf('DURIAN'), 'lá sầu riêng');
     });
   });
 

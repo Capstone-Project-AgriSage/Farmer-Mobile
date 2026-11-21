@@ -9,14 +9,15 @@ import '../../../core/constants/app_text_styles.dart';
 import '../../../router/app_router.dart';
 import '../../../shared/widgets/empty_data_widget.dart';
 import '../../../shared/widgets/error_retry_widget.dart';
+import '../../ai_doctor/data/crops.dart';
 import '../../orders/widgets/order_widgets.dart' show StatusChip;
 import '../../products/widgets/product_widgets.dart' show CartIconButton;
 import '../data/advisory_models.dart';
 import '../data/advisory_repository.dart';
 import '../providers/advisory_providers.dart';
 
-/// Nông dân đã biết vấn đề trên ruộng: gõ tên bệnh, sâu, triệu chứng (không cần dấu) hoặc lọc theo loại, rồi chọn
-/// để xem sản phẩm gợi ý. Chưa biết bệnh gì thì có lối sang chụp ảnh.
+/// Nông dân đã biết vấn đề trên ruộng: chọn cây, gõ tên bệnh, sâu, triệu chứng (không cần dấu) hoặc lọc theo loại,
+/// rồi chọn để xem sản phẩm gợi ý. Chưa biết bệnh gì thì có lối sang chụp ảnh.
 class AdvisorySearchScreen extends ConsumerStatefulWidget {
   const AdvisorySearchScreen({super.key});
 
@@ -32,6 +33,9 @@ class _AdvisorySearchScreenState extends ConsumerState<AdvisorySearchScreen> {
   Timer? _debounce;
   String _search = '';
   String? _type;
+
+  /// Cây đang lọc; mở màn với cây nông dân chọn lần trước (dùng chung với màn chụp ảnh).
+  late String? _crop = ref.read(lastCropProvider);
 
   @override
   void dispose() {
@@ -56,7 +60,7 @@ class _AdvisorySearchScreenState extends ConsumerState<AdvisorySearchScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final query = AdvisoryProblemQuery(search: _search, type: _type);
+    final query = AdvisoryProblemQuery(search: _search, type: _type, crop: _crop);
     final problems = ref.watch(advisoryProblemsProvider(query));
 
     return Scaffold(
@@ -71,7 +75,7 @@ class _AdvisorySearchScreenState extends ConsumerState<AdvisorySearchScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text('Tư vấn vật tư', style: AppTextStyles.h2.copyWith(height: 1.2)),
-            Text('Chọn vấn đề trên ruộng lúa',
+            Text('Chọn cây và vấn đề trên ruộng',
                 style: AppTextStyles.bodySmall.copyWith(color: AppColors.textMuted)),
           ],
         ),
@@ -139,6 +143,35 @@ class _AdvisorySearchScreenState extends ConsumerState<AdvisorySearchScreen> {
                   height: 36,
                   child: ListView.separated(
                     scrollDirection: Axis.horizontal,
+                    itemCount: Crops.all.length + 1,
+                    separatorBuilder: (_, __) => const SizedBox(width: 8),
+                    itemBuilder: (_, i) {
+                      final crop = i == 0 ? null : Crops.all[i - 1];
+                      final on = _crop == crop;
+                      return ChoiceChip(
+                        key: Key('advisory_crop_${crop ?? 'all'}'),
+                        avatar: crop == null ? null : Icon(Icons.eco_outlined, size: 16, color: on ? AppColors.primaryDark : AppColors.textMuted),
+                        label: Text(crop == null ? 'Mọi cây' : Crops.label(crop)),
+                        selected: on,
+                        showCheckmark: false,
+                        selectedColor: AppColors.primaryLight,
+                        labelStyle: AppTextStyles.bodySmall.copyWith(
+                          color: on ? AppColors.primaryDark : AppColors.textSecondary,
+                          fontWeight: on ? FontWeight.w700 : FontWeight.w500,
+                        ),
+                        onSelected: (_) {
+                          setState(() => _crop = crop);
+                          ref.read(lastCropProvider.notifier).save(crop);
+                        },
+                      );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 8),
+                SizedBox(
+                  height: 36,
+                  child: ListView.separated(
+                    scrollDirection: Axis.horizontal,
                     itemCount: ProblemType.filters.length,
                     separatorBuilder: (_, __) => const SizedBox(width: 8),
                     itemBuilder: (_, i) {
@@ -165,7 +198,8 @@ class _AdvisorySearchScreenState extends ConsumerState<AdvisorySearchScreen> {
             child: problems.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => ErrorRetryWidget(error: e, onRetry: () => ref.invalidate(advisoryProblemsProvider(query))),
-              data: (items) => _ProblemList(items: items, searching: _search.isNotEmpty || _type != null),
+              data: (items) => _ProblemList(
+                  items: items, searching: _search.isNotEmpty || _type != null, crop: _crop),
             ),
           ),
         ],
@@ -175,10 +209,11 @@ class _AdvisorySearchScreenState extends ConsumerState<AdvisorySearchScreen> {
 }
 
 class _ProblemList extends StatelessWidget {
-  const _ProblemList({required this.items, required this.searching});
+  const _ProblemList({required this.items, required this.searching, this.crop});
 
   final List<AdvisoryProblem> items;
   final bool searching;
+  final String? crop;
 
   @override
   Widget build(BuildContext context) {
@@ -194,12 +229,14 @@ class _ProblemList extends StatelessWidget {
               key: const Key('advisory_empty'),
               message: searching
                   ? 'Không tìm thấy vấn đề phù hợp. Thử từ khác hoặc chụp ảnh lá để AI nhận biết bệnh.'
-                  : 'Cửa hàng chưa có danh sách vấn đề.',
+                  : crop != null
+                      ? 'Cửa hàng chưa có vấn đề nào cho cây ${Crops.label(crop).toLowerCase()}. Chọn "Mọi cây" hoặc hỏi cửa hàng.'
+                      : 'Cửa hàng chưa có danh sách vấn đề.',
               fallbackIcon: Icons.search_off_rounded,
             ),
           )
         else
-          for (final p in items) _ProblemTile(problem: p),
+          for (final p in items) _ProblemTile(problem: p, showCrop: crop == null),
       ],
     );
   }
@@ -228,7 +265,7 @@ class _PhotoShortcut extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('Chưa biết lúa bị gì?',
+                    Text('Chưa biết cây bị gì?',
                         style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
                     Text('Chụp ảnh lá bệnh để AI nhận biết rồi gợi ý thuốc.',
                         style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryDark)),
@@ -245,9 +282,12 @@ class _PhotoShortcut extends StatelessWidget {
 }
 
 class _ProblemTile extends StatelessWidget {
-  const _ProblemTile({required this.problem});
+  const _ProblemTile({required this.problem, this.showCrop = false});
 
   final AdvisoryProblem problem;
+
+  /// Khi xem mọi cây thì ghi rõ vấn đề thuộc cây nào.
+  final bool showCrop;
 
   @override
   Widget build(BuildContext context) {
@@ -280,6 +320,13 @@ class _ProblemTile extends StatelessWidget {
                             fg: AppColors.primaryDark,
                             bg: AppColors.primaryLight,
                           ),
+                          if (showCrop)
+                            StatusChip(
+                              key: Key('advisory_problem_crop_${problem.code}'),
+                              text: Crops.label(problem.cropType),
+                              fg: AppColors.textSecondary,
+                              bg: AppColors.surfaceSubtle,
+                            ),
                         ],
                       ),
                       if (problem.summary != null && problem.summary!.trim().isNotEmpty) ...[

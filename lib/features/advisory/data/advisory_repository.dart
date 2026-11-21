@@ -20,14 +20,16 @@ class AdvisoryRepository {
   /// Giới hạn của server: diện tích lớn hơn 0 và tối đa 1.000.000 m².
   static const maxAreaSqm = 1000000.0;
 
-  /// Tìm vấn đề theo tên, từ khoá, triệu chứng (không phân biệt dấu). Bỏ trống = liệt kê tất cả.
-  Future<PagedResult<AdvisoryProblem>> problems({String? search, String? type, int page = 1}) => apiCall(
+  /// Tìm vấn đề theo tên, từ khoá, triệu chứng (không phân biệt dấu), lọc theo loại và theo cây. Bỏ trống = tất cả.
+  Future<PagedResult<AdvisoryProblem>> problems({String? search, String? type, String? cropType, int page = 1}) =>
+      apiCall(
         () async {
           final res = await _dio.get<Map<String, dynamic>>(
             '/api/me/advisory/problems',
             queryParameters: cleanQuery({
               'search': search?.trim(),
               'type': type,
+              'cropType': cropType,
               'page': page,
               'pageSize': pageSize,
             }),

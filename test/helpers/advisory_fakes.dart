@@ -9,12 +9,14 @@ Map<String, dynamic> problemJson(
   String type = 'DISEASE',
   String? summary = 'Vết bệnh trên lá.',
   String matchedBy = 'NAME',
+  String crop = 'RICE',
 }) =>
     {
       'id': 'd-$code',
       'code': code,
       'name': name,
       'problemType': type,
+      'cropType': crop,
       'summary': summary,
       'matchedBy': matchedBy,
     };
@@ -81,6 +83,7 @@ Map<String, dynamic> recommendationJson({
   List<Map<String, dynamic>>? nutrition,
   String? emptyReason,
   List<Map<String, dynamic>>? care,
+  String crop = 'RICE',
 }) =>
     {
       'sessionId': 'sess-1',
@@ -89,6 +92,7 @@ Map<String, dynamic> recommendationJson({
         'code': code,
         'name': name,
         'problemType': type,
+        'cropType': crop,
         'description': null,
         'symptoms': 'Vết bệnh như da hổ trên bẹ lá.',
         'causes': null,
@@ -127,17 +131,21 @@ class FakeAdvisoryRepository extends AdvisoryRepository {
   Map<String, dynamic> Function(AdvisoryQuery query) answer = (q) => recommendationJson(areaSqm: q.areaSqm, growthStage: q.growthStage);
 
   final List<({String? search, String? type})> problemCalls = [];
+
+  /// Cây gửi kèm mỗi lần tìm (null = mọi cây).
+  final List<String?> problemCropCalls = [];
   final List<AdvisoryQuery> recommendCalls = [];
   Object? problemError;
   Object? recommendError;
 
   @override
-  Future<PagedResult<AdvisoryProblem>> problems({String? search, String? type, int page = 1}) async {
+  Future<PagedResult<AdvisoryProblem>> problems({String? search, String? type, String? cropType, int page = 1}) async {
     problemCalls.add((search: search, type: type));
+    problemCropCalls.add(cropType);
     if (problemError != null) throw problemError!;
     final text = _fold(search ?? '');
     final rows = problemRows.where((r) {
-      final okType = type == null || r['problemType'] == type;
+      final okType = (type == null || r['problemType'] == type) && (cropType == null || (r['cropType'] ?? 'RICE') == cropType);
       final okText = text.isEmpty || _fold(r['name'] as String).contains(text) || _fold(r['summary'] as String? ?? '').contains(text);
       return okType && okText;
     }).toList();

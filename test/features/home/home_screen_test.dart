@@ -180,7 +180,7 @@ void main() {
       await tester.ensureVisible(find.byKey(const Key('home_diag_start')));
       await tester.tap(find.byKey(const Key('home_diag_start')));
       await tester.pumpAndSettle();
-      expect(find.text('Chụp ảnh lá lúa'), findsWidgets);
+      expect(find.text('Chụp ảnh lá cây'), findsWidgets);
       expect(h.diagnosis.calls, contains('list'));
     });
 

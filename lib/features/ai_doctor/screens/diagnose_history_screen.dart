@@ -133,10 +133,10 @@ class _DiagnoseHistoryScreenState extends ConsumerState<DiagnoseHistoryScreen> {
               height: 400,
               child: EmptyDataWidget(
                 message: state.status == null
-                    ? 'Chưa có lịch sử khám cây.\nChụp ảnh lá lúa để bắt đầu.'
+                    ? 'Chưa có lịch sử khám cây.\nChụp ảnh lá cây để bắt đầu.'
                     : 'Không có ca "${DiagnosisStatus.label(state.status)}".',
                 fallbackIcon: Icons.search_off,
-                actionText: state.status == null ? 'Chụp ảnh lá lúa' : null,
+                actionText: state.status == null ? 'Chụp ảnh lá cây' : null,
                 onActionPressed:
                     state.status == null ? () => context.push(AppRoutes.imageCapture) : null,
               ),
@@ -266,8 +266,9 @@ class _HistoryCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     hasDisease
-                        ? '${item.caseNumber} · ${formatDateTime(item.submittedAt)}'
-                        : formatDateTime(item.submittedAt),
+                        ? '${item.cropDisplay} · ${item.caseNumber} · ${formatDateTime(item.submittedAt)}'
+                        : '${item.cropDisplay} · ${formatDateTime(item.submittedAt)}',
+                    key: Key('hist_sub_${item.id}'),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: AppTextStyles.caption.copyWith(color: AppColors.textMuted),

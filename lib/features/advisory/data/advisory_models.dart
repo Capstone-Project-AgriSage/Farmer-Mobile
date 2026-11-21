@@ -91,6 +91,7 @@ class AdvisoryProblem {
     required this.code,
     required this.name,
     required this.problemType,
+    this.cropType = 'RICE',
     this.summary,
     this.matchedBy,
   });
@@ -99,6 +100,9 @@ class AdvisoryProblem {
   final String code;
   final String name;
   final String problemType;
+
+  /// Cây của vấn đề (mã trong danh mục cây, ADVISORY.md 1.1); server cũ không gửi thì là lúa.
+  final String cropType;
   final String? summary;
 
   /// NAME, KEYWORD hoặc SYMPTOM: nông dân gõ khớp với phần nào.
@@ -111,6 +115,7 @@ class AdvisoryProblem {
         code: json['code'] as String? ?? '',
         name: json['name'] as String? ?? '',
         problemType: json['problemType'] as String? ?? ProblemType.disease,
+        cropType: json['cropType'] as String? ?? 'RICE',
         summary: json['summary'] as String?,
         matchedBy: json['matchedBy'] as String?,
       );
@@ -122,6 +127,7 @@ class AdvisoryProblemDetail {
     required this.code,
     required this.name,
     required this.problemType,
+    this.cropType = 'RICE',
     this.description,
     this.symptoms,
     this.causes,
@@ -132,6 +138,9 @@ class AdvisoryProblemDetail {
   final String code;
   final String name;
   final String problemType;
+
+  /// Chỉ vấn đề của lúa mới có giai đoạn sinh trưởng (ADVISORY.md 1.1).
+  final String cropType;
   final String? description;
   final String? symptoms;
   final String? causes;
@@ -144,6 +153,7 @@ class AdvisoryProblemDetail {
         code: json['code'] as String? ?? '',
         name: json['name'] as String? ?? '',
         problemType: json['problemType'] as String? ?? ProblemType.disease,
+        cropType: json['cropType'] as String? ?? 'RICE',
         description: json['description'] as String?,
         symptoms: json['symptoms'] as String?,
         causes: json['causes'] as String?,
