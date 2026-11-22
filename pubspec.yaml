@@ -55,5 +55,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
+    - assets/images/crops/
     - assets/icons/
     - assets/lottie/

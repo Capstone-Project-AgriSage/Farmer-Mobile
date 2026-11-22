@@ -3,8 +3,10 @@ import 'package:farmer_mobile/features/ai_doctor/data/crops.dart';
 import 'package:farmer_mobile/features/ai_doctor/data/diagnosis_repository.dart';
 import 'package:farmer_mobile/features/ai_doctor/screens/diagnose_case_screen.dart';
 import 'package:farmer_mobile/features/ai_doctor/screens/image_capture_screen.dart';
+import 'package:farmer_mobile/features/ai_doctor/widgets/crop_choice_card.dart';
 import 'package:farmer_mobile/features/products/screens/product_detail_screen.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../helpers/app_harness.dart';
@@ -208,7 +210,7 @@ void main() {
     testWidgets('chỉ có một cây: tự chọn cây đó và gửi kèm cropType', (tester) async {
       final h = await open(tester, '/ai-scan/capture');
       expect(h.diagnosis.calls, contains('crops'));
-      expect(tester.widget<ChoiceChip>(find.byKey(const Key('cap_crop_RICE'))).selected, isTrue);
+      expect(tester.widget<CropChoiceCard>(find.byKey(const Key('cap_crop_RICE'))).selected, isTrue);
       expect(find.text('Chụp ảnh lá lúa'), findsOneWidget, reason: 'bước 2 gọi đúng tên cây');
       await pickPhoto(tester);
       await tester.ensureVisible(find.byKey(const Key('cap_send')));
@@ -242,7 +244,7 @@ void main() {
         h.diagnosis.crops0 = const [rice, durian];
         h.cropStore.data[LastCropController.key] = 'DURIAN';
       });
-      expect(tester.widget<ChoiceChip>(find.byKey(const Key('cap_crop_DURIAN'))).selected, isTrue);
+      expect(tester.widget<CropChoiceCard>(find.byKey(const Key('cap_crop_DURIAN'))).selected, isTrue);
       expect(find.text('Chạm để chụp ảnh lá sầu riêng'), findsOneWidget);
     });
 
@@ -251,8 +253,8 @@ void main() {
         h.diagnosis.crops0 = const [rice, durian];
         h.cropStore.data[LastCropController.key] = 'MANGO';
       });
-      expect(tester.widget<ChoiceChip>(find.byKey(const Key('cap_crop_RICE'))).selected, isFalse);
-      expect(tester.widget<ChoiceChip>(find.byKey(const Key('cap_crop_DURIAN'))).selected, isFalse);
+      expect(tester.widget<CropChoiceCard>(find.byKey(const Key('cap_crop_RICE'))).selected, isFalse);
+      expect(tester.widget<CropChoiceCard>(find.byKey(const Key('cap_crop_DURIAN'))).selected, isFalse);
       expect(find.byKey(const Key('cap_crop_MANGO')), findsNothing);
     });
 
@@ -265,8 +267,41 @@ void main() {
       await tester.tap(find.byKey(const Key('cap_crops_retry')));
       await tester.pumpAndSettle();
       expect(find.byKey(const Key('cap_crops_error')), findsNothing);
-      expect(tester.widget<ChoiceChip>(find.byKey(const Key('cap_crop_RICE'))).selected, isTrue);
+      expect(tester.widget<CropChoiceCard>(find.byKey(const Key('cap_crop_RICE'))).selected, isTrue);
       expect(sendEnabled(tester), isTrue);
+    });
+
+    testWidgets('mỗi cây là một thẻ có hình, tên và số bệnh AI nhận; thẻ đang chọn có dấu tích', (tester) async {
+      const withDiseases = DiagnosisCrop(code: 'MANGO', name: 'Xoài', diseaseCount: 4, diseases: [
+        CropDisease(code: 'MANGO_ANTHRACNOSE', name: 'Thán thư'),
+        CropDisease(code: 'MANGO_POWDERY_MILDEW', name: 'Phấn trắng'),
+      ]);
+      await open(tester, '/ai-scan/capture', setup: (h) => h.diagnosis.crops0 = const [rice, withDiseases]);
+      final mango = find.byKey(const Key('cap_crop_MANGO'));
+      expect(find.descendant(of: mango, matching: find.text('Xoài')), findsOneWidget);
+      expect(find.descendant(of: mango, matching: find.text('AI nhận 2 bệnh')), findsOneWidget);
+      expect(find.descendant(of: mango, matching: find.byType(Image)), findsOneWidget);
+      expect(find.descendant(of: mango, matching: find.byIcon(Icons.check)), findsNothing);
+      await tester.tap(mango);
+      await tester.pumpAndSettle();
+      expect(tester.widget<CropChoiceCard>(mango).selected, isTrue);
+      expect(find.descendant(of: mango, matching: find.byIcon(Icons.check)), findsOneWidget);
+      expect(find.text('Chụp ảnh lá xoài'), findsOneWidget);
+
+      // Hình, tên và số bệnh nằm đúng giữa thẻ (trước đây bị dồn sang trái).
+      final centre = tester.getCenter(mango).dx;
+      for (final part in [find.byType(Image), find.text('Xoài'), find.text('AI nhận 2 bệnh')]) {
+        final dx = tester.getCenter(find.descendant(of: mango, matching: part)).dx;
+        expect((dx - centre).abs(), lessThan(1.0), reason: 'lệch tâm: $part');
+      }
+    });
+
+    test('cây nào trong danh mục cũng có ảnh minh hoạ trong assets', () async {
+      TestWidgetsFlutterBinding.ensureInitialized();
+      for (final code in Crops.all) {
+        final data = await rootBundle.load(CropChoiceCard.imageOf(code));
+        expect(data.lengthInBytes, greaterThan(1000), reason: code);
+      }
     });
 
     testWidgets('chưa có cây nào được chẩn đoán qua ảnh: nói rõ, không gửi được', (tester) async {

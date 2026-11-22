@@ -123,7 +123,11 @@ void main() {
         await shoot(tester, '${tag}_diag_capture_crops');
         await tester.tap(find.byKey(const Key('cap_crop_DURIAN')));
         await tester.pumpAndSettle();
+        await tester.ensureVisible(find.byKey(const Key('cap_gallery')));
+        await tester.pumpAndSettle();
         await tester.tap(find.byKey(const Key('cap_gallery')));
+        await tester.pumpAndSettle();
+        await tester.drag(find.byType(Scrollable).first, const Offset(0, 2000));
         await tester.pumpAndSettle();
         await shoot(tester, '${tag}_diag_capture_durian');
       });
