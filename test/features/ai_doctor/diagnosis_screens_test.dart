@@ -276,7 +276,7 @@ void main() {
       expect(sendEnabled(tester), isFalse);
     });
 
-    testWidgets('icon máy ảnh cân đối giữa vòng tròn; báo ảnh được gửi tới dịch vụ AI', (tester) async {
+    testWidgets('icon máy ảnh cân đối giữa vòng tròn; báo ảnh và ghi chú được gửi tới dịch vụ AI', (tester) async {
       await open(tester, '/ai-scan/capture');
       final preview = find.byKey(const Key('cap_preview'));
       expect(find.descendant(of: preview, matching: find.byIcon(Icons.photo_camera_outlined)), findsOneWidget);
@@ -286,7 +286,8 @@ void main() {
           matching: find.byType(Container)).first);
       final icon = tester.getCenter(find.descendant(of: preview, matching: find.byIcon(Icons.photo_camera_outlined)));
       expect((circle - icon).distance, lessThan(0.5), reason: 'icon nằm đúng tâm vòng tròn');
-      expect(find.textContaining('Ảnh được gửi tới dịch vụ AI để phân tích'), findsOneWidget);
+      expect(find.textContaining('Ảnh và ghi chú được gửi tới dịch vụ AI để phân tích'), findsOneWidget);
+      expect(find.text('Ghi chú cho AI và cửa hàng (tuỳ chọn)'), findsOneWidget);
     });
 
     testWidgets('trang chẩn đoán liệt kê cây và bệnh AI nhận được, lấy từ server', (tester) async {

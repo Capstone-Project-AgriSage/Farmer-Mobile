@@ -63,8 +63,8 @@ void main() {
       await tester.pumpAndSettle();
       expect(find.textContaining('cửa hàng đã cấp hạn mức tín dụng'), findsOneWidget);
       expect(find.textContaining('của cả nông dân và đại lý'), findsNothing);
-      // Ảnh rời khỏi máy chủ của cửa hàng (dịch vụ AI bên ngoài, AI_DIAGNOSIS.md 2.2): điều khoản phải nói rõ.
-      expect(find.textContaining('dịch vụ AI bên ngoài để phân tích tự động'), findsOneWidget);
+      // Ảnh và ghi chú rời khỏi máy chủ của cửa hàng (dịch vụ AI bên ngoài, AI_DIAGNOSIS.md 2.2): điều khoản phải nói rõ.
+      expect(find.textContaining('Ảnh lá cây và ghi chú bạn gửi được chuyển tới dịch vụ AI bên ngoài để phân tích tự động'), findsOneWidget);
       expect(find.textContaining('có thể chưa chính xác'), findsOneWidget);
       expect(find.textContaining('chuyên gia'), findsNothing);
     });

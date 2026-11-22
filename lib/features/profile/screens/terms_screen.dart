@@ -36,7 +36,7 @@ class TermsScreen extends StatelessWidget {
             ),
             _buildSection(
               '4. Tính năng khám cây',
-              'Ảnh lá cây bạn gửi được chuyển tới dịch vụ AI bên ngoài để phân tích tự động; kết quả và sản phẩm gợi ý là dự đoán của AI, có thể chưa chính xác và chỉ mang tính chất tham khảo, không thay thế tư vấn của cán bộ kỹ thuật. Bạn nên đọc kỹ nhãn thuốc và hỏi thêm cửa hàng trước khi quyết định mua và dùng thuốc.',
+              'Ảnh lá cây và ghi chú bạn gửi được chuyển tới dịch vụ AI bên ngoài để phân tích tự động; kết quả và sản phẩm gợi ý là dự đoán của AI, có thể chưa chính xác và chỉ mang tính chất tham khảo, không thay thế tư vấn của cán bộ kỹ thuật. Bạn nên đọc kỹ nhãn thuốc và hỏi thêm cửa hàng trước khi quyết định mua và dùng thuốc.',
             ),
             const SizedBox(height: 24),
             Center(

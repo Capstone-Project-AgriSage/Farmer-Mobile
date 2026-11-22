@@ -309,7 +309,7 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
                     maxLines: 3,
                     maxLength: DiagnosisRepository.maxNoteLength,
                     decoration: const InputDecoration(
-                      labelText: 'Ghi chú cho cửa hàng (tuỳ chọn)',
+                      labelText: 'Ghi chú cho AI và cửa hàng (tuỳ chọn)',
                       alignLabelWithHint: true,
                     ),
                   ),
@@ -328,7 +328,7 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
                         const SizedBox(width: 8),
                         Expanded(
                           child: Text(
-                            'AI phân tích ảnh và cho kết quả ngay sau khi gửi. Ảnh được gửi tới dịch vụ AI để phân tích. Kết quả do AI dự đoán, chỉ để tham khảo: hãy hỏi cửa hàng trước khi dùng thuốc.',
+                            'AI phân tích ảnh và cho kết quả ngay sau khi gửi. Ảnh và ghi chú được gửi tới dịch vụ AI để phân tích. Kết quả do AI dự đoán, chỉ để tham khảo: hãy hỏi cửa hàng trước khi dùng thuốc.',
                             style: AppTextStyles.caption
                                 .copyWith(color: const Color(0xFF5D4037), height: 1.4),
                           ),
