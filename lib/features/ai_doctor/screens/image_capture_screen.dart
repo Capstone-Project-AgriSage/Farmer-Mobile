@@ -10,6 +10,7 @@ import '../../../core/network/api_exception.dart';
 import '../data/crops.dart';
 import '../data/diagnosis_repository.dart';
 import '../providers/diagnosis_providers.dart';
+import '../widgets/crop_choice_card.dart';
 import '../../home/providers/home_providers.dart';
 
 /// Chọn cây trồng, chụp hoặc chọn ảnh lá của cây đó, thêm ghi chú rồi gửi cho AI phân tích. Biết cây trước giúp AI
@@ -35,6 +36,16 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
     super.initState();
     // Camera có thể làm Android đóng app lúc đang chụp: lấy lại ảnh vừa chụp khi app mở lại.
     WidgetsBinding.instance.addPostFrameCallback((_) => _recoverLost());
+  }
+
+  bool _imagesRequested = false;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_imagesRequested) return;
+    _imagesRequested = true;
+    CropChoiceCard.precacheAll(context, Crops.all);
   }
 
   Future<void> _recoverLost() async {
@@ -138,7 +149,13 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   const _StepTitle(number: '1', text: 'Chọn cây trồng'),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(left: 38),
+                    child: Text('Chọn đúng cây để AI so ảnh với các bệnh của cây đó.',
+                        style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary)),
+                  ),
+                  const SizedBox(height: 12),
                   _CropPicker(
                     crops: crops,
                     selected: crop,
@@ -453,25 +470,33 @@ class _CropPicker extends StatelessWidget {
           ? Text('Chưa có cây nào được chẩn đoán qua ảnh. Hãy hỏi cửa hàng.',
               key: const Key('cap_crops_empty'),
               style: AppTextStyles.bodySmall.copyWith(color: AppColors.textSecondary))
-          : Wrap(
-              spacing: 8,
-              runSpacing: 8,
-              children: [
-                for (final c in items)
-                  ChoiceChip(
-                    key: Key('cap_crop_${c.code}'),
-                    label: Text(c.name),
-                    selected: c.code == selected,
-                    showCheckmark: false,
-                    selectedColor: AppColors.primaryLight,
-                    labelStyle: AppTextStyles.bodySmall.copyWith(
-                      color: c.code == selected ? AppColors.primaryDark : AppColors.textSecondary,
-                      fontWeight: c.code == selected ? FontWeight.w700 : FontWeight.w500,
+          : LayoutBuilder(builder: (context, box) {
+              // 3 thẻ một hàng, cao bằng nhau; chừa chỗ cho tên 2 dòng khi người dùng phóng to chữ.
+              const gap = 10.0;
+              // Làm tròn xuống: tổng 3 thẻ không vượt bề ngang vì sai số số thực, thẻ thứ 3 không bị đẩy xuống hàng.
+              final width = ((box.maxWidth - gap * 2) / 3).floorToDouble();
+              final textScale = MediaQuery.textScalerOf(context).scale(14) / 14;
+              final height = 96 + 58 * textScale;
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: [
+                  for (final c in items)
+                    SizedBox(
+                      width: width,
+                      height: height,
+                      child: CropChoiceCard(
+                        key: Key('cap_crop_${c.code}'),
+                        code: c.code,
+                        name: c.name,
+                        aiDiseaseCount: c.diseases.length,
+                        selected: c.code == selected,
+                        onTap: enabled ? () => onPick(c.code) : null,
+                      ),
                     ),
-                    onSelected: enabled ? (_) => onPick(c.code) : null,
-                  ),
-              ],
-            ),
+                ],
+              );
+            }),
     );
   }
 }
