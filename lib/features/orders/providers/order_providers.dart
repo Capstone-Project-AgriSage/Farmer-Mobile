@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../../../core/auth/session_provider.dart';
 import '../../../core/network/api_exception.dart';
+import '../data/delivery_tracking.dart';
 import '../data/order_models.dart';
 import '../data/order_repository.dart';
 
@@ -15,6 +16,11 @@ final orderPaymentsProvider = FutureProvider.autoDispose
 final orderDeliveriesProvider = FutureProvider.autoDispose
     .family<List<Delivery>, String>(
         (ref, id) => ref.watch(orderRepositoryProvider).deliveries(id));
+
+/// Vị trí tài xế của một phiếu đang giao (FLOW_2 §9a). Thẻ "Tài xế đang giao" đọc lại mỗi 15 giây khi đang hiện.
+final deliveryTrackingProvider = FutureProvider.autoDispose
+    .family<DeliveryTracking, ({String orderId, String deliveryId})>(
+        (ref, key) => ref.watch(orderRepositoryProvider).tracking(key.orderId, key.deliveryId));
 
 /// Hạn mức mua ghi nợ; null = chưa được cấp. Đổi tài khoản thì tải lại.
 final myCreditProvider = FutureProvider.autoDispose<CreditSummary?>((ref) {

@@ -1,6 +1,8 @@
 import 'package:farmer_mobile/core/network/api_exception.dart';
+import 'package:farmer_mobile/features/orders/data/delivery_tracking.dart';
 import 'package:farmer_mobile/features/orders/data/order_models.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import '../../helpers/app_harness.dart';
@@ -378,6 +380,76 @@ void main() {
       expect(find.textContaining('đã giao 1/2 · còn 1'), findsOneWidget);
       expect(find.text('Lần 1: Không thành công'), findsOneWidget);
       expect(find.text('Lý do: Khách vắng nhà'), findsOneWidget);
+    });
+
+    DeliveryTracking running({int lastSecondsAgo = 30, bool inProgress = true}) {
+      final now = DateTime.now().toUtc();
+      return DeliveryTracking(
+        deliveryId: 'd1',
+        status: 'OUT_FOR_DELIVERY',
+        inProgress: inProgress,
+        attemptNumber: 1,
+        driverName: 'Trần Văn B',
+        driverPhone: '0912000111',
+        destination: const TrackPoint(latitude: 10.0452, longitude: 105.7469),
+        lastPoint: inProgress
+            ? TrackPoint(latitude: 10.038, longitude: 105.76, recordedAt: now.subtract(Duration(seconds: lastSecondsAgo)))
+            : null,
+        trail: inProgress
+            ? [
+                TrackPoint(latitude: 10.032, longitude: 105.775, recordedAt: now.subtract(const Duration(minutes: 5))),
+                TrackPoint(latitude: 10.038, longitude: 105.76, recordedAt: now.subtract(Duration(seconds: lastSecondsAgo))),
+              ]
+            : const [],
+      );
+    }
+
+    testWidgets('tài xế đang giao: bản đồ, tên tài xế và giờ cập nhật', (tester) async {
+      final h = await open(tester, '/orders/o1', setup: (h) {
+        seedOrder(h, orderOf(id: 'o1', status: 'CONFIRMED'), deliveries: [deliveryOf('d1')]);
+        h.orders.trackingByDelivery['d1'] = running();
+      });
+
+      await tester.scrollUntilVisible(find.byKey(const Key('delivery_tracking_d1')), 300);
+      expect(find.text('Tài xế đang giao: Trần Văn B'), findsOneWidget);
+      expect(tester.widget<Text>(find.byKey(const Key('tracking_status'))).data, startsWith('Cập nhật lúc '));
+      expect(find.byType(FlutterMap), findsOneWidget);
+      expect(h.orders.calls, contains('tracking:d1'));
+    });
+
+    testWidgets('điểm cuối cũ hơn 3 phút: báo mất tín hiệu', (tester) async {
+      await open(tester, '/orders/o1', setup: (h) {
+        seedOrder(h, orderOf(id: 'o1', status: 'CONFIRMED'), deliveries: [deliveryOf('d1')]);
+        h.orders.trackingByDelivery['d1'] = running(lastSecondsAgo: 600);
+      });
+
+      await tester.scrollUntilVisible(find.byKey(const Key('delivery_tracking_d1')), 300);
+      expect(tester.widget<Text>(find.byKey(const Key('tracking_status'))).data, startsWith('Mất tín hiệu từ '));
+    });
+
+    testWidgets('giao xong: thẻ tài xế biến mất và phiếu giao được đọc lại', (tester) async {
+      final h = await open(tester, '/orders/o1', setup: (h) {
+        seedOrder(h, orderOf(id: 'o1', status: 'CONFIRMED'), deliveries: [deliveryOf('d1')]);
+        h.orders.trackingByDelivery['d1'] = running();
+      });
+      await tester.scrollUntilVisible(find.byKey(const Key('delivery_tracking_d1')), 300);
+      final deliveryReads = h.orders.calls.where((c) => c == 'deliveries:o1').length;
+
+      h.orders.trackingByDelivery['d1'] = running(inProgress: false);
+      await tester.pump(const Duration(seconds: 16));
+      await tester.pump();
+
+      expect(find.byKey(const Key('delivery_tracking_d1')), findsNothing);
+      expect(h.orders.calls.where((c) => c == 'deliveries:o1').length, greaterThan(deliveryReads));
+    });
+
+    testWidgets('phiếu không ở trạng thái đang giao thì không hỏi vị trí', (tester) async {
+      final h = await open(tester, '/orders/o1', setup: (h) => seedOrder(h, orderOf(id: 'o1', status: 'CONFIRMED'),
+          deliveries: [deliveryOf('d1', status: 'RETRY_PENDING'), deliveryOf('d2', status: 'DELIVERED')]));
+      await tester.scrollUntilVisible(find.byKey(const Key('delivery_d1')), 300);
+
+      expect(h.orders.calls.where((c) => c.startsWith('tracking:')), isEmpty);
+      expect(find.byType(FlutterMap), findsNothing);
     });
 
     testWidgets('lỗi tải thanh toán / giao hàng không làm hỏng cả màn: có nút Thử lại', (tester) async {

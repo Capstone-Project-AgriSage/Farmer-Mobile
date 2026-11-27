@@ -13,6 +13,7 @@ import '../../../shared/widgets/error_retry_widget.dart';
 import '../../orders/data/order_models.dart';
 import '../../orders/data/order_repository.dart';
 import '../../orders/providers/order_providers.dart';
+import '../../orders/widgets/delivery_tracking_card.dart';
 import '../../orders/widgets/order_widgets.dart';
 import '../../home/providers/home_providers.dart';
 import '../../payment/providers/payment_providers.dart';
@@ -743,7 +744,7 @@ class _DeliverySection extends ConsumerWidget {
                 children: [
                   for (var i = 0; i < list.length; i++) ...[
                     if (i > 0) const Divider(height: 24, color: AppColors.borderSubtle),
-                    _DeliveryView(list[i]),
+                    _DeliveryView(list[i], orderId: orderId),
                   ],
                 ],
               ),
@@ -753,9 +754,10 @@ class _DeliverySection extends ConsumerWidget {
 }
 
 class _DeliveryView extends StatelessWidget {
-  const _DeliveryView(this.d);
+  const _DeliveryView(this.d, {required this.orderId});
 
   final Delivery d;
+  final String orderId;
 
   @override
   Widget build(BuildContext context) {
@@ -778,6 +780,8 @@ class _DeliveryView extends StatelessWidget {
             StatusChip(text: DeliveryStatus.label(d.status), fg: fg, bg: bg),
           ],
         ),
+        // Chỉ phiếu đang giao mới có thể có tài xế trên đường (FLOW_2 §9a).
+        if (d.status == 'OUT_FOR_DELIVERY') DeliveryTrackingCard(orderId: orderId, deliveryId: d.id),
         if (d.scheduledAt != null)
           InfoRow('Hẹn giao', formatDateTime(d.scheduledAt!)),
         if (d.dispatchedAt != null)
