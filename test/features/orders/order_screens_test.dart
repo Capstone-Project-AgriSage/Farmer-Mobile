@@ -415,6 +415,13 @@ void main() {
       expect(tester.widget<Text>(find.byKey(const Key('tracking_status'))).data, startsWith('Cập nhật lúc '));
       expect(find.byType(FlutterMap), findsOneWidget);
       expect(h.orders.calls, contains('tracking:d1'));
+
+      // Only the store's region (Mekong Delta + HCMC), never zoomed out past a province: no open sea, no islands.
+      final options = tester.widget<FlutterMap>(find.byType(FlutterMap)).options;
+      expect(options.minZoom, 9);
+      final region = (options.cameraConstraint as ContainCamera).bounds;
+      expect((region.south, region.west, region.north, region.east), (8.3, 103.8, 11.8, 107.2));
+      expect(tester.widget<TileLayer>(find.byType(TileLayer)).tileBounds, region);
     });
 
     testWidgets('điểm cuối cũ hơn 3 phút: báo mất tín hiệu', (tester) async {

@@ -31,6 +31,11 @@ class DeliveryTrackingCard extends ConsumerStatefulWidget {
 class _DeliveryTrackingCardState extends ConsumerState<DeliveryTrackingCard> {
   // Cần Thơ, khi chưa có điểm nào.
   static const _storeArea = LatLng(10.0341, 105.7880);
+  // The store's region: the Mekong Delta and Ho Chi Minh City, with Phu Quoc and Con Dao (south-west, north-east corners).
+  // Maps never leave it and never zoom out past a province, so the open sea and the islands (whose OpenStreetMap labels
+  // are disputed) are never shown; tiles outside it are not even loaded.
+  static final storeRegion = LatLngBounds(const LatLng(8.3, 103.8), const LatLng(11.8, 107.2));
+  static const minMapZoom = 9.0;
   static final _clock = DateFormat('HH:mm');
 
   Timer? _timer;
@@ -122,6 +127,8 @@ class _DeliveryTrackingCardState extends ConsumerState<DeliveryTrackingCard> {
                 options: MapOptions(
                   initialCenter: points.isEmpty ? _storeArea : points.first,
                   initialZoom: 14,
+                  minZoom: minMapZoom,
+                  cameraConstraint: CameraConstraint.contain(bounds: storeRegion),
                   initialCameraFit: points.length < 2
                       ? null
                       : CameraFit.coordinates(coordinates: points, padding: const EdgeInsets.all(32), maxZoom: 16),
@@ -129,6 +136,7 @@ class _DeliveryTrackingCardState extends ConsumerState<DeliveryTrackingCard> {
                 ),
                 children: [
                   TileLayer(
+                    tileBounds: storeRegion,
                     urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
                     userAgentPackageName: 'vn.agrisage.farmer',
                     tileProvider: ref.watch(mapTileProviderProvider),
