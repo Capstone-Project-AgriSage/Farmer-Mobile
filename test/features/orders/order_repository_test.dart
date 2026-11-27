@@ -220,6 +220,55 @@ void main() {
       expect(DeliveryStatus.label('PARTIALLY_DELIVERED'), 'Đã giao một phần');
     });
 
+    test('vị trí tài xế: đúng route, đọc tài xế, điểm đến, điểm cuối và đường đi', () async {
+      use((o) => jsonBody(200, {
+            'deliveryId': 'd1',
+            'deliveryNumber': 'DL-1',
+            'status': 'OUT_FOR_DELIVERY',
+            'inProgress': true,
+            'attemptNumber': 2,
+            'startedAt': '2026-11-27T03:00:00Z',
+            'driver': {'fullName': 'Trần Văn B', 'phoneNumber': '0912000111'},
+            'destination': {'latitude': 10.0452, 'longitude': 105.7469},
+            'lastPoint': {'latitude': 10.038, 'longitude': 105.76, 'accuracyMeters': 8.5, 'recordedAt': '2026-11-27T03:10:20Z'},
+            'trail': [
+              {'latitude': 10.032, 'longitude': 105.775, 'accuracyMeters': null, 'recordedAt': '2026-11-27T03:05:00Z'},
+              {'latitude': 10.038, 'longitude': 105.76, 'accuracyMeters': 8.5, 'recordedAt': '2026-11-27T03:10:20Z'},
+            ],
+          }));
+
+      final t = await orders.tracking('o1', 'd1');
+
+      expect(adapter.requests.single.path, '/api/me/orders/o1/deliveries/d1/tracking');
+      expect((t.inProgress, t.attemptNumber, t.driverName, t.driverPhone), (true, 2, 'Trần Văn B', '0912000111'));
+      expect((t.destination!.latitude, t.destination!.longitude), (10.0452, 105.7469));
+      expect(t.lastPoint!.recordedAt!.toUtc(), DateTime.utc(2026, 11, 27, 3, 10, 20)); // read as local time, same instant
+      expect(t.trail.map((p) => p.longitude), [105.775, 105.76]);
+      expect(t.isStale(DateTime.utc(2026, 11, 27, 3, 12)), isFalse);
+      expect(t.isStale(DateTime.utc(2026, 11, 27, 3, 14)), isTrue, reason: 'older than 3 minutes');
+    });
+
+    test('vị trí tài xế khi chưa/không còn chạy: không tài xế, không điểm', () async {
+      use((o) => jsonBody(200, {
+            'deliveryId': 'd1',
+            'deliveryNumber': 'DL-1',
+            'status': 'DELIVERED',
+            'inProgress': false,
+            'attemptNumber': null,
+            'startedAt': null,
+            'driver': null,
+            'destination': null,
+            'lastPoint': null,
+            'trail': [],
+          }));
+
+      final t = await orders.tracking('o1', 'd1');
+
+      expect(t.inProgress, isFalse);
+      expect((t.driverName, t.destination, t.lastPoint), (null, null, null));
+      expect(t.trail, isEmpty);
+    });
+
     test('tóm tắt thanh toán: đã trả, còn lại, link đang chờ, hoàn tiền', () async {
       use((o) => jsonBody(200, {
             'orderId': 'o1',

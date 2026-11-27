@@ -7,6 +7,7 @@ import '../../../core/network/api_call.dart';
 import '../../../core/network/dio_client.dart';
 import '../../../core/network/json_utils.dart';
 import '../../../core/network/paged_result.dart';
+import 'delivery_tracking.dart';
 import 'order_models.dart';
 
 /// Đổi lý do từ chối khi đặt hàng (backend trả tiếng Anh) sang tiếng Việt.
@@ -123,6 +124,13 @@ class OrderRepository {
         return [
           for (final d in res.data!) Delivery.fromJson(d as Map<String, dynamic>),
         ];
+      });
+
+  /// Tài xế đang ở đâu (chỉ trong lúc lượt giao đang chạy). FLOW_2 §9a.
+  Future<DeliveryTracking> tracking(String orderId, String deliveryId) => apiCall(() async {
+        final res = await _dio.get<Map<String, dynamic>>(
+            '/api/me/orders/$orderId/deliveries/$deliveryId/tracking');
+        return DeliveryTracking.fromJson(res.data!);
       });
 
   Future<OrderPayments> payments(String orderId) => apiCall(() async {

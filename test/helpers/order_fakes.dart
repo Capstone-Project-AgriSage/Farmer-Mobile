@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:dio/dio.dart';
 import 'package:farmer_mobile/core/network/api_exception.dart';
 import 'package:farmer_mobile/core/network/paged_result.dart';
+import 'package:farmer_mobile/features/orders/data/delivery_tracking.dart';
 import 'package:farmer_mobile/features/orders/data/order_models.dart';
 import 'package:farmer_mobile/features/orders/data/order_repository.dart';
 
@@ -230,6 +231,16 @@ class FakeOrderRepository extends OrderRepository {
   Future<List<Delivery>> deliveries(String orderId) async {
     calls.add('deliveries:$orderId');
     return deliveriesByOrder[orderId] ?? const [];
+  }
+
+  /// What `GET .../deliveries/{id}/tracking` answers, by delivery id (default: no trip running).
+  Map<String, DeliveryTracking> trackingByDelivery = {};
+
+  @override
+  Future<DeliveryTracking> tracking(String orderId, String deliveryId) async {
+    calls.add('tracking:$deliveryId');
+    return trackingByDelivery[deliveryId] ??
+        DeliveryTracking(deliveryId: deliveryId, status: 'OUT_FOR_DELIVERY', inProgress: false);
   }
 
   @override

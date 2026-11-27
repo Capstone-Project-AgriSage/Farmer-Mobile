@@ -3,6 +3,8 @@ import 'package:farmer_mobile/core/network/dio_client.dart';
 import 'package:farmer_mobile/core/network/realtime_events.dart';
 import 'dart:async';
 import 'package:farmer_mobile/core/theme/app_theme.dart';
+import 'package:farmer_mobile/features/orders/widgets/delivery_tracking_card.dart';
+import 'map_fakes.dart';
 import 'package:farmer_mobile/features/auth/data/auth_repository.dart';
 import 'package:farmer_mobile/features/auth/screens/forgot_password_screen.dart';
 import 'package:farmer_mobile/features/auth/screens/login_screen.dart';
@@ -107,6 +109,7 @@ class AppHarness {
       cropChoiceStoreProvider.overrideWithValue(cropStore),
       photoPickerProvider.overrideWithValue(photos),
       locationServiceProvider.overrideWithValue(geo),
+      mapTileProviderProvider.overrideWithValue(BlankTileProvider()),
       ...paymentTestOverrides(paymentStore),
       tokenStorageProvider.overrideWithValue(this.storage),
       realtimeEventsProvider.overrideWith((ref) => realtime.stream),

@@ -43,6 +43,9 @@ dependencies:
   geolocator: ^14.0.2
   geocoding: ^5.0.0
   signalr_netcore: 1.4.4
+  # Bản đồ theo dõi tài xế đang giao (FLOW_2 §9a), nền OpenStreetMap, không cần key
+  flutter_map: ^8.3.2
+  latlong2: ^0.10.1
 
 dev_dependencies:
   flutter_test:
