@@ -70,7 +70,7 @@ String diseaseDisplayName(String code, String backendName) =>
       'BACTERIAL_LEAF_BLIGHT' => 'Bạc lá',
       'BROWN_SPOT' => 'Đốm nâu',
       'SHEATH_BLIGHT' => 'Khô vằn',
-      'HEALTHY' => 'Lá khoẻ mạnh',
+      'HEALTHY' => 'Cây khoẻ mạnh',
       _ => backendName,
     };
 

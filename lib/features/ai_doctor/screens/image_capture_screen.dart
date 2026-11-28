@@ -599,7 +599,7 @@ class _CaptureTips extends StatelessWidget {
           const SizedBox(height: 14),
           const _TipItem(
               number: '1',
-              text: 'Chụp một lá bệnh, cách khoảng 15 đến 30 cm, lá chiếm gần hết khung hình'),
+              text: 'Chụp một lá bệnh (thanh long: một đoạn cành bệnh), cách khoảng 15 đến 30 cm, chiếm gần hết khung hình'),
           const SizedBox(height: 10),
           const _TipItem(
               number: '2', text: 'Để vết bệnh rõ ở giữa ảnh, giữ máy chắc tay cho ảnh nét'),

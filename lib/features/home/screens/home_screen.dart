@@ -779,7 +779,7 @@ class _DiagnosisBody extends ConsumerWidget {
     final hasDisease = s.diseaseDisplay != null;
     final hint = switch (s.status) {
       _ when hasDisease && s.isUncertain =>
-        'AI chưa chắc chắn. Hãy chụp lại gần một lá bệnh hoặc hỏi cửa hàng.',
+        'AI chưa chắc chắn. Hãy chụp lại gần chỗ bị bệnh hoặc hỏi cửa hàng.',
       _ when hasDisease && verified => 'Cửa hàng đã xác nhận kết quả cho ảnh của bạn.',
       _ when hasDisease => 'AI đã có kết quả cho ảnh của bạn. Mở để xem cách xử lý.',
       DiagnosisStatus.inconclusive => 'Ảnh chưa đủ rõ. Hãy chụp lại và gửi ảnh mới.',

@@ -544,7 +544,7 @@ class _ResultView extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 Text(
-                  'AI chưa chắc đây là bệnh gì nên chưa gợi ý thuốc. Bạn hãy chụp lại gần một lá bệnh, đủ sáng, hoặc mang mẫu lá đến cửa hàng để được tư vấn.',
+                  'AI chưa chắc đây là bệnh gì nên chưa gợi ý thuốc. Bạn hãy chụp lại gần chỗ bị bệnh, đủ sáng, hoặc mang mẫu bệnh đến cửa hàng để được tư vấn.',
                   style: AppTextStyles.bodySmall,
                 ),
                 const SizedBox(height: 12),

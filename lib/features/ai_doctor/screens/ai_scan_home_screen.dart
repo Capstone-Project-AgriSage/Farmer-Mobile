@@ -202,7 +202,7 @@ class AiScanHomeScreen extends ConsumerWidget {
     );
   }
 
-  /// Một cây: tên và các bệnh AI nhận được của cây đó (lá khoẻ luôn nhận được).
+  /// Một cây: tên và các bệnh AI nhận được của cây đó (cây khoẻ luôn nhận được).
   Widget _cropTile(DiagnosisCrop c) {
     return Container(
       key: Key('scan_crop_${c.code}'),
@@ -233,8 +233,8 @@ class AiScanHomeScreen extends ConsumerWidget {
                 const SizedBox(height: 2),
                 Text(
                     c.diseases.isEmpty
-                        ? '${c.diseaseCount} bệnh và lá khoẻ'
-                        : '${c.diseases.map((d) => d.name).join(', ')} và lá khoẻ',
+                        ? '${c.diseaseCount} bệnh và cây khoẻ'
+                        : '${c.diseases.map((d) => d.name).join(', ')} và cây khoẻ',
                     style: AppTextStyles.caption.copyWith(color: AppColors.textSecondary)),
               ],
             ),
