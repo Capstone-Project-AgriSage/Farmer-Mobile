@@ -133,10 +133,10 @@ class _DiagnoseHistoryScreenState extends ConsumerState<DiagnoseHistoryScreen> {
               height: 400,
               child: EmptyDataWidget(
                 message: state.status == null
-                    ? 'Chưa có lịch sử khám cây.\nChụp ảnh lá cây để bắt đầu.'
+                    ? 'Chưa có lịch sử khám cây.\nChụp ảnh cây trồng để bắt đầu.'
                     : 'Không có ca "${DiagnosisStatus.label(state.status)}".',
                 fallbackIcon: Icons.search_off,
-                actionText: state.status == null ? 'Chụp ảnh lá cây' : null,
+                actionText: state.status == null ? 'Chụp ảnh cây trồng' : null,
                 onActionPressed:
                     state.status == null ? () => context.push(AppRoutes.imageCapture) : null,
               ),

@@ -4,22 +4,27 @@ import '../../../core/network/json_utils.dart';
 import '../../../core/storage/app_prefs.dart';
 import '../../payment/data/pending_payment.dart' show KeyValueStore, PrefsKeyValueStore;
 
-/// Danh mục cây trồng của backend (CropCatalog, AI_DIAGNOSIS.md 2.2), đúng thứ tự hiển thị. Vấn đề không ghi cây là lúa.
+/// Danh mục cây trồng của backend (CropCatalog, AI_DIAGNOSIS.md 2.2, 2.4), đúng thứ tự hiển thị. Vấn đề không ghi cây là lúa.
 abstract class Crops {
   static const rice = 'RICE';
-  static const all = [rice, 'DURIAN', 'COFFEE', 'CORN', 'MANGO'];
+  static const dragonFruit = 'DRAGON_FRUIT';
+  static const all = [rice, 'DURIAN', 'COFFEE', 'CORN', 'MANGO', dragonFruit];
   static const _labels = {
     rice: 'Lúa',
     'DURIAN': 'Sầu riêng',
     'COFFEE': 'Cà phê',
     'CORN': 'Bắp (ngô)',
     'MANGO': 'Xoài',
+    dragonFruit: 'Thanh long',
   };
 
   static String label(String? code) => _labels[code ?? rice] ?? code ?? 'Lúa';
 
-  /// "lá lúa", "lá sầu riêng": dùng trong câu (chữ thường).
-  static String leafOf(String? code) => 'lá ${label(code).toLowerCase()}';
+  /// Bộ phận cần chụp: thanh long là cành (mô hình riêng của nhóm đọc ảnh thân cành, AI_DIAGNOSIS.md §16), cây khác là lá.
+  static String partWord(String? code) => code == dragonFruit ? 'cành' : 'lá';
+
+  /// "lá lúa", "lá sầu riêng", "cành thanh long": dùng trong câu (chữ thường).
+  static String leafOf(String? code) => '${partWord(code)} ${label(code).toLowerCase()}';
 }
 
 class CropDisease {

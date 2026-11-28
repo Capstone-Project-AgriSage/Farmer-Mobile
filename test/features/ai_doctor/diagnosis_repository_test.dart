@@ -188,6 +188,8 @@ void main() {
       expect(Crops.label(null), 'Lúa');
       expect(Crops.label('TEA'), 'TEA');
       expect(Crops.leafOf('DURIAN'), 'lá sầu riêng');
+      expect(Crops.leafOf(Crops.dragonFruit), 'cành thanh long', reason: 'the dragon fruit model reads stems');
+      expect(Crops.label('DRAGON_FRUIT'), 'Thanh long');
     });
   });
 
@@ -297,7 +299,7 @@ void main() {
     });
 
     test('tên bệnh: biết mã thì dùng tiếng Việt; mã lạ giữ tên backend', () {
-      expect(diseaseDisplayName('HEALTHY', 'Healthy'), 'Lá khoẻ mạnh');
+      expect(diseaseDisplayName('HEALTHY', 'Healthy'), 'Cây khoẻ mạnh', reason: 'HEALTHY is shared by every crop');
       expect(diseaseDisplayName('SHEATH_BLIGHT', 'Sheath Blight'), 'Khô vằn');
       expect(diseaseDisplayName('NEW_ONE', 'Bệnh mới'), 'Bệnh mới');
     });

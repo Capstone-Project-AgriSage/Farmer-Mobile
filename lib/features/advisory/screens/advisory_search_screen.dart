@@ -228,7 +228,7 @@ class _ProblemList extends StatelessWidget {
             child: EmptyDataWidget(
               key: const Key('advisory_empty'),
               message: searching
-                  ? 'Không tìm thấy vấn đề phù hợp. Thử từ khác hoặc chụp ảnh lá để AI nhận biết bệnh.'
+                  ? 'Không tìm thấy vấn đề phù hợp. Thử từ khác hoặc chụp ảnh cây trồng để AI nhận biết bệnh.'
                   : crop != null
                       ? 'Cửa hàng chưa có vấn đề nào cho cây ${Crops.label(crop).toLowerCase()}. Chọn "Mọi cây" hoặc hỏi cửa hàng.'
                       : 'Cửa hàng chưa có danh sách vấn đề.',
@@ -242,7 +242,7 @@ class _ProblemList extends StatelessWidget {
   }
 }
 
-/// Chưa biết bệnh gì: sang chụp ảnh lá (AI nhận biết rồi nối sang tư vấn).
+/// Chưa biết bệnh gì: sang chụp ảnh cây trồng (AI nhận biết rồi nối sang tư vấn).
 class _PhotoShortcut extends StatelessWidget {
   const _PhotoShortcut();
 
@@ -267,7 +267,7 @@ class _PhotoShortcut extends StatelessWidget {
                   children: [
                     Text('Chưa biết cây bị gì?',
                         style: AppTextStyles.bodyMedium.copyWith(fontWeight: FontWeight.w700, color: AppColors.primaryDark)),
-                    Text('Chụp ảnh lá bệnh để AI nhận biết rồi gợi ý thuốc.',
+                    Text('Chụp ảnh cây trồng để AI nhận biết bệnh rồi gợi ý thuốc.',
                         style: AppTextStyles.bodySmall.copyWith(color: AppColors.primaryDark)),
                   ],
                 ),

@@ -223,7 +223,7 @@ void main() {
     testWidgets('nhiều cây: chưa chọn thì không gửi được; chọn sầu riêng rồi gửi', (tester) async {
       final h = await open(tester, '/ai-scan/capture', setup: (h) => h.diagnosis.crops0 = const [rice, durian]);
       expect(find.byKey(const Key('cap_crop_DURIAN')), findsOneWidget);
-      expect(find.text('Chạm để chụp ảnh lá cây'), findsOneWidget);
+      expect(find.text('Chạm để chụp ảnh cây trồng'), findsOneWidget);
       await pickPhoto(tester);
       expect(sendEnabled(tester), isFalse);
       expect(find.text('Chọn cây trồng trước khi gửi'), findsOneWidget);
@@ -296,6 +296,21 @@ void main() {
       }
     });
 
+    testWidgets('thanh long: thẻ có hình riêng, chọn xong thì hướng dẫn chụp cành chứ không phải lá', (tester) async {
+      const dragonFruit = DiagnosisCrop(code: 'DRAGON_FRUIT', name: 'Thanh long', diseaseCount: 1, diseases: [
+        CropDisease(code: 'DRAGONFRUIT_STEM_CANKER', name: 'Bệnh đốm nâu (tắc kè)'),
+      ]);
+      await open(tester, '/ai-scan/capture', setup: (h) => h.diagnosis.crops0 = const [rice, dragonFruit]);
+      final card = find.byKey(const Key('cap_crop_DRAGON_FRUIT'));
+      expect(find.descendant(of: card, matching: find.text('Thanh long')), findsOneWidget);
+      expect(find.descendant(of: card, matching: find.text('AI nhận 1 bệnh')), findsOneWidget);
+      expect(find.descendant(of: card, matching: find.byType(Image)), findsOneWidget);
+      await tester.tap(card);
+      await tester.pumpAndSettle();
+      expect(find.text('Chụp ảnh cành thanh long'), findsOneWidget);
+      expect(find.textContaining('lá thanh long'), findsNothing);
+    });
+
     test('cây nào trong danh mục cũng có ảnh minh hoạ trong assets', () async {
       TestWidgetsFlutterBinding.ensureInitialized();
       for (final code in Crops.all) {
@@ -331,7 +346,7 @@ void main() {
             DiagnosisCrop(code: 'DURIAN', name: 'Sầu riêng', diseaseCount: 1, diseases: [CropDisease(code: 'DURIAN_PHYTOPHTHORA', name: 'Thối gốc chảy nhựa')]),
           ]);
       expect(find.text('Cây trồng AI nhận diện được'), findsOneWidget);
-      expect(find.descendant(of: find.byKey(const Key('scan_crop_DURIAN')), matching: find.text('Thối gốc chảy nhựa và lá khoẻ')), findsOneWidget);
+      expect(find.descendant(of: find.byKey(const Key('scan_crop_DURIAN')), matching: find.text('Thối gốc chảy nhựa và cây khoẻ')), findsOneWidget);
       expect(find.byKey(const Key('scan_crop_RICE')), findsOneWidget);
       expect(find.text('Leaf Blast'), findsNothing, reason: 'không còn danh sách bệnh lúa viết cứng');
     });
@@ -578,7 +593,7 @@ void main() {
             result: aiResultJson(
                 uncertain: true, code: 'HEALTHY', name: 'Healthy', healthy: true, treatments: []));
       });
-      expect(textOf(tester, 'case_disease'), 'Lá khoẻ mạnh');
+      expect(textOf(tester, 'case_disease'), 'Cây khoẻ mạnh');
       expect(find.text('Cây không có dấu hiệu bệnh.'), findsNothing);
       expect(find.byKey(const Key('case_uncertain')), findsOneWidget);
     });
@@ -691,7 +706,7 @@ void main() {
                 treatments: [],
                 products: []));
       });
-      expect(textOf(tester, 'case_disease'), 'Lá khoẻ mạnh');
+      expect(textOf(tester, 'case_disease'), 'Cây khoẻ mạnh');
       expect(find.text('Cây không có dấu hiệu bệnh.'), findsOneWidget);
       expect(find.byKey(const Key('case_treatments')), findsNothing);
       expect(find.byKey(const Key('case_products')), findsNothing);

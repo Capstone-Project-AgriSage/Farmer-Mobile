@@ -13,7 +13,7 @@ import '../providers/diagnosis_providers.dart';
 import '../widgets/crop_choice_card.dart';
 import '../../home/providers/home_providers.dart';
 
-/// Chọn cây trồng, chụp hoặc chọn ảnh lá của cây đó, thêm ghi chú rồi gửi cho AI phân tích. Biết cây trước giúp AI
+/// Chọn cây trồng, chụp hoặc chọn ảnh lá (thanh long: cành) của cây đó, thêm ghi chú rồi gửi cho AI phân tích. Biết cây trước giúp AI
 /// chỉ chọn trong các bệnh của cây đó (AI_DIAGNOSIS.md 2.2).
 class ImageCaptureScreen extends ConsumerStatefulWidget {
   const ImageCaptureScreen({super.key});
@@ -135,7 +135,7 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
     return Scaffold(
       backgroundColor: AppColors.surfaceSubtle,
       appBar: AppBar(
-        title: const Text('Chụp ảnh lá cây'),
+        title: const Text('Chụp ảnh cây trồng'),
         backgroundColor: AppColors.surface,
         surfaceTintColor: Colors.transparent,
         scrolledUnderElevation: 0,
@@ -166,7 +166,7 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
                   const SizedBox(height: 20),
                   _StepTitle(
                       number: '2',
-                      text: crop == null ? 'Chụp ảnh lá cây' : 'Chụp ảnh ${Crops.leafOf(crop)}'),
+                      text: crop == null ? 'Chụp ảnh cây trồng' : 'Chụp ảnh ${Crops.leafOf(crop)}'),
                   const SizedBox(height: 10),
                   GestureDetector(
                     key: const Key('cap_preview'),
@@ -265,7 +265,7 @@ class _ImageCaptureScreenState extends ConsumerState<ImageCaptureScreen> {
                                       size: 34, color: AppColors.primary),
                                 ),
                                 const SizedBox(height: 16),
-                                Text(crop == null ? 'Chạm để chụp ảnh lá cây' : 'Chạm để chụp ảnh ${Crops.leafOf(crop)}',
+                                Text(crop == null ? 'Chạm để chụp ảnh cây trồng' : 'Chạm để chụp ảnh ${Crops.leafOf(crop)}',
                                     key: const Key('cap_preview_hint'),
                                     textAlign: TextAlign.center,
                                     style: AppTextStyles.bodyMedium
@@ -599,7 +599,7 @@ class _CaptureTips extends StatelessWidget {
           const SizedBox(height: 14),
           const _TipItem(
               number: '1',
-              text: 'Chụp một lá bệnh, cách khoảng 15 đến 30 cm, lá chiếm gần hết khung hình'),
+              text: 'Chụp một lá bệnh (thanh long: một đoạn cành bệnh), cách khoảng 15 đến 30 cm, chiếm gần hết khung hình'),
           const SizedBox(height: 10),
           const _TipItem(
               number: '2', text: 'Để vết bệnh rõ ở giữa ảnh, giữ máy chắc tay cho ảnh nét'),
