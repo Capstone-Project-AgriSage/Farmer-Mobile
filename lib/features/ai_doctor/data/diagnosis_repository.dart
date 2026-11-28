@@ -103,7 +103,7 @@ class ImagePickerPhotoPicker implements PhotoPicker {
   }
 }
 
-/// Chẩn đoán bệnh cây trồng qua ảnh (`/api/me/diagnosis-cases`): chọn cây trước, rồi gửi ảnh lá của cây đó.
+/// Chẩn đoán bệnh cây trồng qua ảnh (`/api/me/diagnosis-cases`): chọn cây trước, rồi gửi ảnh lá (thanh long: cành) của cây đó.
 class DiagnosisRepository {
   DiagnosisRepository(this._dio);
 
@@ -148,7 +148,7 @@ class DiagnosisRepository {
         ];
       });
 
-  /// Gửi ảnh lá của cây [cropType]. Server lưu ảnh, chạy AI (chỉ chọn trong các bệnh của cây đó) rồi trả ca đã có
+  /// Gửi ảnh lá (thanh long: cành) của cây [cropType]. Server lưu ảnh, chạy AI (chỉ chọn trong các bệnh của cây đó) rồi trả ca đã có
   /// kết quả (AI_COMPLETED) hoặc FAILED (thử lại sau). Có thể mất vài giây nên dùng timeout dài.
   Future<DiagnosisCase> create({required PickedPhoto photo, String? note, String? cropType}) => apiCall(
         () async {

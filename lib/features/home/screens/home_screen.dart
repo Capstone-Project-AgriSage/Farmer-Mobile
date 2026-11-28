@@ -412,7 +412,7 @@ class _AiCard extends StatelessWidget {
                         style: AppTextStyles.h3.copyWith(color: AppColors.primaryDark)),
                     const SizedBox(height: 4),
                     Text(
-                      'Chọn cây, chụp ảnh lá: AI cho biết bệnh và cách xử lý ngay; cửa hàng tư vấn thêm khi cần.',
+                      'Chọn cây, chụp ảnh chỗ bị bệnh: AI cho biết bệnh và cách xử lý ngay; cửa hàng tư vấn thêm khi cần.',
                       style: AppTextStyles.bodySmall
                           .copyWith(color: AppColors.textSecondary, fontSize: 13),
                     ),
@@ -750,13 +750,13 @@ class _DiagnosisSection extends ConsumerWidget {
                 ? _InlineEmpty(
                     key: const Key('home_diag_none'),
                     icon: Icons.photo_camera_outlined,
-                    message: 'Bạn chưa gửi ảnh lá cây nào để AI chẩn đoán.',
+                    message: 'Bạn chưa gửi ảnh cây trồng nào để AI chẩn đoán.',
                     button: OutlinedButton.icon(
                       key: const Key('home_diag_start'),
                       onPressed: () => context.push(AppRoutes.imageCapture),
                       style: _softButtonStyle(),
                       icon: const Icon(Icons.camera_alt_outlined),
-                      label: const Text('Chụp ảnh lá cây'),
+                      label: const Text('Chụp ảnh cây trồng'),
                     ),
                   )
                 : _DiagnosisBody(summary: c),

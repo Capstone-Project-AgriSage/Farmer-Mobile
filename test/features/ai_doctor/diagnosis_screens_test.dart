@@ -223,7 +223,7 @@ void main() {
     testWidgets('nhiều cây: chưa chọn thì không gửi được; chọn sầu riêng rồi gửi', (tester) async {
       final h = await open(tester, '/ai-scan/capture', setup: (h) => h.diagnosis.crops0 = const [rice, durian]);
       expect(find.byKey(const Key('cap_crop_DURIAN')), findsOneWidget);
-      expect(find.text('Chạm để chụp ảnh lá cây'), findsOneWidget);
+      expect(find.text('Chạm để chụp ảnh cây trồng'), findsOneWidget);
       await pickPhoto(tester);
       expect(sendEnabled(tester), isFalse);
       expect(find.text('Chọn cây trồng trước khi gửi'), findsOneWidget);

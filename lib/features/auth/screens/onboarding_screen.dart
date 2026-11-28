@@ -38,7 +38,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       iconColor: Color(0xFF7B1FA2),
       title: 'Chẩn đoán bệnh cây trồng từ ảnh',
       description:
-          'Chọn cây (lúa, sầu riêng, cà phê...), chụp ảnh lá để AI nhận diện bệnh ngay kèm cách xử lý và sản phẩm gợi ý.',
+          'Chọn cây (lúa, sầu riêng, cà phê...), chụp ảnh cây trồng để AI nhận diện bệnh ngay kèm cách xử lý và sản phẩm gợi ý.',
     ),
     _OnboardingSlide(
       icon: Icons.account_balance_wallet_outlined,
